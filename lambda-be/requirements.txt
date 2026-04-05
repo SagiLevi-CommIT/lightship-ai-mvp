@@ -1,0 +1,19 @@
+opencv-python>=4.8.0
+boto3>=1.34.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+numpy>=1.24.0
+scikit-image>=0.21.0
+Pillow>=10.0.0
+
+# API Server
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# CV Models for V2
+ultralytics>=8.3.0          # YOLO11 object detection
+transformers>=4.40.0        # HuggingFace for Depth-Anything-V2
+torch>=2.0.0                # PyTorch backend
+torchvision>=0.15.0         # Vision utilities
+timm>=0.9.0                 # Required by Depth-Anything
+

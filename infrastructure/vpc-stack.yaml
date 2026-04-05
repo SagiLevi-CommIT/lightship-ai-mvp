@@ -1,0 +1,360 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC and Networking Infrastructure for Lightship AI Project'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: lightship
+    Description: Name of the project for resource naming
+    
+  Environment:
+    Type: String
+    Default: mvp
+    AllowedValues: [mvp, dev]
+    Description: Environment name
+    
+  VpcCidr:
+    Type: String
+    Default: 10.145.16.0/20
+    Description: CIDR block for the VPC
+    AllowedPattern: ^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$
+    
+  AvailabilityZone1:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1a
+    Description: First Availability Zone
+    
+  AvailabilityZone2:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1b
+    Description: Second Availability Zone
+
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: vpc-mvp-lightship
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-igw'
+        - Key: Environment
+          Value: !Ref Environment
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  # Public Subnets (net-dev-public-az1 / net-dev-public-az2)
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: 10.145.18.0/24  # net-dev-public-az1
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: net-dev-public-az1
+        - Key: Type
+          Value: Public
+        - Key: Environment
+          Value: !Ref Environment
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AvailabilityZone2
+      CidrBlock: 10.145.19.0/24  # net-dev-public-az2
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: net-dev-public-az2
+        - Key: Type
+          Value: Public
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Private Application Subnets (net-dev-private-az1 / net-dev-private-az2)
+  PrivateAppSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: 10.145.16.0/24  # net-dev-private-az1
+      Tags:
+        - Key: Name
+          Value: net-dev-private-az1
+        - Key: Type
+          Value: Private-App
+        - Key: Environment
+          Value: !Ref Environment
+
+  PrivateAppSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AvailabilityZone2
+      CidrBlock: 10.145.17.0/24  # net-dev-private-az2
+      Tags:
+        - Key: Name
+          Value: net-dev-private-az2
+        - Key: Type
+          Value: Private-App
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Private Database Subnets (net-dev-data-az1 / net-dev-data-az2)
+  PrivateDbSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AvailabilityZone1
+      CidrBlock: 10.145.20.0/24  # net-dev-data-az1
+      Tags:
+        - Key: Name
+          Value: net-dev-data-az1
+        - Key: Type
+          Value: Private-DB
+        - Key: Environment
+          Value: !Ref Environment
+
+  PrivateDbSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Ref AvailabilityZone2
+      CidrBlock: 10.145.21.0/24  # net-dev-data-az2
+      Tags:
+        - Key: Name
+          Value: net-dev-data-az2
+        - Key: Type
+          Value: Private-DB
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Elastic IPs for NAT Gateways
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-nat-eip-1'
+
+  # NAT Gateways
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-nat-gateway-1'
+
+  # Route Tables
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-public-rt'
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-private-rt'
+
+  # Routes
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  DefaultPrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  # Route Table Associations
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  PrivateAppSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateAppSubnet1
+
+  PrivateAppSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateAppSubnet2
+
+  PrivateDbSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateDbSubnet1
+
+  PrivateDbSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateDbSubnet2
+
+  # VPC Flow Logs Role
+  VPCFlowLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: vpc-flow-logs.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: flowlogsDeliveryRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Resource: '*'
+
+  # VPC Flow Logs
+  VPCFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      ResourceType: VPC
+      ResourceId: !Ref VPC
+      TrafficType: ALL
+      LogDestinationType: cloud-watch-logs
+      LogGroupName: !Sub '/aws/vpc/flowlogs/${ProjectName}-${Environment}'
+      DeliverLogsPermissionArn: !GetAtt VPCFlowLogRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-vpc-flowlog'
+
+  # CloudWatch Log Group for VPC Flow Logs
+  VPCFlowLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/vpc/flowlogs/${ProjectName}-${Environment}'
+      RetentionInDays: 7
+
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-vpc-id'
+
+  VPCCidr:
+    Description: VPC CIDR Block
+    Value: !Ref VpcCidr
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-vpc-cidr'
+
+  PublicSubnets:
+    Description: List of public subnet IDs
+    Value: !Join [',', [!Ref PublicSubnet1, !Ref PublicSubnet2]]
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-public-subnets'
+
+  PublicSubnet1:
+    Description: Public Subnet 1 ID
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-public-subnet-1'
+
+  PublicSubnet2:
+    Description: Public Subnet 2 ID
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-public-subnet-2'
+
+  PrivateAppSubnets:
+    Description: List of private application subnet IDs
+    Value: !Join [',', [!Ref PrivateAppSubnet1, !Ref PrivateAppSubnet2]]
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-private-app-subnets'
+
+  PrivateAppSubnet1:
+    Description: Private App Subnet 1 ID
+    Value: !Ref PrivateAppSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-private-app-subnet-1'
+
+  PrivateAppSubnet2:
+    Description: Private App Subnet 2 ID
+    Value: !Ref PrivateAppSubnet2
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-private-app-subnet-2'
+
+  PrivateDbSubnets:
+    Description: List of private database subnet IDs
+    Value: !Join [',', [!Ref PrivateDbSubnet1, !Ref PrivateDbSubnet2]]
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-private-db-subnets'
+
+  PrivateDbSubnet1:
+    Description: Private DB Subnet 1 ID
+    Value: !Ref PrivateDbSubnet1
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-private-db-subnet-1'
+
+  PrivateDbSubnet2:
+    Description: Private DB Subnet 2 ID
+    Value: !Ref PrivateDbSubnet2
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-private-db-subnet-2'
+
+  AvailabilityZones:
+    Description: List of Availability Zones
+    Value: !Join [',', [!Ref AvailabilityZone1, !Ref AvailabilityZone2]]
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-availability-zones'

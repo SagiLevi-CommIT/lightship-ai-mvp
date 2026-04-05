@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'ECS Task Definition and Service for Looper Frontend'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: looper
+    
+  Environment:
+    Type: String
+    Default: mvp
+    
+  AppStackName:
+    Type: String
+    Default: looper-mvp-app
+    Description: Name of the app stack to import values from
+
+Resources:
+  # ECS Task Definition for Frontend
+  FrontendTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${ProjectName}-${Environment}-frontend'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: 512
+      Memory: 1024
+      ExecutionRoleArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-execution-role-arn'
+      TaskRoleArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-task-role-arn'
+      ContainerDefinitions:
+        - Name: frontend
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ProjectName}-frontend:latest'
+          PortMappings:
+            - ContainerPort: 8501
+              Protocol: tcp
+          Environment:
+            - Name: BACKEND_URL
+              Value:
+                Fn::Sub:
+                  - 'http://${ALBDns}'
+                  - ALBDns:
+                      Fn::ImportValue: !Sub '${ProjectName}-${Environment}-alb-dns'
+            - Name: BACKEND_TIMEOUT
+              Value: '300'
+            - Name: PAGE_TITLE
+              Value: 'Looper AI Assistant'
+            - Name: STREAMLIT_SERVER_ADDRESS
+              Value: '0.0.0.0'
+            - Name: STREAMLIT_SERVER_PORT
+              Value: '8501'
+            - Name: STREAMLIT_SERVER_HEADLESS
+              Value: 'true'
+            - Name: SHOW_DEBUG_INFO
+              Value: 'false'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Fn::ImportValue: !Sub '${ProjectName}-${Environment}-frontend-log-group'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          Essential: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-frontend-task'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ECS Service for Frontend
+  FrontendECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub '${ProjectName}-${Environment}-frontend-service'
+      Cluster:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-cluster'
+      TaskDefinition: !Ref FrontendTaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 2
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-sg-id'
+          Subnets:
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-1'
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-2'
+          AssignPublicIp: DISABLED
+      LoadBalancers:
+        - ContainerName: frontend
+          ContainerPort: 8501
+          TargetGroupArn:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-frontend-target-group-arn'
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      HealthCheckGracePeriodSeconds: 60
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-frontend-service'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Auto Scaling for ECS Service
+  ECSServiceAutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 10
+      MinCapacity: 2
+      ResourceId: !Sub 'service/${ProjectName}-${Environment}-cluster/${FrontendECSService.Name}'
+      RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService'
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  ECSServiceScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-${Environment}-ecs-scaling-policy'
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ECSServiceAutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 70.0
+        ScaleOutCooldown: 300
+        ScaleInCooldown: 300
+
+Outputs:
+  TaskDefinitionArn:
+    Description: Frontend Task Definition ARN
+    Value: !Ref FrontendTaskDefinition
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-frontend-task-arn'
+
+  ServiceName:
+    Description: Frontend ECS Service Name
+    Value: !GetAtt FrontendECSService.Name
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-frontend-service-name'
+
+  ServiceArn:
+    Description: Frontend ECS Service ARN
+    Value: !Ref FrontendECSService
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-frontend-service-arn'

@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Backend Lambda Function for Walnut AI with ALB Integration'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: looper
+    Description: Name of the project for resource naming
+    
+  Environment:
+    Type: String
+    Default: mvp
+    AllowedValues: [mvp, dev, staging, production]
+
+  ImageUri:
+    Type: String
+    Description: ECR image URI for the Lambda function
+    Default: 095128162384.dkr.ecr.us-east-1.amazonaws.com/looper-backend:latest
+
+Resources:
+  # Lambda Function
+  BackendLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-backend'
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ImageUri
+      Role:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-role-arn'
+      MemorySize: 3008
+      Timeout: 900
+      Environment:
+        Variables:
+          BEDROCK_REGION: us-east-1
+          ENVIRONMENT: !Ref Environment
+          LOG_LEVEL: INFO
+          DEFAULT_MODEL_ID: anthropic.claude-3-haiku-20240307-v1:0
+          FAST_MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
+          REASONING_MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
+          KNOWLEDGE_BASE_MODEL_ARN: us.anthropic.claude-sonnet-4-20250514-v1:0
+          MAX_TOKENS: '4096'
+          TEMPERATURE: '0'
+          TOP_P: '1'
+          MAX_RETRIES: '6'
+          RETRY_DELAY: '10.0'
+          RETRY_BACKOFF: '2.0'
+          TIMEOUT_SECONDS: '30.0'
+          RATE_LIMIT_RPS: '10.0'
+          ANTHROPIC_VERSION: bedrock-2023-05-31
+          LANCE_DB_BUCKET:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lancedb-bucket'
+          CONVERSATIONS_BUCKET:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-conversations-bucket'
+          DATAFILES_BUCKET: s3-looper-datafiles-us-east-1
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-backend'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Lambda Permission for ALB
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref BackendLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: elasticloadbalancing.amazonaws.com
+
+Outputs:
+  LambdaFunctionArn:
+    Description: Backend Lambda Function ARN
+    Value: !GetAtt BackendLambdaFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-backend-lambda-arn'
+
+  LambdaFunctionName:
+    Description: Backend Lambda Function Name
+    Value: !Ref BackendLambdaFunction
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-backend-lambda-name'

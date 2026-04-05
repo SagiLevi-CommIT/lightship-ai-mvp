@@ -1,0 +1,150 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - echo Retrieving stack outputs...
+      - |
+        export TARGET_GROUP_ARN=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`FrontendTargetGroupArn`].OutputValue' \
+          --output text)
+      - |
+        export PRIVATE_SUBNETS=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-vpc \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`PrivateAppSubnets`].OutputValue' \
+          --output text)
+      - |
+        export SECURITY_GROUP=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`ECSSecurityGroupId`].OutputValue' \
+          --output text)
+      - |
+        export ECS_TASK_EXECUTION_ROLE=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`ECSTaskExecutionRoleArn`].OutputValue' \
+          --output text)
+      - |
+        export ECS_TASK_ROLE=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`ECSTaskRoleArn`].OutputValue' \
+          --output text)
+      - |
+        export ALB_DNS=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerDNS`].OutputValue' \
+          --output text)
+      - echo Building Docker image...
+      - IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}
+      - IMAGE_URI=$ECR_REPOSITORY_URI:$IMAGE_TAG
+      - IMAGE_URI_LATEST=$ECR_REPOSITORY_URI:latest
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - cd s3-ui-fe
+      - docker build -t $ECR_REPOSITORY_URI:$IMAGE_TAG .
+      - docker tag $ECR_REPOSITORY_URI:$IMAGE_TAG $ECR_REPOSITORY_URI:latest
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images...
+      - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+      - docker push $ECR_REPOSITORY_URI:latest
+      - echo Creating ECS task definition...
+      - |
+        cat > task-definition.json <<EOF
+        {
+          "family": "${TASK_DEFINITION_FAMILY}",
+          "taskRoleArn": "${ECS_TASK_ROLE}",
+          "executionRoleArn": "${ECS_TASK_EXECUTION_ROLE}",
+          "networkMode": "awsvpc",
+          "requiresCompatibilities": ["FARGATE"],
+          "cpu": "512",
+          "memory": "1024",
+          "containerDefinitions": [
+            {
+              "name": "${PROJECT_NAME}-frontend",
+              "image": "${IMAGE_URI_LATEST}",
+              "essential": true,
+              "portMappings": [
+                {
+                  "containerPort": 8501,
+                  "protocol": "tcp"
+                }
+              ],
+              "environment": [
+                {
+                  "name": "AWS_REGION",
+                  "value": "${AWS_REGION}"
+                },
+                {
+                  "name": "BACKEND_API_URL",
+                  "value": "https://cnt6274duqmmfk7gyzp6hbu2t40tptwr.lambda-url.us-east-1.on.aws"
+                }
+              ],
+              "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                  "awslogs-group": "/ecs/${PROJECT_NAME}-${ENVIRONMENT}-frontend",
+                  "awslogs-region": "${AWS_REGION}",
+                  "awslogs-stream-prefix": "ecs"
+                }
+              }
+            }
+          ]
+        }
+        EOF
+      - cat task-definition.json
+      - echo Registering task definition...
+      - |
+        TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
+          --cli-input-json file://task-definition.json \
+          --region $AWS_REGION \
+          --query 'taskDefinition.taskDefinitionArn' \
+          --output text)
+      - echo Task Definition ARN is $TASK_DEFINITION_ARN
+      - echo Checking if ECS service exists...
+      - |
+        SERVICE_EXISTS=$(aws ecs describe-services \
+          --cluster $ECS_CLUSTER_NAME \
+          --services $ECS_SERVICE_NAME \
+          --region $AWS_REGION \
+          --query 'services[0].serviceName' \
+          --output text 2>/dev/null || echo "None")
+      - |
+        if [ "$SERVICE_EXISTS" = "None" ] || [ "$SERVICE_EXISTS" = "" ]; then
+          echo Creating new ECS service...
+          aws ecs create-service \
+            --cluster $ECS_CLUSTER_NAME \
+            --service-name $ECS_SERVICE_NAME \
+            --task-definition $TASK_DEFINITION_ARN \
+            --desired-count 1 \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$PRIVATE_SUBNETS],securityGroups=[$SECURITY_GROUP],assignPublicIp=DISABLED}" \
+            --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=${PROJECT_NAME}-frontend,containerPort=8501" \
+            --health-check-grace-period-seconds 60 \
+            --region $AWS_REGION
+        else
+          echo Updating existing ECS service...
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER_NAME \
+            --service $ECS_SERVICE_NAME \
+            --task-definition $TASK_DEFINITION_ARN \
+            --force-new-deployment \
+            --region $AWS_REGION
+        fi
+      - echo Deployment completed successfully!
+
+artifacts:
+  files:
+    - '**/*'

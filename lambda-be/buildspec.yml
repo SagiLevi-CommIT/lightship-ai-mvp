@@ -1,0 +1,119 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - echo Retrieving stack outputs...
+      - |
+        export BACKEND_TARGET_GROUP_ARN=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`BackendTargetGroupArn`].OutputValue' \
+          --output text)
+      - |
+        export CUSTOM_DATASOURCES_BUCKET=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`CustomDatasourcesBucketName`].OutputValue' \
+          --output text)
+      - |
+        export LANCEDB_BUCKET=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`LanceDBBucketName`].OutputValue' \
+          --output text)
+      - |
+        export CONVERSATIONS_BUCKET=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`ConversationResultsBucketName`].OutputValue' \
+          --output text)
+      - echo Building Docker image...
+      - IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}
+      - IMAGE_URI=$ECR_REPOSITORY_URI:$IMAGE_TAG
+      - IMAGE_URI_LATEST=$ECR_REPOSITORY_URI:latest
+      - export DOCKER_BUILDKIT=0
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - cd s3-lambda-be
+      - echo Building with Docker manifest format for Lambda compatibility...
+      - docker build --platform linux/amd64 -t $ECR_REPOSITORY_URI:$IMAGE_TAG .
+      - docker tag $ECR_REPOSITORY_URI:$IMAGE_TAG $ECR_REPOSITORY_URI:latest
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker images with Docker manifest format...
+      - docker push $ECR_REPOSITORY_URI:$IMAGE_TAG
+      - docker push $ECR_REPOSITORY_URI:latest
+      - echo Checking if Lambda function exists...
+      - |
+        FUNCTION_EXISTS=$(aws lambda get-function \
+          --function-name $LAMBDA_FUNCTION_NAME \
+          --region $AWS_REGION \
+          --query 'Configuration.FunctionName' \
+          --output text 2>/dev/null || echo "None")
+      - |
+        if [ "$FUNCTION_EXISTS" = "None" ] || [ "$FUNCTION_EXISTS" = "" ]; then
+          echo Creating new Lambda function...
+          aws lambda create-function \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --package-type Image \
+            --code ImageUri=$IMAGE_URI_LATEST \
+            --role $LAMBDA_ROLE_ARN \
+            --timeout 300 \
+            --memory-size 2048 \
+            --environment "Variables={LOG_LEVEL=INFO,DATA_SOURCE_BUCKET=$CUSTOM_DATASOURCES_BUCKET,CUSTOM_DATASOURCES_BUCKET=$CUSTOM_DATASOURCES_BUCKET,LANCEDB_BUCKET=$LANCEDB_BUCKET,CONVERSATIONS_BUCKET=$CONVERSATIONS_BUCKET}" \
+            --region $AWS_REGION
+          
+          echo Waiting for Lambda function to be active...
+          aws lambda wait function-active \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --region $AWS_REGION
+          
+          echo Adding permission for ALB to invoke Lambda...
+          aws lambda add-permission \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --statement-id AllowELBInvoke \
+            --action lambda:InvokeFunction \
+            --principal elasticloadbalancing.amazonaws.com \
+            --region $AWS_REGION || echo "Permission already exists"
+          
+          echo Registering Lambda with ALB target group...
+          LAMBDA_ARN=$(aws lambda get-function \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --region $AWS_REGION \
+            --query 'Configuration.FunctionArn' \
+            --output text)
+          
+          aws elbv2 register-targets \
+            --target-group-arn $BACKEND_TARGET_GROUP_ARN \
+            --targets Id=$LAMBDA_ARN \
+            --region $AWS_REGION || echo "Target already registered"
+        else
+          echo Updating existing Lambda function code...
+          aws lambda update-function-code \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --image-uri $IMAGE_URI_LATEST \
+            --region $AWS_REGION
+          
+          echo Waiting for Lambda update to complete...
+          aws lambda wait function-updated \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --region $AWS_REGION
+          
+          echo Updating Lambda environment variables...
+          aws lambda update-function-configuration \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --environment "Variables={LOG_LEVEL=INFO,DATA_SOURCE_BUCKET=$CUSTOM_DATASOURCES_BUCKET,CUSTOM_DATASOURCES_BUCKET=$CUSTOM_DATASOURCES_BUCKET,LANCEDB_BUCKET=$LANCEDB_BUCKET,CONVERSATIONS_BUCKET=$CONVERSATIONS_BUCKET}" \
+            --region $AWS_REGION
+        fi
+      - echo Deployment completed successfully!
+
+artifacts:
+  files:
+    - '**/*'

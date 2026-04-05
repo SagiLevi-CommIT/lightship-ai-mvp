@@ -1,0 +1,327 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CI/CD Infrastructure for Lightship AI Project - CodeCommit and CodeBuild'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: lightship
+    Description: Name of the project for resource naming
+    
+  Environment:
+    Type: String
+    Default: mvp
+    AllowedValues: [mvp, dev, staging, production]
+    Description: Environment name
+
+  AppStackName:
+    Type: String
+    Default: lightship-mvp-app
+    Description: Name of the Application CloudFormation stack
+
+  VPCStackName:
+    Type: String
+    Default: lightship-mvp-vpc
+    Description: Name of the VPC CloudFormation stack
+
+Resources:
+  # CodeCommit Repository
+  CodeRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Sub '${ProjectName}-ai-${Environment}-aws'
+      RepositoryDescription: !Sub 'Lightship AI MVP source code repository'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-ai-${Environment}-aws'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # S3 Bucket for CodeBuild Artifacts
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-cicd-artifacts-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldArtifacts
+            Status: Enabled
+            ExpirationInDays: 30
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-cicd-artifacts'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM Role for CodeBuild - Frontend
+  FrontendCodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-codebuild-frontend-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+      Policies:
+        - PolicyName: CodeBuildBasePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-${Environment}-frontend'
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-${Environment}-frontend:*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub '${ArtifactsBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - codecommit:GitPull
+                Resource:
+                  - !GetAtt CodeRepository.Arn
+        - PolicyName: ECSDeployPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:RegisterTaskDefinition
+                  - ecs:UpdateService
+                  - ecs:CreateService
+                  - ecs:DescribeClusters
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-execution-role-arn'
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-task-role-arn'
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                Resource:
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AppStackName}/*'
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${VPCStackName}/*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-codebuild-frontend-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # IAM Role for CodeBuild - Backend
+  BackendCodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-codebuild-backend-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+      Policies:
+        - PolicyName: CodeBuildBasePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-${Environment}-backend'
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-${Environment}-backend:*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub '${ArtifactsBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - codecommit:GitPull
+                Resource:
+                  - !GetAtt CodeRepository.Arn
+        - PolicyName: LambdaDeployPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:GetFunction
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:CreateFunction
+                  - lambda:AddPermission
+                  - lambda:RemovePermission
+                  - lambda:GetFunctionConfiguration
+                Resource:
+                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-${Environment}-backend'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-role-arn'
+              - Effect: Allow
+                Action:
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - elasticloadbalancing:RegisterTargets
+                  - elasticloadbalancing:DeregisterTargets
+                  - elasticloadbalancing:DescribeTargetHealth
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                Resource:
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AppStackName}/*'
+                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${VPCStackName}/*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-codebuild-backend-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CodeBuild Project - Frontend
+  FrontendCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-frontend'
+      Description: Build and deploy Lightship frontend to ECS
+      ServiceRole: !GetAtt FrontendCodeBuildRole.Arn
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_REGION
+            Value: !Ref AWS::Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: PROJECT_NAME
+            Value: !Ref ProjectName
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+          - Name: ECR_REPOSITORY_URI
+            Value:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-frontend-ecr-uri'
+          - Name: ECS_CLUSTER_NAME
+            Value:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-cluster'
+          - Name: ECS_SERVICE_NAME
+            Value: !Sub '${ProjectName}-${Environment}-frontend-service'
+          - Name: TASK_DEFINITION_FAMILY
+            Value: !Sub '${ProjectName}-${Environment}-frontend'
+      Source:
+        Type: CODECOMMIT
+        Location: !GetAtt CodeRepository.CloneUrlHttp
+        BuildSpec: s3-ui-fe/buildspec.yml
+      TimeoutInMinutes: 30
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-frontend-build'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CodeBuild Project - Backend
+  BackendCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-backend'
+      Description: Build and deploy Lightship backend Lambda
+      ServiceRole: !GetAtt BackendCodeBuildRole.Arn
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        PrivilegedMode: true
+        EnvironmentVariables:
+          - Name: AWS_REGION
+            Value: !Ref AWS::Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: PROJECT_NAME
+            Value: !Ref ProjectName
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+          - Name: ECR_REPOSITORY_URI
+            Value:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-backend-ecr-uri'
+          - Name: LAMBDA_FUNCTION_NAME
+            Value: !Sub '${ProjectName}-${Environment}-backend'
+          - Name: LAMBDA_ROLE_ARN
+            Value:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-role-arn'
+      Source:
+        Type: CODECOMMIT
+        Location: !GetAtt CodeRepository.CloneUrlHttp
+        BuildSpec: s3-lambda-be/buildspec.yml
+      TimeoutInMinutes: 30
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-backend-build'
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  CodeCommitRepositoryName:
+    Description: CodeCommit Repository Name
+    Value: !GetAtt CodeRepository.Name
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-codecommit-repo'
+
+  CodeCommitRepositoryCloneUrlHttp:
+    Description: CodeCommit Repository Clone URL (HTTP)
+    Value: !GetAtt CodeRepository.CloneUrlHttp
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-codecommit-clone-url'
+
+  FrontendCodeBuildProjectName:
+    Description: Frontend CodeBuild Project Name
+    Value: !Ref FrontendCodeBuildProject
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-frontend-codebuild'
+
+  BackendCodeBuildProjectName:
+    Description: Backend CodeBuild Project Name
+    Value: !Ref BackendCodeBuildProject
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-backend-codebuild'
+
+  ArtifactsBucketName:
+    Description: S3 Bucket for Build Artifacts
+    Value: !Ref ArtifactsBucket
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-artifacts-bucket'
