@@ -4,7 +4,53 @@
 3. Region is N. Virginia (us-east-1) verify or change at all files 
 4. Change or verify the VPC CIDR to 10.145.16.0/20 and all the cidrs of the subnets according to it 
 5. You are working with codecommit repo, verify this and push the code to the repo
-6. a. Read the project-instructions and lightship_mvp_aws_architecture_note md file and all readme and deployment files and create a todo workplan to deploy a full AI mvp environmnet based on stramlit application and lambda backend application for lightship_MVP customer
+6. a. Read the project-instructions, product requirements and lightship_mvp_aws_architecture_note md file and all readme and deployment files and create a todo workplan to deploy a full AI mvp environmnet based on stramlit application 
+
+## 2) High-level architecture (services)
+
+### Compute & orchestration
+- **AWS Step Functions**: Orchestrates the multi-step processing pipeline (frame extraction → detection → tracking → classification → output).
+- **AWS Lambda**: Lightweight functions for job dispatch (SQS consumer), cross-frame tracking, output assembly, and notification.
+- **Amazon ECS on Fargate (Web App)**: Hosts the frontend UI and backend API.
+- **Amazon ECS on Fargate (Workers)**: Runs heavy video processing tasks — FFmpeg frame extraction, motion filtering, optional custom model inference (Detectron2).
+- **Amazon ECR**: Container image registry for web app and worker images.
+
+### AI services
+- **Amazon Rekognition**: Managed object detection (motorcycles, vehicles, pedestrians, road signs). Primary detection service.
+- **Amazon Bedrock**: LLM-based video classification (4 types), config JSON generation, Q&A generation for educational videos. Model: Claude on Bedrock.
+
+### Messaging & events
+- **Amazon SQS**: Job queue decoupling upload from processing. DLQ for failed messages after 3 attempts.
+- **Amazon EventBridge**: S3 upload event trigger (optional alternative to API-initiated queue submission).
+- **Amazon SNS**: Completion/failure notifications to users and ops.
+
+### Storage & metadata
+- **Amazon S3**: All inputs, intermediate artifacts (frames), and outputs (annotated frames, config JSONs).
+- **Amazon DynamoDB**: Job status tracking (job_id, status, input/output paths, timestamps, error messages).
+
+### Networking & routing
+- **Amazon VPC**: Network isolation for all compute. Public subnets (ALB, NAT GW) + private subnets (ECS, Lambda).
+- **Internet Gateway**: Inbound traffic to ALB.
+- **NAT Gateway**: Outbound from private subnets (single NAT GW for MVP cost savings).
+- **VPC Endpoints**: S3 gateway (free), ECR interface endpoints (required for Fargate pulls). Bedrock/Rekognition endpoints added as optimization.
+- **Amazon Route 53**: DNS resolution (optional for MVP).
+- **AWS WAF**: Protects ALB from common web attacks.
+- **Application Load Balancer (ALB)**: Entry point, TLS termination, routes to ECS web app.
+
+### Security, governance & observability
+- **AWS IAM / IAM Identity Center**: Least-privilege roles per component, SSO for developer access.
+- **AWS KMS**: Single CMK for encryption at rest across S3, SQS, DynamoDB, CloudWatch Logs.
+- **AWS Secrets Manager**: Store sensitive config, model parameters, API keys.
+- **AWS CloudTrail**: API audit logging.
+- **Amazon CloudWatch**: Logs, custom metrics, alarms, dashboard.
+- **AWS CloudFormation**: IaC — nested stacks for network, security, compute, processing, storage, monitoring.
+
+***Important***
+You need to add all required services to support A concise, implementation-ready architecture note for an AWS MVP that performs **dashcam video upload → frame extraction & selection → object detection (motorcycles, lanes, signs, construction) → LLM-powered video classification (4 types) → config JSON generation → annotated output storage**, deployed as an async batch-processing pipeline with a web UI.
+***Important***
+
+
+for lightship_MVP customer
 6. b. Verify again that the todo workplan to deploy a full AI mvp supports the lightship_mvp_aws_architecture_note_note md file from infrastracture level and application 
 7. Review and Deploy the VPC Stack - fix the stack to support the differnces
 8. Review and Deploy the app stack - fix the stack to support the differnces

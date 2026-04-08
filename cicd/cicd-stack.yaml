@@ -23,19 +23,12 @@ Parameters:
     Default: lightship-mvp-vpc
     Description: Name of the VPC CloudFormation stack
 
-Resources:
-  # CodeCommit Repository
-  CodeRepository:
-    Type: AWS::CodeCommit::Repository
-    Properties:
-      RepositoryName: !Sub '${ProjectName}-ai-${Environment}-aws'
-      RepositoryDescription: !Sub 'Lightship AI MVP source code repository'
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-ai-${Environment}-aws'
-        - Key: Environment
-          Value: !Ref Environment
+  CodeCommitRepoName:
+    Type: String
+    Default: lightship-ai-mvp
+    Description: Name of the existing CodeCommit repository (not managed by this stack)
 
+Resources:
   # S3 Bucket for CodeBuild Artifacts
   ArtifactsBucket:
     Type: AWS::S3::Bucket
@@ -100,7 +93,7 @@ Resources:
                 Action:
                   - codecommit:GitPull
                 Resource:
-                  - !GetAtt CodeRepository.Arn
+                  - !Sub 'arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepoName}'
         - PolicyName: ECSDeployPolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -169,7 +162,7 @@ Resources:
                 Action:
                   - codecommit:GitPull
                 Resource:
-                  - !GetAtt CodeRepository.Arn
+                  - !Sub 'arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepoName}'
         - PolicyName: LambdaDeployPolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -244,8 +237,8 @@ Resources:
             Value: !Sub '${ProjectName}-${Environment}-frontend'
       Source:
         Type: CODECOMMIT
-        Location: !GetAtt CodeRepository.CloneUrlHttp
-        BuildSpec: s3-ui-fe/buildspec.yml
+        Location: !Sub 'https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${CodeCommitRepoName}'
+        BuildSpec: ui-fe/buildspec.yml
       TimeoutInMinutes: 30
       Tags:
         - Key: Name
@@ -264,7 +257,7 @@ Resources:
         Type: NO_ARTIFACTS
       Environment:
         Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
+        ComputeType: BUILD_GENERAL1_MEDIUM
         Image: aws/codebuild/standard:7.0
         PrivilegedMode: true
         EnvironmentVariables:
@@ -286,8 +279,8 @@ Resources:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-role-arn'
       Source:
         Type: CODECOMMIT
-        Location: !GetAtt CodeRepository.CloneUrlHttp
-        BuildSpec: s3-lambda-be/buildspec.yml
+        Location: !Sub 'https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${CodeCommitRepoName}'
+        BuildSpec: lambda-be/buildspec.yml
       TimeoutInMinutes: 30
       Tags:
         - Key: Name
@@ -298,13 +291,13 @@ Resources:
 Outputs:
   CodeCommitRepositoryName:
     Description: CodeCommit Repository Name
-    Value: !GetAtt CodeRepository.Name
+    Value: !Ref CodeCommitRepoName
     Export:
       Name: !Sub '${ProjectName}-${Environment}-codecommit-repo'
 
   CodeCommitRepositoryCloneUrlHttp:
     Description: CodeCommit Repository Clone URL (HTTP)
-    Value: !GetAtt CodeRepository.CloneUrlHttp
+    Value: !Sub 'https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${CodeCommitRepoName}'
     Export:
       Name: !Sub '${ProjectName}-${Environment}-codecommit-clone-url'
 

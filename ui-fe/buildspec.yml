@@ -50,7 +50,7 @@ phases:
   build:
     commands:
       - echo Build started on `date`
-      - cd s3-ui-fe
+      - cd ui-fe
       - docker build -t $ECR_REPOSITORY_URI:$IMAGE_TAG .
       - docker tag $ECR_REPOSITORY_URI:$IMAGE_TAG $ECR_REPOSITORY_URI:latest
 
@@ -89,7 +89,7 @@ phases:
                 },
                 {
                   "name": "BACKEND_API_URL",
-                  "value": "https://cnt6274duqmmfk7gyzp6hbu2t40tptwr.lambda-url.us-east-1.on.aws"
+                  "value": "http://${ALB_DNS}"
                 }
               ],
               "logConfiguration": {

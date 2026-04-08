@@ -141,26 +141,7 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  CustomDatasourcesBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub 's3-${ProjectName}-custom-datasources-${AWS::Region}'
-      VersioningConfiguration:
-        Status: Enabled
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      Tags:
-        - Key: Name
-          Value: !Sub '${ProjectName}-${Environment}-custom-datasources'
-        - Key: Environment
-          Value: !Ref Environment
+  # Note: CustomDatasourcesBucket (s3-lightship-custom-datasources-us-east-1) exists externally - referenced by name only
 
   # Security Groups
 
@@ -257,6 +238,67 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: '*'
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}/input/*'
+                  - !Sub 'arn:aws:s3:::s3-${ProjectName}-custom-datasources-${AWS::Region}/*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}/results/*'
+                  - !Sub 'arn:aws:s3:::s3-${ProjectName}-custom-datasources-${AWS::Region}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}'
+                  - !Sub 'arn:aws:s3:::s3-${ProjectName}-custom-datasources-${AWS::Region}'
+        - PolicyName: SQSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${ProjectName}-${Environment}-processing-queue'
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_jobs'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_jobs/index/*'
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${ProjectName}/${Environment}/*'
+        - PolicyName: KMSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                Resource: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-ecs-task-role'
@@ -316,14 +358,93 @@ Resources:
                 Resource:
                   - !Sub '${LanceDBBucket.Arn}/*'
                   - !Sub '${ConversationResultsBucket.Arn}/*'
-                  - !Sub '${CustomDatasourcesBucket.Arn}/*'
+                  - !Sub 'arn:aws:s3:::s3-${ProjectName}-custom-datasources-${AWS::Region}/*'
+                  - !Sub 'arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}/*'
               - Effect: Allow
                 Action:
                   - s3:ListBucket
                 Resource:
                   - !GetAtt LanceDBBucket.Arn
                   - !GetAtt ConversationResultsBucket.Arn
-                  - !GetAtt CustomDatasourcesBucket.Arn
+                  - !Sub 'arn:aws:s3:::s3-${ProjectName}-custom-datasources-${AWS::Region}'
+                  - !Sub 'arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}'
+        - PolicyName: RekognitionAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rekognition:DetectLabels
+                  - rekognition:DetectModerationLabels
+                  - rekognition:DetectText
+                  - rekognition:DetectProtectiveEquipment
+                Resource: '*'
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:DeleteItem
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_jobs'
+                  - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_jobs/index/*'
+        - PolicyName: SQSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:SendMessage
+                Resource:
+                  - !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${ProjectName}-${Environment}-processing-queue'
+                  - !Sub 'arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${ProjectName}-${Environment}-processing-dlq'
+        - PolicyName: StepFunctionsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                  - states:DescribeExecution
+                  - states:ListExecutions
+                Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ProjectName}-*'
+        - PolicyName: SNSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${ProjectName}-${Environment}-notifications'
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${ProjectName}/${Environment}/*'
+        - PolicyName: KMSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                  - kms:GenerateDataKey*
+                  - kms:DescribeKey
+                Resource: !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-lambda-role'
@@ -425,7 +546,7 @@ Resources:
           Weight: 1
       ClusterSettings:
         - Name: containerInsights
-          Value: enabled
+          Value: disabled
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-cluster'
@@ -445,8 +566,468 @@ Resources:
       LogGroupName: !Sub '/aws/lambda/${ProjectName}-${Environment}-backend'
       RetentionInDays: 7
 
+  # =========================================
+  # KMS - Customer Managed Key for encryption at rest
+  # =========================================
+  LightshipKMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: !Sub 'CMK for ${ProjectName}-${Environment} encryption at rest (S3, SQS, DynamoDB, CloudWatch Logs)'
+      Enabled: true
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: EnableRootAccountAccess
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub 'cmk-${Environment}-${ProjectName}'
+        - Key: Environment
+          Value: !Ref Environment
+
+  LightshipKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${ProjectName}-${Environment}'
+      TargetKeyId: !Ref LightshipKMSKey
+
+  # =========================================
+  # S3 - Main Processing Bucket (dashcam pipeline)
+  # =========================================
+  ProcessingBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LightshipKMSKey
+    Properties:
+      BucketName: !Sub '${ProjectName}-${Environment}-processing-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !GetAtt LightshipKMSKey.Arn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireProcessingFrames
+            Status: Enabled
+            Prefix: processing/frames/
+            ExpirationInDays: 14
+          - Id: ExpireSelectedFrames
+            Status: Enabled
+            Prefix: processing/selected_frames/
+            ExpirationInDays: 30
+          - Id: ExpireDetectionResults
+            Status: Enabled
+            Prefix: processing/detection_results/
+            ExpirationInDays: 30
+          - Id: ExpireInputs
+            Status: Enabled
+            Prefix: input/
+            ExpirationInDays: 60
+          - Id: ExpireResults
+            Status: Enabled
+            Prefix: results/
+            ExpirationInDays: 180
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-processing'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # =========================================
+  # DynamoDB - Job Status Tracking
+  # =========================================
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${ProjectName}_jobs'
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !GetAtt LightshipKMSKey.Arn
+      AttributeDefinitions:
+        - AttributeName: job_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: job_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: user_id-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-jobs'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # =========================================
+  # SQS - Processing Queue + Dead Letter Queue
+  # =========================================
+  ProcessingDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-${Environment}-processing-dlq'
+      MessageRetentionPeriod: 1209600
+      KmsMasterKeyId: !GetAtt LightshipKMSKey.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub 'sqs-${Environment}-processing-dlq'
+        - Key: Environment
+          Value: !Ref Environment
+
+  ProcessingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${ProjectName}-${Environment}-processing-queue'
+      VisibilityTimeout: 900
+      MessageRetentionPeriod: 345600
+      KmsMasterKeyId: !GetAtt LightshipKMSKey.Arn
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ProcessingDLQ.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Name
+          Value: !Sub 'sqs-${Environment}-processing-queue'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # =========================================
+  # SNS - Notification Topic (completion/failure)
+  # =========================================
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-${Environment}-notifications'
+      KmsMasterKeyId: !GetAtt LightshipKMSKey.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub 'sns-${Environment}-notifications'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # =========================================
+  # Secrets Manager - Configuration & Prompts
+  # =========================================
+  ConfigSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${ProjectName}/${Environment}/config'
+      Description: !Sub 'Configuration for ${ProjectName} ${Environment} - detection thresholds, model parameters, prompts'
+      KmsKeyId: !GetAtt LightshipKMSKey.Arn
+      SecretString: !Sub |
+        {
+          "bedrock_model_id": "anthropic.claude-sonnet-4-20250514-v1:0",
+          "detection_confidence_threshold": 0.7,
+          "frame_sampling_rate": 2,
+          "max_concurrent_workers": 5,
+          "rekognition_min_confidence": 70,
+          "max_snapshots_per_video": 10,
+          "snapshot_strategy": "scene_change"
+        }
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-config-secret'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # =========================================
+  # Step Functions - Execution IAM Role
+  # =========================================
+  StepFunctionsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-sfn-execution-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StepFunctionsLambdaInvoke
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-*'
+        - PolicyName: StepFunctionsECSRunTask
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:RunTask
+                  - ecs:StopTask
+                  - ecs:DescribeTasks
+                Resource: '*'
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: !GetAtt ECSCluster.Arn
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt ECSTaskExecutionRole.Arn
+                  - !GetAtt ECSTaskRole.Arn
+        - PolicyName: StepFunctionsAIServices
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rekognition:DetectLabels
+                  - rekognition:DetectModerationLabels
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: '*'
+        - PolicyName: StepFunctionsDataAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub '${ProcessingBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt ProcessingBucket.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                Resource: !GetAtt JobsTable.Arn
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref NotificationTopic
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !GetAtt ProcessingQueue.Arn
+        - PolicyName: StepFunctionsEncryption
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:Encrypt
+                  - kms:GenerateDataKey
+                Resource: !GetAtt LightshipKMSKey.Arn
+        - PolicyName: StepFunctionsLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-sfn-execution-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # =========================================
+  # Worker ECS Security Group (no inbound)
+  # =========================================
+  WorkerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub 'sgr-${Environment}-worker'
+      GroupDescription: Security group for ECS Worker tasks - no inbound, outbound to VPC endpoints and NAT
+      VpcId:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: All outbound traffic
+      Tags:
+        - Key: Name
+          Value: !Sub 'sgr-${Environment}-worker'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Worker CloudWatch Log Group
+  WorkerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${ProjectName}-${Environment}-worker'
+      RetentionInDays: 7
+
+  # Step Functions Log Group
+  StepFunctionsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/states/${ProjectName}-${Environment}'
+      RetentionInDays: 7
+
+  # =========================================
+  # CloudWatch Alarms
+  # =========================================
+  DLQDepthAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-dlq-depth'
+      AlarmDescription: Alert when messages arrive in the dead letter queue
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ProcessingDLQ.QueueName
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref NotificationTopic
+      TreatMissingData: notBreaching
+
+  ALB5XXAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-alb-5xx'
+      AlarmDescription: Alert on ALB 5XX error rate exceeding threshold
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_ELB_5XX_Count
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt ApplicationLoadBalancer.LoadBalancerFullName
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref NotificationTopic
+      TreatMissingData: notBreaching
+
+  ECSCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${ProjectName}-${Environment}-ecs-cpu-high'
+      AlarmDescription: Alert when ECS CPU utilization exceeds 80%
+      Namespace: AWS/ECS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref ECSCluster
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref NotificationTopic
+      TreatMissingData: notBreaching
+
+  # =========================================
+  # CloudWatch Dashboard
+  # =========================================
+  LightshipDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${ProjectName}-${Environment}-dashboard'
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "ALB Request Count & Errors",
+                "metrics": [
+                  ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${ApplicationLoadBalancer.LoadBalancerFullName}", {"stat": "Sum"}],
+                  ["AWS/ApplicationELB", "HTTPCode_ELB_5XX_Count", "LoadBalancer", "${ApplicationLoadBalancer.LoadBalancerFullName}", {"stat": "Sum", "color": "#d62728"}],
+                  ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", "${ApplicationLoadBalancer.LoadBalancerFullName}", {"stat": "Sum", "color": "#ff7f0e"}]
+                ],
+                "region": "${AWS::Region}",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 0, "width": 12, "height": 6,
+              "properties": {
+                "title": "SQS Queue Depth",
+                "metrics": [
+                  ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${ProcessingQueue.QueueName}", {"stat": "Sum"}],
+                  ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "${ProcessingDLQ.QueueName}", {"stat": "Sum", "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}",
+                "period": 60
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "ECS CPU & Memory Utilization",
+                "metrics": [
+                  ["AWS/ECS", "CPUUtilization", "ClusterName", "${ECSCluster}", {"stat": "Average"}],
+                  ["AWS/ECS", "MemoryUtilization", "ClusterName", "${ECSCluster}", {"stat": "Average"}]
+                ],
+                "region": "${AWS::Region}",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 6, "width": 12, "height": 6,
+              "properties": {
+                "title": "DynamoDB Read/Write Capacity",
+                "metrics": [
+                  ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${JobsTable}", {"stat": "Sum"}],
+                  ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "${JobsTable}", {"stat": "Sum"}]
+                ],
+                "region": "${AWS::Region}",
+                "period": 300
+              }
+            }
+          ]
+        }
+
   # Note: ECS Task Definition and Service will be created during Phase 3 (Frontend deployment)
   # Note: Lambda Function will be created during Phase 4 (Backend deployment)
+  # Note: Step Functions State Machine will be created when pipeline Lambda functions are ready
 
 Outputs:
   # Application Load Balancer
@@ -520,8 +1101,8 @@ Outputs:
       Name: !Sub '${ProjectName}-${Environment}-conversations-bucket'
 
   CustomDatasourcesBucketName:
-    Description: Custom Datasources S3 Bucket Name
-    Value: !Ref CustomDatasourcesBucket
+    Description: Custom Datasources S3 Bucket Name (external bucket)
+    Value: !Sub 's3-${ProjectName}-custom-datasources-${AWS::Region}'
     Export:
       Name: !Sub '${ProjectName}-${Environment}-custom-datasources-bucket'
 
@@ -582,3 +1163,102 @@ Outputs:
     Value: !Ref BackendLogGroup
     Export:
       Name: !Sub '${ProjectName}-${Environment}-backend-log-group'
+
+  # KMS
+  KMSKeyArn:
+    Description: KMS CMK ARN for encryption at rest
+    Value: !GetAtt LightshipKMSKey.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-kms-key-arn'
+
+  KMSKeyId:
+    Description: KMS CMK ID
+    Value: !Ref LightshipKMSKey
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-kms-key-id'
+
+  # Processing Bucket
+  ProcessingBucketName:
+    Description: Main Processing S3 Bucket Name (dashcam pipeline)
+    Value: !Ref ProcessingBucket
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-processing-bucket'
+
+  ProcessingBucketArn:
+    Description: Main Processing S3 Bucket ARN
+    Value: !GetAtt ProcessingBucket.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-processing-bucket-arn'
+
+  # DynamoDB
+  JobsTableName:
+    Description: DynamoDB Jobs Table Name
+    Value: !Ref JobsTable
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-jobs-table'
+
+  JobsTableArn:
+    Description: DynamoDB Jobs Table ARN
+    Value: !GetAtt JobsTable.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-jobs-table-arn'
+
+  # SQS
+  ProcessingQueueUrl:
+    Description: SQS Processing Queue URL
+    Value: !Ref ProcessingQueue
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-processing-queue-url'
+
+  ProcessingQueueArn:
+    Description: SQS Processing Queue ARN
+    Value: !GetAtt ProcessingQueue.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-processing-queue-arn'
+
+  ProcessingDLQUrl:
+    Description: SQS Processing DLQ URL
+    Value: !Ref ProcessingDLQ
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-processing-dlq-url'
+
+  # SNS
+  NotificationTopicArn:
+    Description: SNS Notification Topic ARN
+    Value: !Ref NotificationTopic
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-notification-topic-arn'
+
+  # Secrets Manager
+  ConfigSecretArn:
+    Description: Secrets Manager Config Secret ARN
+    Value: !Ref ConfigSecret
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-config-secret-arn'
+
+  # Step Functions
+  StepFunctionsExecutionRoleArn:
+    Description: Step Functions Execution Role ARN
+    Value: !GetAtt StepFunctionsExecutionRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-sfn-execution-role-arn'
+
+  # Worker
+  WorkerSecurityGroupId:
+    Description: Worker ECS Security Group ID
+    Value: !Ref WorkerSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-worker-sg-id'
+
+  WorkerLogGroupName:
+    Description: Worker CloudWatch Log Group Name
+    Value: !Ref WorkerLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-worker-log-group'
+
+  # Dashboard
+  DashboardName:
+    Description: CloudWatch Dashboard Name
+    Value: !Ref LightshipDashboard
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-dashboard'

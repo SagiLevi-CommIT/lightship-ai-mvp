@@ -8,16 +8,27 @@ import os
 from pathlib import Path
 
 
-def setup_logging(log_level: str = "INFO", log_dir: str = ".logs", log_file: str = "app.log") -> None:
+def setup_logging(log_level: str = "INFO", log_dir: str = None, log_file: str = "app.log") -> None:
     """Set up logging with console and file handlers.
     
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        log_dir: Directory for log files
+        log_dir: Directory for log files (defaults to /tmp/.logs in Lambda, .logs locally)
         log_file: Name of the log file
     """
+    # Use /tmp for Lambda (read-only /var/task), .logs locally
+    if log_dir is None:
+        if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+            log_dir = "/tmp/.logs"
+        else:
+            log_dir = ".logs"
+    
     # Create log directory if it doesn't exist
-    Path(log_dir).mkdir(parents=True, exist_ok=True)
+    try:
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
+    except OSError:
+        log_dir = "/tmp/.logs"
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
     log_path = os.path.join(log_dir, log_file)
     
     logging_config = {

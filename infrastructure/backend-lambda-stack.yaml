@@ -1,10 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Backend Lambda Function for Walnut AI with ALB Integration'
+Description: 'Backend Lambda Function for Lightship AI MVP with ALB Integration'
 
 Parameters:
   ProjectName:
     Type: String
-    Default: looper
+    Default: lightship
     Description: Name of the project for resource naming
     
   Environment:
@@ -15,7 +15,7 @@ Parameters:
   ImageUri:
     Type: String
     Description: ECR image URI for the Lambda function
-    Default: 095128162384.dkr.ecr.us-east-1.amazonaws.com/looper-backend:latest
+    Default: 095128162384.dkr.ecr.us-east-1.amazonaws.com/lightship-backend:latest
 
 Resources:
   # Lambda Function
@@ -52,7 +52,7 @@ Resources:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lancedb-bucket'
           CONVERSATIONS_BUCKET:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-conversations-bucket'
-          DATAFILES_BUCKET: s3-looper-datafiles-us-east-1
+          DATAFILES_BUCKET: s3-lightship-custom-datasources-us-east-1
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-backend'

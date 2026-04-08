@@ -1,6 +1,7 @@
 """API client for communicating with Lightship MVP backend server."""
 import requests
 import json
+import os
 from typing import Dict, Any, Optional
 import logging
 
@@ -10,13 +11,15 @@ logger = logging.getLogger(__name__)
 class APIClient:
     """Client for Lightship MVP API."""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = None):
         """Initialize API client.
 
         Args:
-            base_url: Base URL of the API server
+            base_url: Base URL of the API server. Falls back to BACKEND_API_URL env var or localhost.
         """
-        self.base_url = base_url
+        if base_url is None:
+            base_url = os.environ.get("BACKEND_API_URL", "http://localhost:8000")
+        self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
 
     def check_health(self) -> bool:

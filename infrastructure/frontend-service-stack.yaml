@@ -1,10 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'ECS Task Definition and Service for Looper Frontend'
+Description: 'ECS Task Definition and Service for Lightship AI MVP Frontend'
 
 Parameters:
   ProjectName:
     Type: String
-    Default: looper
+    Default: lightship
     
   Environment:
     Type: String
@@ -12,7 +12,7 @@ Parameters:
     
   AppStackName:
     Type: String
-    Default: looper-mvp-app
+    Default: lightship-mvp-app
     Description: Name of the app stack to import values from
 
 Resources:
@@ -46,7 +46,7 @@ Resources:
             - Name: BACKEND_TIMEOUT
               Value: '300'
             - Name: PAGE_TITLE
-              Value: 'Looper AI Assistant'
+              Value: 'Lightship Dashcam Video Analysis'
             - Name: STREAMLIT_SERVER_ADDRESS
               Value: '0.0.0.0'
             - Name: STREAMLIT_SERVER_PORT

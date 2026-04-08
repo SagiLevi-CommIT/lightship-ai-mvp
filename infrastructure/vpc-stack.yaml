@@ -286,6 +286,119 @@ Resources:
       LogGroupName: !Sub '/aws/vpc/flowlogs/${ProjectName}-${Environment}'
       RetentionInDays: 7
 
+  # =========================================
+  # VPC Endpoints
+  # =========================================
+
+  # VPC Endpoint Security Group (for Interface Endpoints)
+  VPCEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub 'sgr-${Environment}-vpc-endpoints'
+      GroupDescription: Security group for VPC Interface Endpoints - allows HTTPS from private and data subnets
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.145.16.0/24
+          Description: HTTPS from net-dev-private-az1
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.145.17.0/24
+          Description: HTTPS from net-dev-private-az2
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.145.20.0/24
+          Description: HTTPS from net-dev-data-az1
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.145.21.0/24
+          Description: HTTPS from net-dev-data-az2
+      Tags:
+        - Key: Name
+          Value: !Sub 'sgr-${Environment}-vpc-endpoints'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # S3 Gateway VPC Endpoint (free - no cost)
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable
+      Tags:
+        - Key: Name
+          Value: !Sub 'vpce-${Environment}-s3-gateway'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ECR API Interface Endpoint (required for Fargate image pulls from private subnets)
+  ECRApiEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateAppSubnet1
+        - !Ref PrivateAppSubnet2
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub 'vpce-${Environment}-ecr-api'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ECR Docker Interface Endpoint (required for Fargate image pulls from private subnets)
+  ECRDkrEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateAppSubnet1
+        - !Ref PrivateAppSubnet2
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub 'vpce-${Environment}-ecr-dkr'
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Logs Interface Endpoint (logging from private subnets)
+  CloudWatchLogsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateAppSubnet1
+        - !Ref PrivateAppSubnet2
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub 'vpce-${Environment}-cloudwatch-logs'
+        - Key: Environment
+          Value: !Ref Environment
+
 Outputs:
   VPCId:
     Description: VPC ID
@@ -358,3 +471,15 @@ Outputs:
     Value: !Join [',', [!Ref AvailabilityZone1, !Ref AvailabilityZone2]]
     Export:
       Name: !Sub '${ProjectName}-${Environment}-availability-zones'
+
+  VPCEndpointSecurityGroupId:
+    Description: VPC Endpoint Security Group ID
+    Value: !Ref VPCEndpointSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-vpce-sg-id'
+
+  S3GatewayEndpointId:
+    Description: S3 Gateway VPC Endpoint ID
+    Value: !Ref S3GatewayEndpoint
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-s3-vpce-id'
