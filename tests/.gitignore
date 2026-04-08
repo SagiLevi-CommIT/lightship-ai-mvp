@@ -1,0 +1,9 @@
+# Ignore test video files (large binaries – keep locally only)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*Zone.Identifier
+__pycache__/
+.pytest_cache/
+*.pyc
