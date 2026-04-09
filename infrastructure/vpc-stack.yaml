@@ -342,6 +342,22 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  # DynamoDB Gateway VPC Endpoint (free - no cost)
+  DynamoDBGatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable
+      Tags:
+        - Key: Name
+          Value: !Sub 'vpce-${Environment}-dynamodb-gateway'
+        - Key: Environment
+          Value: !Ref Environment
+
   # ECR API Interface Endpoint (required for Fargate image pulls from private subnets)
   ECRApiEndpoint:
     Type: AWS::EC2::VPCEndpoint
@@ -483,3 +499,9 @@ Outputs:
     Value: !Ref S3GatewayEndpoint
     Export:
       Name: !Sub '${ProjectName}-${Environment}-s3-vpce-id'
+
+  DynamoDBGatewayEndpointId:
+    Description: DynamoDB Gateway VPC Endpoint ID
+    Value: !Ref DynamoDBGatewayEndpoint
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-dynamodb-vpce-id'

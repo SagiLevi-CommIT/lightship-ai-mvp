@@ -30,6 +30,12 @@ Resources:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-role-arn'
       MemorySize: 3008
       Timeout: 900
+      VpcConfig:
+        SubnetIds:
+          - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-1'
+          - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-2'
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-sg-id'
       Environment:
         Variables:
           BEDROCK_REGION: us-east-1

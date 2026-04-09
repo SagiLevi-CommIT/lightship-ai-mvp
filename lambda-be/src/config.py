@@ -160,7 +160,10 @@ LOG_FILE = "app.log"
 DATA_DIR = "data"
 TRAIN_DIR = os.path.join(DATA_DIR, "train")
 TEST_DIR = os.path.join(DATA_DIR, "test")
-OUTPUT_DIR = "output"
+
+# Use /tmp in Lambda (read-only filesystem); local otherwise
+_IS_LAMBDA = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+OUTPUT_DIR = "/tmp/output" if _IS_LAMBDA else "output"
 TEMP_FRAMES_DIR = os.path.join(OUTPUT_DIR, "temp_frames")
 
 # ============================================================================

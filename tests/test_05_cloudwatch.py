@@ -151,8 +151,8 @@ class TestECSLogEntries:
         )
 
     def test_ecs_has_recent_log_events(self, logs_client):
-        """ECS should have logged at least once in the past 30 minutes."""
-        thirty_min_ago_ms = int(time.time() * 1000) - 30 * 60 * 1000
+        """ECS should have logged at least once in the past 2 hours (Streamlit is quiet at steady state)."""
+        lookback_ms = int(time.time() * 1000) - 2 * 60 * 60 * 1000  # 2 hours
         try:
             streams_resp = logs_client.describe_log_streams(
                 logGroupName=FRONTEND_LOG_GROUP,
@@ -166,17 +166,17 @@ class TestECSLogEntries:
         events = []
         for stream in streams_resp.get("logStreams", []):
             last_event = stream.get("lastEventTimestamp", 0)
-            if last_event >= thirty_min_ago_ms:
+            if last_event >= lookback_ms:
                 resp = logs_client.get_log_events(
                     logGroupName=FRONTEND_LOG_GROUP,
                     logStreamName=stream["logStreamName"],
-                    startTime=thirty_min_ago_ms,
+                    startTime=lookback_ms,
                     limit=5,
                 )
                 events.extend(resp.get("events", []))
 
         assert len(events) > 0, (
-            f"No log entries in {FRONTEND_LOG_GROUP} in the past 30 minutes. "
+            f"No log entries in {FRONTEND_LOG_GROUP} in the past 2 hours. "
             "ECS frontend task may be unhealthy or not generating logs."
         )
 

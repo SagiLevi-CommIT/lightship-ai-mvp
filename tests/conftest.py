@@ -4,10 +4,14 @@ Architecture: ALB → ECS Fargate (Streamlit UI) / Lambda (FastAPI backend)
 Data flow: Upload → S3 → Lambda pipeline → DynamoDB tracking → S3 results
 """
 import boto3
+from botocore.config import Config
 import json
 import os
 import pytest
 import time
+
+# Lambda cold start with YOLO11 + Depth-Anything-V2 takes 25-90s
+BOTO_LAMBDA_CONFIG = Config(read_timeout=330, connect_timeout=10, retries={"max_attempts": 0})
 
 # ─── Environment / stack outputs ────────────────────────────────────────────
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
@@ -52,7 +56,7 @@ ALB_ARN = (
 # ─── Boto3 clients ────────────────────────────────────────────────────────────
 @pytest.fixture(scope="session")
 def lambda_client():
-    return boto3.client("lambda", region_name=AWS_REGION)
+    return boto3.client("lambda", region_name=AWS_REGION, config=BOTO_LAMBDA_CONFIG)
 
 
 @pytest.fixture(scope="session")

@@ -196,6 +196,23 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-${Environment}-lambda-sg'
+      GroupDescription: Security group for Lambda backend in VPC - outbound only
+      VpcId:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: All outbound traffic
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-lambda-sg'
+        - Key: Environment
+          Value: !Ref Environment
+
   # IAM Roles
   ECSTaskExecutionRole:
     Type: AWS::IAM::Role
@@ -318,6 +335,7 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
       Policies:
         - PolicyName: ECRAccess
           PolicyDocument:
@@ -1131,6 +1149,12 @@ Outputs:
     Value: !Ref ALBSecurityGroup
     Export:
       Name: !Sub '${ProjectName}-${Environment}-alb-sg-id'
+
+  LambdaSecurityGroupId:
+    Description: Lambda Security Group ID
+    Value: !Ref LambdaSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-lambda-sg-id'
 
   # IAM Roles
   ECSTaskExecutionRoleArn:
