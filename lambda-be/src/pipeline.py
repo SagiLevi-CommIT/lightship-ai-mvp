@@ -25,7 +25,8 @@ from src.config import (
     MIN_OBJECTS_FOR_SELECTION,
     FRAME_REFINER_MAX_RETRIES,
     FRAME_REFINER_FALLBACK_ENABLED,
-    CV_PARALLEL_WORKERS
+    CV_PARALLEL_WORKERS,
+    OUTPUT_DIR
 )
 
 logger = logging.getLogger(__name__)
@@ -472,7 +473,7 @@ class Pipeline:
         logger.info("Step 4d: Per-frame LLM refinement with retry/fallback logic")
         refined_frame_objects: Dict[int, List[ObjectLabel]] = {}
         used_frames = set()
-        output_dir = Path("output/temp_annotations")
+        output_dir = Path(OUTPUT_DIR) / "temp_annotations"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         for frame_idx in selected_frame_indices:
@@ -539,7 +540,7 @@ class Pipeline:
 
         # Create delivery annotated frames directory (direct save for customer)
         video_name = Path(video_metadata.filename).stem
-        annotated_output_dir = Path("delivery") / "annotated_frames" / video_name
+        annotated_output_dir = Path(OUTPUT_DIR) / "delivery" / "annotated_frames" / video_name
         os.makedirs(annotated_output_dir, exist_ok=True)
         logger.info(f"Annotated frames will be saved to: {annotated_output_dir}")
 
