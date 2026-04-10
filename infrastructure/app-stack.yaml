@@ -213,6 +213,17 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  # Allow ECS frontend tasks to call backend via ALB (avoids hairpin block)
+  ALBIngressFromECS:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      SourceSecurityGroupId: !Ref ECSSecurityGroup
+      Description: HTTP from ECS frontend tasks (Streamlit server-side backend calls)
+
   # IAM Roles
   ECSTaskExecutionRole:
     Type: AWS::IAM::Role
