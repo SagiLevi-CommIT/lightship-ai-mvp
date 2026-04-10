@@ -65,8 +65,8 @@ phases:
             --package-type Image \
             --code ImageUri=$IMAGE_URI_LATEST \
             --role $LAMBDA_ROLE_ARN \
-            --timeout 300 \
-            --memory-size 2048 \
+            --timeout 900 \
+            --memory-size 3008 \
             --environment "Variables={LOG_LEVEL=INFO,DYNAMODB_TABLE=${PROJECT_NAME}_jobs,DATA_SOURCE_BUCKET=$CUSTOM_DATASOURCES_BUCKET,CUSTOM_DATASOURCES_BUCKET=$CUSTOM_DATASOURCES_BUCKET,LANCEDB_BUCKET=$LANCEDB_BUCKET,CONVERSATIONS_BUCKET=$CONVERSATIONS_BUCKET}" \
             --region $AWS_REGION
           
@@ -109,6 +109,8 @@ phases:
           echo Updating Lambda environment variables...
           aws lambda update-function-configuration \
             --function-name $LAMBDA_FUNCTION_NAME \
+            --timeout 900 \
+            --memory-size 3008 \
             --environment "Variables={LOG_LEVEL=INFO,DYNAMODB_TABLE=${PROJECT_NAME}_jobs,DATA_SOURCE_BUCKET=$CUSTOM_DATASOURCES_BUCKET,CUSTOM_DATASOURCES_BUCKET=$CUSTOM_DATASOURCES_BUCKET,LANCEDB_BUCKET=$LANCEDB_BUCKET,CONVERSATIONS_BUCKET=$CONVERSATIONS_BUCKET}" \
             --region $AWS_REGION
         fi
