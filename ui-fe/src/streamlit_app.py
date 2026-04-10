@@ -73,8 +73,10 @@ st.markdown("""
 # Initialize session state
 if 'api_client' not in st.session_state:
     st.session_state.api_client = APIClient()
-if 'job_id' not in st.session_state:
-    st.session_state.job_id = None
+# Batch job tracking: list of dicts {job_id, filename, status, results, annotated_frames, json_data}
+if 'jobs' not in st.session_state:
+    st.session_state.jobs = []
+# Legacy single-job state (kept for results/evaluation tabs backward compat)
 if 'results' not in st.session_state:
     st.session_state.results = None
 if 'annotated_frames' not in st.session_state:
@@ -247,185 +249,264 @@ def main():
 
 
 def upload_and_process_tab(snapshot_strategy, max_snapshots, use_cv_labeler, v2_config):
-    """Upload and process video tab."""
+    """Upload and process video tab — supports single or batch uploads."""
 
-    st.header("Upload Video")
+    st.header("Upload Videos")
+    st.caption("Upload one or multiple dashcam videos. Each video is processed independently.")
 
-    uploaded_file = st.file_uploader(
-        "Choose a dashcam video",
+    uploaded_files = st.file_uploader(
+        "Choose dashcam videos",
         type=['mp4', 'avi', 'mov'],
-        help="Supported formats: MP4, AVI, MOV"
+        accept_multiple_files=True,
+        help="Supported formats: MP4, AVI, MOV. Select multiple files for batch processing."
     )
 
-    if uploaded_file is not None:
-        col1, col2 = st.columns([2, 1])
+    if uploaded_files:
+        # Show batch summary table
+        import pandas as pd
+        file_info = [{
+            "Filename": f.name,
+            "Size (MB)": f"{f.size / 1024 / 1024:.2f}",
+            "Type": f.type or "video/mp4"
+        } for f in uploaded_files]
+        st.dataframe(pd.DataFrame(file_info), hide_index=True, use_container_width=True)
 
+        # Preview first video
+        if len(uploaded_files) == 1:
+            st.video(uploaded_files[0])
+        else:
+            with st.expander(f"Preview first video: {uploaded_files[0].name}"):
+                st.video(uploaded_files[0])
+
+        st.divider()
+
+        col1, col2 = st.columns([3, 1])
         with col1:
-            st.video(uploaded_file)
-
+            st.info(f"**{len(uploaded_files)} video(s) selected** — Pipeline: {'V2 (CV + Temporal LLM)' if use_cv_labeler else 'V1 (LLM)'}")
         with col2:
-            st.markdown('<div class="info-box">', unsafe_allow_html=True)
-            st.write("**Video Information**")
-            st.write(f"📁 Filename: `{uploaded_file.name}`")
-            st.write(f"📏 Size: {uploaded_file.size / 1024 / 1024:.2f} MB")
-            st.write(f"🔧 Pipeline: {'V2 (CV)' if use_cv_labeler else 'V1 (LLM)'}")
-            st.markdown('</div>', unsafe_allow_html=True)
+            label = f"🚀 Process {len(uploaded_files)} Video{'s' if len(uploaded_files) > 1 else ''}"
+            if st.button(label, type="primary", use_container_width=True):
+                _submit_batch(uploaded_files, snapshot_strategy, max_snapshots, use_cv_labeler, v2_config)
 
-            st.divider()
-
-            if st.button("🚀 Start Processing", type="primary", width="stretch"):
-                process_video(uploaded_file, snapshot_strategy, max_snapshots, use_cv_labeler, v2_config)
-
-    # Show processing status
-    if st.session_state.job_id:
-        show_processing_status()
+    # Show batch status for active and recent jobs
+    if st.session_state.jobs:
+        show_batch_status(snapshot_strategy, max_snapshots, use_cv_labeler, v2_config)
 
 
-def process_video(uploaded_file, snapshot_strategy, max_snapshots, use_cv_labeler, v2_config):
-    """Process uploaded video."""
-
+def _build_config(snapshot_strategy, max_snapshots, use_cv_labeler, v2_config):
+    """Build processing config dict."""
     config = {
         "snapshot_strategy": snapshot_strategy,
         "max_snapshots": max_snapshots,
         "cleanup_frames": False,
         "use_cv_labeler": use_cv_labeler
     }
-
-    # Add V2 config if enabled
     if v2_config:
         config.update(v2_config)
-
-    with st.spinner("Uploading video..."):
-        job_id = st.session_state.api_client.upload_video(
-            uploaded_file,
-            config
-        )
-
-    if job_id:
-        st.session_state.job_id = job_id
-        st.success(f"✅ Video uploaded! Job ID: {job_id}")
-        st.rerun()
-    else:
-        st.error("❌ Failed to upload video. Check API connection.")
+    return config
 
 
-def show_processing_status():
-    """Display processing status with progress bar."""
+def _submit_batch(uploaded_files, snapshot_strategy, max_snapshots, use_cv_labeler, v2_config):
+    """Submit all uploaded files for processing, one job per file."""
+    config = _build_config(snapshot_strategy, max_snapshots, use_cv_labeler, v2_config)
+
+    new_jobs = []
+    errors = []
+
+    progress = st.progress(0, text="Uploading videos...")
+    for i, uploaded_file in enumerate(uploaded_files):
+        progress.progress((i) / len(uploaded_files), text=f"Uploading {uploaded_file.name}...")
+        uploaded_file.seek(0)
+        job_id = st.session_state.api_client.upload_video(uploaded_file, config)
+        if job_id:
+            new_jobs.append({
+                "job_id": job_id,
+                "filename": uploaded_file.name,
+                "status": "QUEUED",
+                "progress": 0.0,
+                "message": "Queued",
+                "results": None,
+                "annotated_frames": [],
+                "json_data": None,
+            })
+        else:
+            errors.append(uploaded_file.name)
+
+    progress.progress(1.0, text="All uploads submitted!")
+    time.sleep(0.5)
+    progress.empty()
+
+    st.session_state.jobs.extend(new_jobs)
+
+    if new_jobs:
+        st.success(f"✅ {len(new_jobs)} video(s) submitted for processing!")
+    if errors:
+        st.error(f"❌ Failed to upload: {', '.join(errors)}")
+
+    st.rerun()
+
+
+def show_batch_status(snapshot_strategy, max_snapshots, use_cv_labeler, v2_config):
+    """Display real-time status for all jobs in the batch."""
 
     st.divider()
-    st.subheader("Processing Status")
+    st.subheader(f"📋 Batch Status — {len(st.session_state.jobs)} job(s)")
 
-    status_placeholder = st.empty()
-    progress_bar = st.progress(0)
-    message_placeholder = st.empty()
+    # Column headers
+    col_hdr = st.columns([3, 2, 1, 3])
+    col_hdr[0].markdown("**Filename**")
+    col_hdr[1].markdown("**Status**")
+    col_hdr[2].markdown("**Progress**")
+    col_hdr[3].markdown("**Message**")
 
-    # Poll for status updates
-    max_polls = 300  # 5 minutes max
-    poll_count = 0
+    # One row per job
+    row_placeholders = []
+    for job in st.session_state.jobs:
+        cols = st.columns([3, 2, 1, 3])
+        row_placeholders.append(cols)
+        _render_job_row(cols, job)
 
-    while poll_count < max_polls:
-        status = st.session_state.api_client.get_status(st.session_state.job_id)
+    # Check if any jobs are still active
+    active_jobs = [j for j in st.session_state.jobs if j["status"] not in ("COMPLETED", "FAILED")]
 
-        if not status:
-            st.error("Failed to get status")
-            break
+    if not active_jobs:
+        completed = sum(1 for j in st.session_state.jobs if j["status"] == "COMPLETED")
+        failed = sum(1 for j in st.session_state.jobs if j["status"] == "FAILED")
+        if completed:
+            st.success(f"🎉 Batch complete: {completed} succeeded, {failed} failed. See Results tab.")
+        else:
+            st.error(f"❌ All {failed} job(s) failed.")
+        return
 
-        # Update progress
-        progress = status.get('progress', 0.0)
-        progress_bar.progress(progress)
+    # Poll active jobs once per second
+    time.sleep(1)
+    any_updated = False
 
-        # Update message
-        current_status = status.get('status', 'unknown')
-        message = status.get('message', 'Processing...')
-        current_step = status.get('current_step', '')
+    for job in st.session_state.jobs:
+        if job["status"] in ("COMPLETED", "FAILED"):
+            continue
 
-        if current_status == "processing":
-            message_placeholder.info(f"⏳ {message}")
-        elif current_status == "completed":
-            message_placeholder.success(f"✅ {message}")
+        status_resp = st.session_state.api_client.get_status(job["job_id"])
+        if not status_resp:
+            continue
 
-            # Fetch results
-            results = st.session_state.api_client.get_results(st.session_state.job_id)
+        raw_status = status_resp.get("status", "UNKNOWN").upper()
+        job["status"] = raw_status
+        job["progress"] = float(status_resp.get("progress", 0.0))
+        job["message"] = status_resp.get("message", "")
+        any_updated = True
+
+        if raw_status == "COMPLETED":
+            results = st.session_state.api_client.get_results(job["job_id"])
             if results:
+                job["results"] = results
+                job["annotated_frames"] = _generate_annotated_frames_for_job(job["job_id"], results)
+                # Keep legacy session state pointing to last completed job for results tab
                 st.session_state.results = results
+                st.session_state.annotated_frames = job["annotated_frames"]
+                st.session_state.json_data = job["json_data"]
 
-                # Generate annotated frames
-                generate_annotated_frames(results)
-
-                st.success("🎉 Processing completed! Go to the Results tab to view outputs.")
-
-                # Clear job_id to stop polling
-                st.session_state.job_id = None
-
-                # Force one final rerun to update UI state
-                time.sleep(0.5)
-                st.rerun()
-            break
-
-        elif current_status == "failed":
-            message_placeholder.error(f"❌ {message}")
-            st.session_state.job_id = None
-            break
-
-        time.sleep(1)
-        poll_count += 1
-
-    if poll_count >= max_polls:
-        st.error("⏱️ Processing timeout - please check API logs")
-        st.session_state.job_id = None
+    if any_updated:
+        st.rerun()
 
 
-def generate_annotated_frames(results):
-    """Generate annotated frames with bounding boxes and labels."""
+def _render_job_row(cols, job):
+    """Render a single job status row."""
+    status = job["status"]
+    status_icons = {
+        "QUEUED": "⏳ QUEUED",
+        "PROCESSING": "🔄 PROCESSING",
+        "COMPLETED": "✅ COMPLETED",
+        "FAILED": "❌ FAILED",
+    }
+    cols[0].write(job["filename"])
+    cols[1].write(status_icons.get(status, status))
+    cols[2].write(f"{int(job.get('progress', 0) * 100)}%")
+    cols[3].write(job.get("message", ""))
 
+
+def _generate_annotated_frames_for_job(job_id, results):
+    """Generate annotated frames for a job. Returns list of frame dicts."""
     visualizer = FrameVisualizer()
     annotated_frames = []
 
-    # Load output JSON
-    with st.spinner("Generating annotated frames..."):
-        json_data = st.session_state.api_client.get_json_content(st.session_state.job_id)
+    json_data = st.session_state.api_client.get_json_content(job_id)
 
-        if json_data:
-            # Store JSON data in session state for later use
-            st.session_state.json_data = json_data
+    # Store on matching job entry
+    for job in st.session_state.jobs:
+        if job["job_id"] == job_id:
+            job["json_data"] = json_data
+            break
 
-            for snapshot in results['snapshots']:
-                frame_path = snapshot['frame_path']
-                timestamp = snapshot['timestamp_ms']
+    if json_data and results.get('snapshots'):
+        for snapshot in results['snapshots']:
+            frame_path = snapshot['frame_path']
+            timestamp = snapshot['timestamp_ms']
 
-                # Filter objects for this timestamp
-                objects_at_timestamp = [
-                    obj for obj in json_data['objects']
-                    if abs(obj['start_time_ms'] - timestamp) < 1.0
-                ]
+            objects_at_timestamp = [
+                obj for obj in json_data.get('objects', [])
+                if abs(obj['start_time_ms'] - timestamp) < 1.0
+            ]
 
-                # Annotate frame
+            try:
                 annotated_img, annotated_path = visualizer.annotate_frame(
-                    frame_path,
-                    objects_at_timestamp,
-                    timestamp
+                    frame_path, objects_at_timestamp, timestamp
                 )
+            except Exception:
+                annotated_img, annotated_path = None, frame_path
 
-                annotated_frames.append({
-                    'timestamp': timestamp,
-                    'frame_idx': snapshot['frame_idx'],
-                    'original_path': frame_path,
-                    'annotated_path': annotated_path,
-                    'annotated_image': annotated_img,
-                    'objects': objects_at_timestamp
-                })
+            annotated_frames.append({
+                'timestamp': timestamp,
+                'frame_idx': snapshot['frame_idx'],
+                'original_path': frame_path,
+                'annotated_path': annotated_path,
+                'annotated_image': annotated_img,
+                'objects': objects_at_timestamp
+            })
 
-    st.session_state.annotated_frames = annotated_frames
+    return annotated_frames
 
 
 def results_tab(show_priorities, bbox_thickness, font_scale):
-    """Display processing results."""
+    """Display processing results — handles single and batch results."""
 
-    if not st.session_state.results:
-        st.info("👆 Upload and process a video to see results here.")
+    completed_jobs = [
+        j for j in st.session_state.jobs
+        if j["status"] == "COMPLETED" and j.get("results")
+    ]
+
+    if not completed_jobs and not st.session_state.results:
+        st.info("👆 Upload and process video(s) to see results here.")
         return
 
-    results = st.session_state.results
+    if len(completed_jobs) > 1:
+        st.header(f"📊 Batch Results — {len(completed_jobs)} videos")
+        tab_labels = [f"🎥 {j['filename'][:30]}" for j in completed_jobs]
+        tabs = st.tabs(tab_labels)
+        for tab, job in zip(tabs, completed_jobs):
+            with tab:
+                _render_single_job_results(
+                    job["results"],
+                    job.get("annotated_frames", []),
+                    job.get("json_data"),
+                    show_priorities
+                )
+    else:
+        # Single video (from batch list or legacy session state)
+        if completed_jobs:
+            job = completed_jobs[0]
+            results = job["results"]
+            annotated_frames = job.get("annotated_frames", [])
+            json_data = job.get("json_data")
+        else:
+            results = st.session_state.results
+            annotated_frames = st.session_state.annotated_frames
+            json_data = st.session_state.get("json_data")
+        _render_single_job_results(results, annotated_frames, json_data, show_priorities)
+
+
+def _render_single_job_results(results, annotated_frames, json_data, show_priorities):
+    """Render results for a single job."""
 
     # Summary metrics
     st.header("📊 Summary")
@@ -448,199 +529,147 @@ def results_tab(show_priorities, bbox_thickness, font_scale):
         st.metric("Priority Hazards", priority_count)
 
     with col4:
-        num_hazards = summary.get('num_hazards', 0)
-        st.metric("Hazard Events", num_hazards)
+        st.metric("Hazard Events", summary.get('num_hazards', 0))
 
     st.divider()
 
-    # Hazard Events Section (V2 only)
-    # Use cached JSON data from session state instead of fetching with potentially null job_id
-    json_data = st.session_state.get('json_data')
-    if json_data and 'hazard_events' in json_data and len(json_data['hazard_events']) > 0:
+    # Hazard Events Section
+    if json_data and json_data.get('hazard_events'):
         st.header("⚠️ Hazard Events")
-
+        severity_icons = {'Critical': '🔴', 'High': '🟠', 'Medium': '🟡', 'Low': '🟢', 'None': '⚪'}
         for i, hazard in enumerate(json_data['hazard_events'], 1):
             severity = hazard['hazard_severity']
-            severity_colors = {
-                'Critical': '🔴',
-                'High': '🟠',
-                'Medium': '🟡',
-                'Low': '🟢',
-                'None': '⚪'
-            }
-            icon = severity_colors.get(severity, '⚠️')
-
-            with st.expander(f"{icon} Hazard {i}: {hazard['hazard_type']} (Severity: {severity})", expanded=(i<=2)):
+            icon = severity_icons.get(severity, '⚠️')
+            with st.expander(f"{icon} Hazard {i}: {hazard['hazard_type']} (Severity: {severity})", expanded=(i <= 2)):
                 st.markdown(f"**Time:** {hazard['start_time_ms']:.0f}ms")
                 st.markdown(f"**Severity:** {severity}")
                 st.markdown(f"**Type:** {hazard['hazard_type']}")
                 st.markdown(f"**Description:** {hazard['hazard_description']}")
                 st.markdown(f"**Road Conditions:** {hazard['road_conditions']}")
-
         st.divider()
 
     # Priority distribution
-    st.subheader("Priority Distribution")
     priority_dist = summary.get('priority_distribution', {})
-
     if priority_dist:
+        st.subheader("Priority Distribution")
         col1, col2 = st.columns([2, 1])
-
         with col1:
             import plotly.graph_objects as go
-
-            colors = {
-                'critical': '#d62728',
-                'high': '#ff7f0e',
-                'medium': '#ffbb78',
-                'low': '#98df8a',
-                'none': '#c7c7c7'
-            }
-
+            colors = {'critical': '#d62728', 'high': '#ff7f0e', 'medium': '#ffbb78', 'low': '#98df8a', 'none': '#c7c7c7'}
             fig = go.Figure(data=[go.Bar(
                 x=list(priority_dist.keys()),
                 y=list(priority_dist.values()),
                 marker_color=[colors.get(k, '#1f77b4') for k in priority_dist.keys()]
             )])
-
-            fig.update_layout(
-                title="Objects by Priority",
-                xaxis_title="Priority",
-                yaxis_title="Count",
-                height=300
-            )
-
-            st.plotly_chart(fig, width="stretch", key="priority_chart")
-
+            fig.update_layout(title="Objects by Priority", xaxis_title="Priority", yaxis_title="Count", height=300)
+            st.plotly_chart(fig, use_container_width=True)
         with col2:
             st.markdown("**Priority Levels:**")
             for level, count in sorted(priority_dist.items(), key=lambda x: x[1], reverse=True):
                 st.write(f"- **{level.upper()}**: {count}")
-
-    st.divider()
+        st.divider()
 
     # Annotated frames
     st.header("🖼️ Annotated Frames")
-
-    if st.session_state.annotated_frames:
-        for i, frame_data in enumerate(st.session_state.annotated_frames):
+    if annotated_frames:
+        for i, frame_data in enumerate(annotated_frames):
             with st.expander(
-                f"Frame {i+1} @ {frame_data['timestamp']:.2f}ms - {len(frame_data['objects'])} objects",
-                expanded=(i==0)
+                f"Frame {i+1} @ {frame_data['timestamp']:.2f}ms — {len(frame_data['objects'])} objects",
+                expanded=(i == 0)
             ):
-                # Display annotated image
-                st.image(
-                    frame_data['annotated_image'],
-                    caption=f"Frame {frame_data['frame_idx']} at {frame_data['timestamp']:.2f}ms",
-                    width="stretch"
-                )
-
-                # Object details table
-                st.subheader("Detected Objects")
-
-                # Filter by priority
+                if frame_data.get('annotated_image') is not None:
+                    st.image(
+                        frame_data['annotated_image'],
+                        caption=f"Frame {frame_data['frame_idx']} at {frame_data['timestamp']:.2f}ms",
+                        use_container_width=True
+                    )
                 filtered_objects = [
-                    obj for obj in frame_data['objects']
-                    if obj['priority'] in show_priorities
+                    obj for obj in frame_data['objects'] if obj['priority'] in show_priorities
                 ]
-
                 if filtered_objects:
                     import pandas as pd
-
                     df = pd.DataFrame([{
                         'Description': obj['description'],
                         'Priority': obj['priority'].upper(),
                         'Distance': obj['distance'],
                         'Center': f"({obj['center']['x']}, {obj['center']['y']})"
                     } for obj in filtered_objects])
-
-                    st.dataframe(df, width="stretch", hide_index=True)
+                    st.dataframe(df, use_container_width=True, hide_index=True)
                 else:
                     st.info("No objects match the selected priority filters.")
+    else:
+        st.info("No annotated frames available.")
 
     st.divider()
 
-    # Download section
+    # Downloads
     st.header("💾 Downloads")
-
     col1, col2, col3 = st.columns(3)
-
     with col1:
-        # Download JSON (use cached data if available)
-        json_content = st.session_state.get('json_data')
-        if json_content:
+        if json_data:
             st.download_button(
                 label="📄 Download JSON",
-                data=json.dumps(json_content, indent=2),
+                data=json.dumps(json_data, indent=2),
                 file_name="lightship_output.json",
                 mime="application/json",
-                width="stretch"
+                use_container_width=True
             )
-
     with col2:
-        # Download annotated frames as zip
-        zip_data = create_annotated_frames_zip()
+        zip_data = create_annotated_frames_zip(annotated_frames)
         if zip_data:
             st.download_button(
                 label="🖼️ Download Annotated Frames (ZIP)",
                 data=zip_data,
                 file_name="annotated_frames.zip",
                 mime="application/zip",
-                width="stretch"
+                use_container_width=True
             )
-
     with col3:
-        # Download all (JSON + frames + originals)
-        zip_data = create_complete_zip()
+        zip_data = create_complete_zip(annotated_frames, json_data)
         if zip_data:
             st.download_button(
                 label="📦 Download All Files (ZIP)",
                 data=zip_data,
                 file_name="lightship_complete_output.zip",
                 mime="application/zip",
-                width="stretch"
+                use_container_width=True
             )
 
 
-def create_annotated_frames_zip():
+def create_annotated_frames_zip(annotated_frames=None):
     """Create ZIP file with annotated frames."""
+    frames = annotated_frames if annotated_frames is not None else st.session_state.annotated_frames
     zip_buffer = BytesIO()
-
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        for frame_data in st.session_state.annotated_frames:
-            if os.path.exists(frame_data['annotated_path']):
+        for frame_data in frames:
+            if frame_data.get('annotated_path') and os.path.exists(frame_data['annotated_path']):
                 zip_file.write(
                     frame_data['annotated_path'],
                     arcname=f"frame_{frame_data['frame_idx']}_annotated.png"
                 )
-
     zip_buffer.seek(0)
     return zip_buffer.getvalue()
 
 
-def create_complete_zip():
+def create_complete_zip(annotated_frames=None, json_data=None):
     """Create ZIP file with all outputs."""
+    frames = annotated_frames if annotated_frames is not None else st.session_state.annotated_frames
+    json_content = json_data if json_data is not None else st.session_state.get('json_data')
     zip_buffer = BytesIO()
-
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        # Add JSON (use cached data if available)
-        json_content = st.session_state.get('json_data')
         if json_content:
-            zip_file.writestr(
-                "output.json",
-                json.dumps(json_content, indent=2)
-            )
+            zip_file.writestr("output.json", json.dumps(json_content, indent=2))
 
         # Add annotated frames
-        for frame_data in st.session_state.annotated_frames:
-            if os.path.exists(frame_data['annotated_path']):
+        for frame_data in frames:
+            if frame_data.get('annotated_path') and os.path.exists(frame_data['annotated_path']):
                 zip_file.write(
                     frame_data['annotated_path'],
                     arcname=f"annotated/frame_{frame_data['frame_idx']}.png"
                 )
 
             # Add original frames
-            if os.path.exists(frame_data['original_path']):
+            if frame_data.get('original_path') and os.path.exists(frame_data['original_path']):
                 zip_file.write(
                     frame_data['original_path'],
                     arcname=f"original/frame_{frame_data['frame_idx']}.png"
