@@ -153,6 +153,21 @@ def health_check():
     return {"status": "healthy"}
 
 
+@app.get("/jobs")
+def list_jobs(limit: int = 50):
+    """List recent jobs from DynamoDB, sorted by created_at descending."""
+    if _jobs_table is None:
+        return {"jobs": []}
+    try:
+        resp = _jobs_table.scan(Limit=limit)
+        jobs = resp.get("Items", [])
+        jobs.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        return {"jobs": jobs}
+    except Exception as e:
+        logger.warning(f"DynamoDB scan failed for /jobs: {e}")
+        return {"jobs": []}
+
+
 @app.post("/process-video")
 async def process_video(
     background_tasks: BackgroundTasks,
@@ -397,7 +412,7 @@ def get_results(job_id: str):
     if job_id not in processing_status:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    if processing_status[job_id]["status"] != "completed":
+    if processing_status[job_id]["status"].upper() != "COMPLETED":
         raise HTTPException(
             status_code=400,
             detail=f"Job not completed. Current status: {processing_status[job_id]['status']}"

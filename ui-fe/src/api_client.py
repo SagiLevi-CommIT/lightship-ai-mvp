@@ -184,6 +184,30 @@ class APIClient:
             logger.error(f"Download frame error: {e}")
             return False
 
+    def list_jobs(self, limit: int = 50) -> list:
+        """List recent jobs from the backend.
+
+        Args:
+            limit: Maximum number of jobs to return
+
+        Returns:
+            List of job dicts, newest first. Empty list on failure.
+        """
+        try:
+            response = self.session.get(
+                f"{self.base_url}/jobs",
+                params={"limit": limit},
+                timeout=10
+            )
+            if response.status_code == 200:
+                return response.json().get("jobs", [])
+            else:
+                logger.error(f"List jobs failed: {response.status_code}")
+                return []
+        except Exception as e:
+            logger.error(f"List jobs error: {e}")
+            return []
+
     def cleanup(self, job_id: str) -> bool:
         """Cleanup temporary files for a job.
 

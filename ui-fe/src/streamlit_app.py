@@ -17,25 +17,26 @@ from visualization import FrameVisualizer
 
 # Page config
 st.set_page_config(
-    page_title="Lightship MVP - Object & Hazard Detection",
+    page_title="Lightship — Dashcam Analysis",
     page_icon="🚗",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for professional look
+# Custom CSS
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #1f77b4;
-        margin-bottom: 0.5rem;
+    .lightship-brand {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #4fc3f7;
+        letter-spacing: 0.04em;
     }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #666;
-        margin-bottom: 2rem;
+    .lightship-tagline {
+        font-size: 0.9rem;
+        color: #8b949e;
+        margin-top: -0.4rem;
+        margin-bottom: 0.5rem;
     }
     .metric-card {
         background-color: #f0f2f6;
@@ -44,7 +45,7 @@ st.markdown("""
         margin: 0.5rem 0;
     }
     .stProgress > div > div > div > div {
-        background-color: #1f77b4;
+        background-color: #4fc3f7;
     }
     .success-box {
         padding: 1rem;
@@ -67,16 +68,59 @@ st.markdown("""
         border: 1px solid #bee5eb;
         color: #0c5460;
     }
+    .job-card {
+        border: 1px solid #30363d;
+        border-radius: 0.5rem;
+        padding: 0.9rem 1rem;
+        margin-bottom: 0.6rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Initialize session state
 if 'api_client' not in st.session_state:
     st.session_state.api_client = APIClient()
-# Batch job tracking: list of dicts {job_id, filename, status, results, annotated_frames, json_data}
+# Page routing: 'home' | 'processing' | 'results' | 'history'
+if 'page' not in st.session_state:
+    st.session_state.page = 'home'
+# Batch job tracking
 if 'jobs' not in st.session_state:
     st.session_state.jobs = []
-# Legacy single-job state (kept for results/evaluation tabs backward compat)
+if 'show_completion_popup' not in st.session_state:
+    st.session_state.show_completion_popup = False
+# History page
+if 'history_jobs' not in st.session_state:
+    st.session_state.history_jobs = []
+if 'selected_history_job_idx' not in st.session_state:
+    st.session_state.selected_history_job_idx = None
+if 'selected_results_file_idx' not in st.session_state:
+    st.session_state.selected_results_file_idx = 0
+# Pipeline config (persistent across pages via session_state)
+if 'use_cv_labeler' not in st.session_state:
+    st.session_state.use_cv_labeler = True
+if 'snapshot_strategy' not in st.session_state:
+    st.session_state.snapshot_strategy = 'naive'
+if 'max_snapshots' not in st.session_state:
+    st.session_state.max_snapshots = 3
+if 'hazard_mode' not in st.session_state:
+    st.session_state.hazard_mode = 'sliding_window'
+if 'window_size' not in st.session_state:
+    st.session_state.window_size = 3
+if 'window_overlap' not in st.session_state:
+    st.session_state.window_overlap = 1
+if 'show_priorities' not in st.session_state:
+    st.session_state.show_priorities = ['critical', 'high', 'medium', 'low', 'none']
+if 'bbox_thickness' not in st.session_state:
+    st.session_state.bbox_thickness = 2
+if 'font_scale' not in st.session_state:
+    st.session_state.font_scale = 0.6
+if 'iou_threshold' not in st.session_state:
+    st.session_state.iou_threshold = 0.3
+if 'use_center_distance' not in st.session_state:
+    st.session_state.use_center_distance = False
+if 'center_distance_threshold' not in st.session_state:
+    st.session_state.center_distance_threshold = 50
+# Legacy single-job state (backward compat)
 if 'results' not in st.session_state:
     st.session_state.results = None
 if 'annotated_frames' not in st.session_state:
@@ -86,166 +130,332 @@ if 'json_data' not in st.session_state:
 
 
 def main():
-    """Main Streamlit app."""
+    """Main Streamlit app — page-based routing."""
+    render_nav()
+    page = st.session_state.page
+    if page == 'home':
+        render_home()
+    elif page == 'processing':
+        render_processing()
+    elif page == 'results':
+        render_results()
+    elif page == 'history':
+        render_history()
 
-    # Header
-    st.markdown('<div class="main-header">🚗 Lightship MVP</div>', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="sub-header">Snapshot-Based Object Detection & Priority Hazard Identification</div>',
-        unsafe_allow_html=True
-    )
 
-    # Sidebar - Configuration
+# ─── Navigation ────────────────────────────────────────────────────────────────
+
+def render_nav():
+    """Branded top navigation bar."""
+    col_brand, col_nav1, col_nav2, col_back = st.columns([4, 2, 2, 2])
+    page = st.session_state.page
+
+    with col_brand:
+        st.markdown('<div class="lightship-brand">🚗 Lightship</div>', unsafe_allow_html=True)
+        st.markdown('<div class="lightship-tagline">Dashcam Video Analysis Platform</div>', unsafe_allow_html=True)
+
+    with col_nav1:
+        btn_type = "primary" if page == 'home' else "secondary"
+        if st.button("▶ Run New Pipeline", use_container_width=True, type=btn_type):
+            st.session_state.page = 'home'
+            st.rerun()
+
+    with col_nav2:
+        btn_type = "primary" if page == 'history' else "secondary"
+        if st.button("📋 Historical Runs", use_container_width=True, type=btn_type):
+            _load_history()
+            st.session_state.page = 'history'
+            st.rerun()
+
+    with col_back:
+        if page != 'home':
+            if st.button("← Back", use_container_width=True):
+                st.session_state.page = 'home'
+                st.rerun()
+
+    st.divider()
+
+
+# ─── Sidebar config wizard ─────────────────────────────────────────────────────
+
+def _render_sidebar_config():
+    """Render pipeline configuration wizard in the sidebar."""
     with st.sidebar:
-        st.header("⚙️ Configuration")
+        st.header("⚙️ Pipeline Configuration")
 
-        st.subheader("Pipeline Settings")
-
-        use_cv_labeler = st.checkbox(
+        st.subheader("Pipeline")
+        st.session_state.use_cv_labeler = st.checkbox(
             "Use V2 Pipeline (CV + Temporal LLM)",
-            value=True,
+            value=st.session_state.use_cv_labeler,
             help="V2: CV Models + Hazard LLM | V1: LLM Image Analysis"
         )
 
-        st.subheader("Processing Settings")
-
-        snapshot_strategy = st.selectbox(
-            "Snapshot Strategy",
+        st.subheader("Frame Selection")
+        st.session_state.snapshot_strategy = st.selectbox(
+            "Strategy",
             options=["naive", "scene_change"],
+            index=["naive", "scene_change"].index(st.session_state.snapshot_strategy),
             help="Naive: Uniform sampling | Scene Change: CV-based detection"
         )
-
-        max_snapshots = st.slider(
-            "Max Snapshots",
-            min_value=1,
-            max_value=10,
-            value=3,
+        st.session_state.max_snapshots = st.slider(
+            "Max Snapshots", min_value=1, max_value=10,
+            value=st.session_state.max_snapshots,
             help="Number of frames to extract and analyze"
         )
 
-        if use_cv_labeler:
+        if st.session_state.use_cv_labeler:
             st.subheader("V2 Hazard Assessment")
-
-            hazard_mode = st.selectbox(
-                "Hazard LLM Mode",
+            st.session_state.hazard_mode = st.selectbox(
+                "LLM Mode",
                 options=["sliding_window", "full_video"],
-                help="Sliding window: Process in 3-frame windows | Full video: Analyze entire sequence"
+                index=["sliding_window", "full_video"].index(st.session_state.hazard_mode),
+                help="Sliding window: 3-frame windows | Full video: entire sequence"
             )
-
-            if hazard_mode == "sliding_window":
-                window_size = st.slider(
-                    "Window Size (frames)",
-                    min_value=2,
-                    max_value=5,
-                    value=3,
-                    help="Number of frames per window"
+            if st.session_state.hazard_mode == "sliding_window":
+                st.session_state.window_size = st.slider(
+                    "Window Size (frames)", min_value=2, max_value=5,
+                    value=st.session_state.window_size
                 )
-
-                window_overlap = st.slider(
-                    "Window Overlap (frames)",
-                    min_value=0,
-                    max_value=window_size-1,
-                    value=1,
-                    help="Overlap between consecutive windows"
+                st.session_state.window_overlap = st.slider(
+                    "Window Overlap (frames)", min_value=0,
+                    max_value=max(1, st.session_state.window_size - 1),
+                    value=min(st.session_state.window_overlap, st.session_state.window_size - 1)
                 )
-            else:
-                window_size = 3
-                window_overlap = 1
-
-        st.divider()
-
-        st.subheader("Evaluation Settings")
-
-        iou_threshold = st.slider(
-            "IoU Threshold",
-            min_value=0.1,
-            max_value=0.7,
-            value=0.3,
-            step=0.05,
-            help="Intersection over Union threshold for object matching (lower = more lenient)"
-        )
-
-        use_center_distance = st.checkbox(
-            "Use Center Distance Matching",
-            value=False,
-            help="Also match objects based on center point distance (good for small objects)"
-        )
-
-        if use_center_distance:
-            center_distance_threshold = st.slider(
-                "Center Distance Threshold (px)",
-                min_value=10,
-                max_value=100,
-                value=50,
-                step=10,
-                help="Maximum center point distance in pixels"
-            )
-        else:
-            center_distance_threshold = 50
 
         st.divider()
 
         st.subheader("Display Settings")
-
-        show_priorities = st.multiselect(
+        st.session_state.show_priorities = st.multiselect(
             "Filter by Priority",
             options=["critical", "high", "medium", "low", "none"],
-            default=["critical", "high", "medium", "low", "none"],
+            default=st.session_state.show_priorities,
             help="Select which threat levels to display"
         )
-
-        bbox_thickness = st.slider(
-            "Bounding Box Thickness",
-            min_value=1,
-            max_value=5,
-            value=2
+        st.session_state.bbox_thickness = st.slider(
+            "Bounding Box Thickness", min_value=1, max_value=5,
+            value=st.session_state.bbox_thickness
         )
-
-        font_scale = st.slider(
-            "Label Font Scale",
-            min_value=0.3,
-            max_value=1.5,
-            value=0.6,
-            step=0.1
+        st.session_state.font_scale = st.slider(
+            "Label Font Scale", min_value=0.3, max_value=1.5,
+            value=st.session_state.font_scale, step=0.1
         )
 
         st.divider()
 
-        # API Status
+        st.subheader("Evaluation Settings")
+        st.session_state.iou_threshold = st.slider(
+            "IoU Threshold", min_value=0.1, max_value=0.7,
+            value=st.session_state.iou_threshold, step=0.05,
+            help="Intersection over Union threshold (lower = more lenient)"
+        )
+        st.session_state.use_center_distance = st.checkbox(
+            "Use Center Distance Matching",
+            value=st.session_state.use_center_distance
+        )
+        if st.session_state.use_center_distance:
+            st.session_state.center_distance_threshold = st.slider(
+                "Center Distance Threshold (px)", min_value=10, max_value=100,
+                value=st.session_state.center_distance_threshold, step=10
+            )
+
+        st.divider()
+
         st.subheader("🔌 API Status")
         try:
             if st.session_state.api_client.check_health():
                 st.success("✅ Connected")
             else:
-                st.error("❌ Disconnected")
-                st.info("Make sure the API server is running:\n```python src/api_server.py```")
-        except:
-            st.error("❌ Disconnected")
-            st.info("Make sure the API server is running:\n```python src/api_server.py```")
+                st.warning("⚠️ API Disconnected")
+        except Exception:
+            st.warning("⚠️ API Disconnected")
 
-    # Collect V2 config if enabled
-    v2_config = None
-    if use_cv_labeler:
-        v2_config = {
-            'hazard_mode': hazard_mode,
-            'window_size': window_size,
-            'window_overlap': window_overlap
-        }
 
-    # Main content
-    tab1, tab2, tab3, tab4 = st.tabs(["📤 Upload & Process", "📊 Results", "📈 Evaluation", "ℹ️ About"])
+def _get_v2_config():
+    """Build V2 config dict from session state, or None if V1."""
+    if not st.session_state.use_cv_labeler:
+        return None
+    return {
+        'hazard_mode': st.session_state.hazard_mode,
+        'window_size': st.session_state.window_size,
+        'window_overlap': st.session_state.window_overlap,
+    }
+
+
+# ─── Page: Home ────────────────────────────────────────────────────────────────
+
+def render_home():
+    """Main pipeline workspace — batch upload + evaluation."""
+    _render_sidebar_config()
+
+    tab1, tab2 = st.tabs(["📁 Batch Mode", "📊 Evaluation"])
 
     with tab1:
-        upload_and_process_tab(snapshot_strategy, max_snapshots, use_cv_labeler, v2_config)
+        upload_and_process_tab(
+            st.session_state.snapshot_strategy,
+            st.session_state.max_snapshots,
+            st.session_state.use_cv_labeler,
+            _get_v2_config()
+        )
 
     with tab2:
-        results_tab(show_priorities, bbox_thickness, font_scale)
+        evaluation_tab(
+            st.session_state.iou_threshold,
+            st.session_state.use_center_distance,
+            st.session_state.center_distance_threshold
+        )
 
-    with tab3:
-        evaluation_tab(iou_threshold, use_center_distance, center_distance_threshold)
 
-    with tab4:
-        about_tab()
+# ─── Page: Processing ──────────────────────────────────────────────────────────
+
+def render_processing():
+    """Processing screen — shows per-job status and completion popup."""
+    jobs = st.session_state.jobs
+    if not jobs:
+        st.info("No active jobs found. Return to upload videos.")
+        return
+
+    completed = sum(1 for j in jobs if j["status"] == "COMPLETED")
+    failed = sum(1 for j in jobs if j["status"] == "FAILED")
+    active = [j for j in jobs if j["status"] not in ("COMPLETED", "FAILED")]
+
+    with st.sidebar:
+        st.markdown(f"**{len(jobs)} job(s) submitted**")
+        st.markdown(f"- ✅ {completed} completed")
+        st.markdown(f"- ❌ {failed} failed")
+        st.markdown(f"- ⚙️ {len(active)} active")
+
+    if not active:
+        # All done — completion popup
+        if completed:
+            st.success(f"✅ Batch complete — {completed} succeeded, {failed} failed.")
+        else:
+            st.error(f"❌ All {failed} job(s) failed.")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if completed and st.button("📊 View Results", type="primary", use_container_width=True):
+                st.session_state.page = "results"
+                st.rerun()
+        with col2:
+            if st.button("🔄 Run New Pipeline", use_container_width=True):
+                st.session_state.jobs = []
+                st.session_state.page = "home"
+                st.rerun()
+        st.divider()
+
+    # Show batch status cards
+    show_batch_status(
+        st.session_state.snapshot_strategy,
+        st.session_state.max_snapshots,
+        st.session_state.use_cv_labeler,
+        _get_v2_config()
+    )
+
+
+# ─── Page: Results ─────────────────────────────────────────────────────────────
+
+def render_results():
+    """Results page — file selector + annotated frames + properties."""
+    with st.sidebar:
+        st.markdown("**Display Settings**")
+        st.session_state.show_priorities = st.multiselect(
+            "Filter by Priority",
+            options=["critical", "high", "medium", "low", "none"],
+            default=st.session_state.show_priorities
+        )
+    results_tab(
+        st.session_state.show_priorities,
+        st.session_state.bbox_thickness,
+        st.session_state.font_scale
+    )
+
+
+# ─── Page: History ─────────────────────────────────────────────────────────────
+
+def _load_history():
+    """Fetch job history from backend, store in session_state."""
+    try:
+        jobs = st.session_state.api_client.list_jobs(limit=50)
+        st.session_state.history_jobs = jobs or []
+        st.session_state.selected_history_job_idx = None
+    except Exception:
+        st.session_state.history_jobs = []
+
+
+def render_history():
+    """Historical pipeline runs page."""
+    history = st.session_state.history_jobs
+
+    col_refresh, _ = st.columns([1, 9])
+    with col_refresh:
+        if st.button("🔄 Refresh"):
+            _load_history()
+            st.rerun()
+
+    if not history:
+        st.info("No historical runs found. Run a pipeline to see results here.")
+        return
+
+    col_list, col_view = st.columns([2, 8])
+
+    with col_list:
+        st.markdown("**Past Runs**")
+        st.divider()
+        status_icons = {"COMPLETED": "✅", "FAILED": "❌", "PROCESSING": "⚙️", "QUEUED": "⏳"}
+        for i, job in enumerate(history):
+            created = job.get("created_at", "")[:16].replace("T", " ")
+            fname = job.get("filename", job["job_id"][:12])
+            status = job.get("status", "UNKNOWN")
+            icon = status_icons.get(status, "❓")
+            label = f"{icon} {fname[:22]}\n{created}"
+            btn_type = "primary" if st.session_state.selected_history_job_idx == i else "secondary"
+            if st.button(label, key=f"hist_{i}", use_container_width=True, type=btn_type):
+                st.session_state.selected_history_job_idx = i
+                st.rerun()
+
+    with col_view:
+        idx = st.session_state.selected_history_job_idx
+        if idx is None:
+            st.info("← Select a run from the list to view its details.")
+            return
+
+        job = history[idx]
+        job_id = job["job_id"]
+
+        st.subheader(job.get("filename", job_id))
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Status", job.get("status", "UNKNOWN"))
+        m2.metric("Job ID", job_id[:16] + "…")
+        m3.metric("Created", job.get("created_at", "")[:16].replace("T", " "))
+
+        st.divider()
+
+        if job.get("status") == "COMPLETED":
+            json_data = st.session_state.api_client.get_json_content(job_id)
+            if json_data:
+                st.download_button(
+                    "⬇️ Download All JSON Files",
+                    data=json.dumps(json_data, indent=2),
+                    file_name=f"{job_id}_output.json",
+                    mime="application/json"
+                )
+                summary = json_data.get("summary", {})
+                if summary:
+                    s1, s2, s3 = st.columns(3)
+                    s1.metric("Total Objects", summary.get("total_objects", 0))
+                    s2.metric("Snapshots", summary.get("num_snapshots", 0))
+                    s3.metric("Hazard Events", summary.get("num_hazards", 0))
+                with st.expander("📋 Full JSON Output", expanded=False):
+                    st.json(json_data)
+            else:
+                st.warning("⚠️ In-memory results are no longer available (Lambda may have restarted).")
+                st.info("Download JSON immediately after processing completes to preserve results.")
+        elif job.get("status") == "FAILED":
+            st.error(f"Job failed: {job.get('error_message', 'Unknown error')}")
+        else:
+            st.info(f"Job status: {job.get('status', 'UNKNOWN')}")
+
 
 
 def upload_and_process_tab(snapshot_strategy, max_snapshots, use_cv_labeler, v2_config):
@@ -340,6 +550,7 @@ def _submit_batch(uploaded_files, snapshot_strategy, max_snapshots, use_cv_label
 
     if new_jobs:
         st.success(f"✅ {len(new_jobs)} video(s) submitted for processing!")
+        st.session_state.page = 'processing'
     if errors:
         st.error(f"❌ Failed to upload: {', '.join(errors)}")
 
@@ -373,7 +584,7 @@ def show_batch_status(snapshot_strategy, max_snapshots, use_cv_labeler, v2_confi
         completed = sum(1 for j in st.session_state.jobs if j["status"] == "COMPLETED")
         failed = sum(1 for j in st.session_state.jobs if j["status"] == "FAILED")
         if completed:
-            st.success(f"🎉 Batch complete: {completed} succeeded, {failed} failed. See Results tab.")
+            st.success(f"🎉 {completed} job(s) completed successfully, {failed} failed.")
         else:
             st.error(f"❌ All {failed} job(s) failed.")
         return
