@@ -32,7 +32,8 @@ RUN python3 -c "from transformers import AutoImageProcessor, AutoModelForDepthEs
 COPY src/ ${LAMBDA_TASK_ROOT}/src/
 
 # Create a simple lambda_function.py handler wrapper
-RUN printf 'import sys\nsys.path.insert(0, "/var/task/src")\nfrom api_server import app\n\ndef lambda_handler(event, context):\n    from mangum import Mangum\n    handler = Mangum(app, lifespan="off")\n    return handler(event, context)\n' > ${LAMBDA_TASK_ROOT}/lambda_function.py
+# Mangum is instantiated at module level (cold start only, not per-request)
+RUN printf 'import sys\nimport logging\nsys.path.insert(0, "/var/task/src")\n# Force INFO level before imports so app logs appear in CloudWatch\nlogging.getLogger().setLevel(logging.INFO)\nfrom api_server import app\nfrom mangum import Mangum\n\n# Module-level: initialized once on cold start, reused on warm invocations\n_handler = Mangum(app, lifespan="off")\n\ndef lambda_handler(event, context):\n    return _handler(event, context)\n' > ${LAMBDA_TASK_ROOT}/lambda_function.py
 
 # Set the CMD to your handler
 CMD [ "lambda_function.lambda_handler" ]

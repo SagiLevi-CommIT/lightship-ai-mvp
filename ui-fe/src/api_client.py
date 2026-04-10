@@ -29,7 +29,8 @@ class APIClient:
             True if server is reachable and healthy
         """
         try:
-            response = self.session.get(f"{self.base_url}/health", timeout=5)
+            # Lambda cold start can take 60-90s (model loading), use generous timeout
+            response = self.session.get(f"{self.base_url}/health", timeout=120)
             return response.status_code == 200
         except Exception as e:
             logger.error(f"Health check failed: {e}")
