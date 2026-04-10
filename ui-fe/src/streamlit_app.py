@@ -15,6 +15,16 @@ from io import BytesIO
 from api_client import APIClient
 from visualization import FrameVisualizer
 
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _cached_health_check(_api_client) -> bool:
+    """Non-blocking cached health check (30s TTL)."""
+    try:
+        resp = _api_client.session.get(f"{_api_client.base_url}/health", timeout=5)
+        return resp.status_code == 200
+    except Exception:
+        return False
+
 # Page config
 st.set_page_config(
     page_title="Lightship — Dashcam Analysis",
@@ -163,7 +173,6 @@ def render_nav():
     with col_nav2:
         btn_type = "primary" if page == 'history' else "secondary"
         if st.button("📋 Historical Runs", use_container_width=True, type=btn_type):
-            _load_history()
             st.session_state.page = 'history'
             st.rerun()
 
@@ -261,12 +270,9 @@ def _render_sidebar_config():
         st.divider()
 
         st.subheader("🔌 API Status")
-        try:
-            if st.session_state.api_client.check_health():
-                st.success("✅ Connected")
-            else:
-                st.warning("⚠️ API Disconnected")
-        except Exception:
+        if _cached_health_check(st.session_state.api_client):
+            st.success("✅ Connected")
+        else:
             st.warning("⚠️ API Disconnected")
 
 
@@ -384,6 +390,9 @@ def _load_history():
 
 def render_history():
     """Historical pipeline runs page."""
+    # Lazy-load on first visit
+    if not st.session_state.history_jobs:
+        _load_history()
     history = st.session_state.history_jobs
 
     col_refresh, _ = st.columns([1, 9])
