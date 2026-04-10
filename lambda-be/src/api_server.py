@@ -197,11 +197,24 @@ def presign_upload(filename: str, content_type: str = "video/mp4"):
     try:
         url = _s3_client.generate_presigned_url(
             "put_object",
-            Params={"Bucket": PROCESSING_BUCKET, "Key": s3_key, "ContentType": content_type},
+            Params={
+                "Bucket": PROCESSING_BUCKET,
+                "Key": s3_key,
+                "ContentType": content_type,
+                "ServerSideEncryption": "aws:kms",  # bucket enforces KMS SSE
+            },
             ExpiresIn=900,  # 15 minutes
         )
         logger.info(f"Presigned PUT URL generated for s3://{PROCESSING_BUCKET}/{s3_key}")
-        return {"presign_url": url, "s3_key": s3_key}
+        # Client MUST send these headers exactly as signed into the URL
+        return {
+            "presign_url": url,
+            "s3_key": s3_key,
+            "required_headers": {
+                "Content-Type": content_type,
+                "x-amz-server-side-encryption": "aws:kms",
+            },
+        }
     except Exception as e:
         logger.error(f"Failed to generate presigned URL: {e}")
         raise HTTPException(status_code=500, detail=f"Presign failed: {e}")

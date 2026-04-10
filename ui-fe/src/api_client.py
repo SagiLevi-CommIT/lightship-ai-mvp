@@ -79,10 +79,16 @@ class APIClient:
                 # ── Step 2: PUT video directly to S3 (no ALB 1 MB limit) ─
                 video_file.seek(0)
                 video_bytes = video_file.read()
+                # Use headers returned by presign endpoint (SSE-KMS header must
+                # match what was signed into the presigned URL)
+                put_headers = presign_data.get(
+                    "required_headers",
+                    {"Content-Type": "video/mp4"},
+                )
                 put_resp = requests.put(
                     presign_url,
                     data=video_bytes,
-                    headers={"Content-Type": "video/mp4"},
+                    headers=put_headers,
                     timeout=600,  # large videos can take time
                 )
                 if put_resp.status_code not in (200, 204):
