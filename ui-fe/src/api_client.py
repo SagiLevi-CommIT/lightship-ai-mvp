@@ -41,37 +41,82 @@ class APIClient:
         video_file,
         config: Optional[Dict[str, Any]] = None
     ) -> Optional[str]:
-        """Upload video for processing.
+        """Upload video for processing using S3 pre-signed URL flow.
+
+        The video is PUT directly to S3 (bypassing the ALB→Lambda 1 MB body
+        limit), then Lambda is notified via a small POST with just the s3_key.
+
+        Falls back to the legacy direct-to-Lambda multipart upload when the
+        /presign-upload endpoint is unavailable (e.g. local dev without S3).
 
         Args:
-            video_file: File-like object or UploadedFile
+            video_file: File-like object or Streamlit UploadedFile
             config: Processing configuration
 
         Returns:
             job_id if successful, None otherwise
         """
         try:
-            # Reset file pointer
             video_file.seek(0)
 
-            files = {
-                'video': (video_file.name, video_file, 'video/mp4')
-            }
+            # ── Step 1: Get presigned S3 PUT URL ─────────────────────────
+            try:
+                presign_resp = self.session.get(
+                    f"{self.base_url}/presign-upload",
+                    params={"filename": video_file.name, "content_type": "video/mp4"},
+                    timeout=10,
+                )
+                presign_resp.raise_for_status()
+                presign_data = presign_resp.json()
+                presign_url = presign_data["presign_url"]
+                s3_key = presign_data["s3_key"]
+                use_s3_flow = True
+            except Exception as e:
+                logger.warning(f"Presign endpoint unavailable, falling back to direct upload: {e}")
+                use_s3_flow = False
 
-            data = {}
-            if config:
-                data['config'] = json.dumps(config)
+            if use_s3_flow:
+                # ── Step 2: PUT video directly to S3 (no ALB 1 MB limit) ─
+                video_file.seek(0)
+                video_bytes = video_file.read()
+                put_resp = requests.put(
+                    presign_url,
+                    data=video_bytes,
+                    headers={"Content-Type": "video/mp4"},
+                    timeout=600,  # large videos can take time
+                )
+                if put_resp.status_code not in (200, 204):
+                    logger.error(f"S3 PUT failed: {put_resp.status_code} {put_resp.text[:200]}")
+                    return None
+                logger.info(f"Video uploaded to S3 key={s3_key}")
 
-            response = self.session.post(
-                f"{self.base_url}/process-video",
-                files=files,
-                data=data,
-                timeout=30
-            )
+                # ── Step 3: Notify Lambda with s3_key (tiny payload) ─────
+                data: Dict[str, Any] = {"s3_key": s3_key}
+                if config:
+                    data["config"] = json.dumps(config)
+
+                response = self.session.post(
+                    f"{self.base_url}/process-video",
+                    data=data,
+                    timeout=30,
+                )
+            else:
+                # ── Legacy: multipart direct upload ──────────────────────
+                video_file.seek(0)
+                files = {"video": (video_file.name, video_file, "video/mp4")}
+                data = {}
+                if config:
+                    data["config"] = json.dumps(config)
+                response = self.session.post(
+                    f"{self.base_url}/process-video",
+                    files=files,
+                    data=data,
+                    timeout=30,
+                )
 
             if response.status_code == 200:
                 result = response.json()
-                return result.get('job_id')
+                return result.get("job_id")
             else:
                 logger.error(f"Upload failed: {response.status_code} - {response.text}")
                 return None

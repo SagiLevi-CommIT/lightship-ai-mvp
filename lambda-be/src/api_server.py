@@ -53,6 +53,15 @@ processing_results: Dict[str, Dict[str, Any]] = {}
 DYNAMODB_TABLE = os.environ.get("DYNAMODB_TABLE", "lightship_jobs")
 AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
+# ─── S3 video upload bucket ─────────────────────────────────────────────────
+PROCESSING_BUCKET = os.environ.get("PROCESSING_BUCKET", "lightship-mvp-processing-336090301206")
+try:
+    _s3_client = boto3.client("s3", region_name=AWS_REGION)
+    logger.info(f"S3 client initialised, PROCESSING_BUCKET={PROCESSING_BUCKET}")
+except Exception as e:
+    logger.warning(f"S3 client init failed: {e}")
+    _s3_client = None
+
 try:
     _dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
     _jobs_table = _dynamodb.Table(DYNAMODB_TABLE)
@@ -168,42 +177,95 @@ def list_jobs(limit: int = 50):
         return {"jobs": []}
 
 
+@app.get("/presign-upload")
+def presign_upload(filename: str, content_type: str = "video/mp4"):
+    """Generate a pre-signed S3 PUT URL so the frontend can upload videos
+    directly to S3, bypassing the 1 MB ALB→Lambda payload limit.
+
+    Args:
+        filename: Original filename (used to name the S3 object)
+        content_type: MIME type for the upload (default: video/mp4)
+
+    Returns:
+        presign_url: PUT to this URL directly from the client
+        s3_key: Pass this key to POST /process-video instead of a file body
+    """
+    import uuid as _uuid
+    if _s3_client is None:
+        raise HTTPException(status_code=503, detail="S3 client not available")
+    s3_key = f"input/videos/{_uuid.uuid4()}/{filename}"
+    try:
+        url = _s3_client.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": PROCESSING_BUCKET, "Key": s3_key, "ContentType": content_type},
+            ExpiresIn=900,  # 15 minutes
+        )
+        logger.info(f"Presigned PUT URL generated for s3://{PROCESSING_BUCKET}/{s3_key}")
+        return {"presign_url": url, "s3_key": s3_key}
+    except Exception as e:
+        logger.error(f"Failed to generate presigned URL: {e}")
+        raise HTTPException(status_code=500, detail=f"Presign failed: {e}")
+
+
 @app.post("/process-video")
 async def process_video(
     background_tasks: BackgroundTasks,
-    video: UploadFile = File(...),
+    video: Optional[UploadFile] = File(None),
+    s3_key: Optional[str] = Form(None),
     config: Optional[str] = Form(None)
 ):
-    """Process uploaded video.
+    """Process a dashcam video. Accepts either:
+      - a direct multipart upload (small files / local dev), OR
+      - an s3_key form field pointing to a video already uploaded to S3
+        via the /presign-upload flow (preferred for production).
 
     Args:
-        video: Uploaded video file
+        video: Multipart file upload (optional if s3_key is provided)
+        s3_key: S3 object key in PROCESSING_BUCKET (optional if video is provided)
         config: Optional JSON string with ProcessingConfig
 
     Returns:
         job_id for status tracking
     """
-    # Generate job ID
-    import uuid
+    import uuid, json as _json
+
+    if video is None and not s3_key:
+        raise HTTPException(status_code=422, detail="Either 'video' file or 's3_key' must be provided")
+
     job_id = str(uuid.uuid4())
 
     # Parse config
     if config:
-        import json
-        config_dict = json.loads(config)
+        config_dict = _json.loads(config)
         proc_config = ProcessingConfig(**config_dict)
         logger.info(f"Received config: max_snapshots={proc_config.max_snapshots}, strategy={proc_config.snapshot_strategy}")
     else:
         proc_config = ProcessingConfig()
         logger.info(f"Using default config: max_snapshots={proc_config.max_snapshots}")
 
-    # Save uploaded video to temp file
+    # ── Obtain video file in /tmp ─────────────────────────────────────────
     temp_dir = tempfile.mkdtemp()
-    video_path = os.path.join(temp_dir, video.filename)
 
-    with open(video_path, "wb") as f:
-        content = await video.read()
-        f.write(content)
+    if s3_key:
+        # S3 flow: download from processing bucket (video already uploaded via presign URL)
+        filename = s3_key.split("/")[-1]
+        video_path = os.path.join(temp_dir, filename)
+        if _s3_client is None:
+            raise HTTPException(status_code=503, detail="S3 client not available")
+        logger.info(f"Downloading s3://{PROCESSING_BUCKET}/{s3_key} → {video_path}")
+        try:
+            _s3_client.download_file(PROCESSING_BUCKET, s3_key, video_path)
+        except Exception as e:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            logger.error(f"S3 download failed for {s3_key}: {e}")
+            raise HTTPException(status_code=500, detail=f"S3 download failed: {e}")
+    else:
+        # Direct multipart upload flow (local dev / small files)
+        filename = video.filename
+        video_path = os.path.join(temp_dir, filename)
+        with open(video_path, "wb") as f:
+            content = await video.read()
+            f.write(content)
 
     # Initialize status (in-memory + DynamoDB)
     processing_status[job_id] = {
@@ -216,7 +278,7 @@ async def process_video(
     _dynamo_put_job(
         job_id,
         status="QUEUED",
-        filename=video.filename,
+        filename=filename,
         input_type="video",
         snapshot_strategy=proc_config.snapshot_strategy,
         max_snapshots=proc_config.max_snapshots,
@@ -231,7 +293,7 @@ async def process_video(
         proc_config
     )
 
-    logger.info(f"Job {job_id} queued for video: {video.filename}")
+    logger.info(f"Job {job_id} queued for video: {filename}")
 
     return {"job_id": job_id, "status": "QUEUED"}
 

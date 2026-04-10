@@ -30,6 +30,12 @@ phases:
           --region $AWS_REGION \
           --query 'Stacks[0].Outputs[?OutputKey==`ConversationResultsBucketName`].OutputValue' \
           --output text)
+      - |
+        export PROCESSING_BUCKET=$(aws cloudformation describe-stacks \
+          --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+          --region $AWS_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`ProcessingBucketArn`].OutputValue' \
+          --output text | sed 's|arn:aws:s3:::||')
       - echo Building Docker image...
       - IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}
       - IMAGE_URI=$ECR_REPOSITORY_URI:$IMAGE_TAG
@@ -67,7 +73,7 @@ phases:
             --role $LAMBDA_ROLE_ARN \
             --timeout 900 \
             --memory-size 3008 \
-            --environment "Variables={LOG_LEVEL=INFO,DYNAMODB_TABLE=${PROJECT_NAME}_jobs,DATA_SOURCE_BUCKET=$CUSTOM_DATASOURCES_BUCKET,CUSTOM_DATASOURCES_BUCKET=$CUSTOM_DATASOURCES_BUCKET,LANCEDB_BUCKET=$LANCEDB_BUCKET,CONVERSATIONS_BUCKET=$CONVERSATIONS_BUCKET}" \
+            --environment "Variables={LOG_LEVEL=INFO,DYNAMODB_TABLE=${PROJECT_NAME}_jobs,DATA_SOURCE_BUCKET=$CUSTOM_DATASOURCES_BUCKET,CUSTOM_DATASOURCES_BUCKET=$CUSTOM_DATASOURCES_BUCKET,LANCEDB_BUCKET=$LANCEDB_BUCKET,CONVERSATIONS_BUCKET=$CONVERSATIONS_BUCKET,PROCESSING_BUCKET=$PROCESSING_BUCKET}" \
             --region $AWS_REGION
           
           echo Waiting for Lambda function to be active...
@@ -111,7 +117,7 @@ phases:
             --function-name $LAMBDA_FUNCTION_NAME \
             --timeout 900 \
             --memory-size 3008 \
-            --environment "Variables={LOG_LEVEL=INFO,DYNAMODB_TABLE=${PROJECT_NAME}_jobs,DATA_SOURCE_BUCKET=$CUSTOM_DATASOURCES_BUCKET,CUSTOM_DATASOURCES_BUCKET=$CUSTOM_DATASOURCES_BUCKET,LANCEDB_BUCKET=$LANCEDB_BUCKET,CONVERSATIONS_BUCKET=$CONVERSATIONS_BUCKET}" \
+            --environment "Variables={LOG_LEVEL=INFO,DYNAMODB_TABLE=${PROJECT_NAME}_jobs,DATA_SOURCE_BUCKET=$CUSTOM_DATASOURCES_BUCKET,CUSTOM_DATASOURCES_BUCKET=$CUSTOM_DATASOURCES_BUCKET,LANCEDB_BUCKET=$LANCEDB_BUCKET,CONVERSATIONS_BUCKET=$CONVERSATIONS_BUCKET,PROCESSING_BUCKET=$PROCESSING_BUCKET}" \
             --region $AWS_REGION
         fi
       - echo Deployment completed successfully!
