@@ -56,8 +56,15 @@ AWS_REGION = os.environ.get("AWS_REGION", "us-east-1")
 # ─── S3 video upload bucket ─────────────────────────────────────────────────
 PROCESSING_BUCKET = os.environ.get("PROCESSING_BUCKET", "lightship-mvp-processing-336090301206")
 try:
-    _s3_client = boto3.client("s3", region_name=AWS_REGION)
-    logger.info(f"S3 client initialised, PROCESSING_BUCKET={PROCESSING_BUCKET}")
+    from botocore.config import Config as _BotocoreConfig
+    # s3v4 is required for buckets with KMS-SSE — SigV2 presigned URLs are
+    # rejected by S3 when the bucket policy enforces aws:kms encryption.
+    _s3_client = boto3.client(
+        "s3",
+        region_name=AWS_REGION,
+        config=_BotocoreConfig(signature_version="s3v4"),
+    )
+    logger.info(f"S3 client initialised (SigV4), PROCESSING_BUCKET={PROCESSING_BUCKET}")
 except Exception as e:
     logger.warning(f"S3 client init failed: {e}")
     _s3_client = None
