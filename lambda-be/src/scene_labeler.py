@@ -36,9 +36,7 @@ class SceneLabeler:
         """Initialize SceneLabeler with Bedrock client."""
         self.bedrock_client = boto3.client(
             service_name='bedrock-runtime',
-            region_name=AWS_REGION,
-            aws_access_key_id=AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+            region_name=AWS_REGION
         )
         logger.info(f"SceneLabeler initialized with model: {BEDROCK_MODEL_ID}")
 
