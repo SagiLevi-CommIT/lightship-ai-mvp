@@ -4,6 +4,7 @@ Provides REST API endpoints for video processing.
 Persists job status to DynamoDB (lightship_jobs table).
 """
 import os
+import json
 import tempfile
 import shutil
 import logging
@@ -76,6 +77,18 @@ try:
 except Exception as e:
     logger.warning(f"DynamoDB init failed (will use in-memory only): {e}")
     _jobs_table = None
+
+# ─── Lambda self-invocation client (async worker dispatch) ───────────────────
+# AWS_LAMBDA_FUNCTION_NAME is set automatically by the Lambda runtime.
+# When running locally (uvicorn), it is absent so we fall back to background_tasks.
+LAMBDA_FUNCTION_NAME = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "")
+_lambda_client = None
+if LAMBDA_FUNCTION_NAME:
+    try:
+        _lambda_client = boto3.client("lambda", region_name=AWS_REGION)
+        logger.info(f"Lambda client initialised for async self-invocation: {LAMBDA_FUNCTION_NAME}")
+    except Exception as e:
+        logger.warning(f"Lambda client init failed: {e}")
 
 
 def _dynamo_put_job(job_id: str, status: str, **extra) -> None:
@@ -235,66 +248,55 @@ async def process_video(
     config: Optional[str] = Form(None)
 ):
     """Process a dashcam video. Accepts either:
-      - a direct multipart upload (small files / local dev), OR
-      - an s3_key form field pointing to a video already uploaded to S3
-        via the /presign-upload flow (preferred for production).
+      - an s3_key form field pointing to a video already in S3 via /presign-upload (production), OR
+      - a direct multipart upload (local dev / small files).
 
-    Args:
-        video: Multipart file upload (optional if s3_key is provided)
-        s3_key: S3 object key in PROCESSING_BUCKET (optional if video is provided)
-        config: Optional JSON string with ProcessingConfig
-
-    Returns:
-        job_id for status tracking
+    In production (Lambda), immediately returns a job_id and dispatches processing
+    asynchronously via Lambda self-invocation (Event type) – the ALB is never blocked.
+    In local dev (uvicorn), runs processing as a FastAPI background task.
     """
-    import uuid, json as _json
+    import uuid as _uuid
 
     if video is None and not s3_key:
         raise HTTPException(status_code=422, detail="Either 'video' file or 's3_key' must be provided")
 
-    job_id = str(uuid.uuid4())
+    job_id = str(_uuid.uuid4())
 
     # Parse config
     if config:
-        config_dict = _json.loads(config)
-        proc_config = ProcessingConfig(**config_dict)
+        proc_config = ProcessingConfig(**json.loads(config))
         logger.info(f"Received config: max_snapshots={proc_config.max_snapshots}, strategy={proc_config.snapshot_strategy}")
     else:
         proc_config = ProcessingConfig()
         logger.info(f"Using default config: max_snapshots={proc_config.max_snapshots}")
 
-    # ── Obtain video file in /tmp ─────────────────────────────────────────
+    # ── Resolve filename and ensure video is reachable in S3 ────────────────
     temp_dir = tempfile.mkdtemp()
 
     if s3_key:
-        # S3 flow: download from processing bucket (video already uploaded via presign URL)
+        # Presign-upload flow: video already in S3, worker will download it
         filename = s3_key.split("/")[-1]
-        video_path = os.path.join(temp_dir, filename)
+    else:
+        # Multipart upload: write to /tmp, then push to S3 so worker can access it
+        filename = video.filename
         if _s3_client is None:
+            shutil.rmtree(temp_dir, ignore_errors=True)
             raise HTTPException(status_code=503, detail="S3 client not available")
-        logger.info(f"Downloading s3://{PROCESSING_BUCKET}/{s3_key} → {video_path}")
+        content = await video.read()
+        local_path = os.path.join(temp_dir, filename)
+        with open(local_path, "wb") as f:
+            f.write(content)
+        s3_key = f"input/videos/{job_id}/{filename}"
         try:
-            _s3_client.download_file(PROCESSING_BUCKET, s3_key, video_path)
+            _s3_client.upload_file(local_path, PROCESSING_BUCKET, s3_key,
+                                   ExtraArgs={"ServerSideEncryption": "aws:kms"})
+            logger.info(f"Uploaded {filename} → s3://{PROCESSING_BUCKET}/{s3_key}")
         except Exception as e:
             shutil.rmtree(temp_dir, ignore_errors=True)
-            logger.error(f"S3 download failed for {s3_key}: {e}")
-            raise HTTPException(status_code=500, detail=f"S3 download failed: {e}")
-    else:
-        # Direct multipart upload flow (local dev / small files)
-        filename = video.filename
-        video_path = os.path.join(temp_dir, filename)
-        with open(video_path, "wb") as f:
-            content = await video.read()
-            f.write(content)
+            logger.error(f"S3 upload failed for {filename}: {e}")
+            raise HTTPException(status_code=500, detail=f"S3 upload failed: {e}")
 
-    # Initialize status (in-memory + DynamoDB)
-    processing_status[job_id] = {
-        "status": "QUEUED",
-        "progress": 0.0,
-        "message": "Video uploaded, queued for processing",
-        "video_path": video_path,
-        "temp_dir": temp_dir
-    }
+    # ── Persist job to DynamoDB (QUEUED) ─────────────────────────────────────
     _dynamo_put_job(
         job_id,
         status="QUEUED",
@@ -303,19 +305,98 @@ async def process_video(
         snapshot_strategy=proc_config.snapshot_strategy,
         max_snapshots=proc_config.max_snapshots,
     )
-
-    # Add processing task to background
-    background_tasks.add_task(
-        process_video_task,
-        job_id,
-        video_path,
-        temp_dir,
-        proc_config
-    )
-
     logger.info(f"Job {job_id} queued for video: {filename}")
 
+    # ── Dispatch worker ───────────────────────────────────────────────────────
+    if _lambda_client and LAMBDA_FUNCTION_NAME:
+        # Production Lambda: self-invoke async (InvocationType=Event → 202, no wait)
+        # This returns immediately so the ALB connection is never timed out.
+        worker_payload = {
+            "action": "process_worker",
+            "job_id": job_id,
+            "s3_key": s3_key,
+            "filename": filename,
+            "config": proc_config.model_dump(),
+        }
+        try:
+            _lambda_client.invoke(
+                FunctionName=LAMBDA_FUNCTION_NAME,
+                InvocationType="Event",  # fire-and-forget, returns 202
+                Payload=json.dumps(worker_payload).encode(),
+            )
+            logger.info(f"✅ Worker Lambda invoked async for job {job_id}")
+        except Exception as e:
+            logger.error(f"❌ Worker dispatch failed for job {job_id}: {e}")
+            _dynamo_update_status(job_id, "FAILED", error=str(e))
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise HTTPException(status_code=500, detail=f"Worker dispatch failed: {e}")
+        shutil.rmtree(temp_dir, ignore_errors=True)
+    else:
+        # Local dev (uvicorn): download from S3 now and run in background task
+        video_path = os.path.join(temp_dir, filename)
+        if not os.path.exists(video_path) and _s3_client:
+            logger.info(f"Downloading s3://{PROCESSING_BUCKET}/{s3_key} → {video_path}")
+            try:
+                _s3_client.download_file(PROCESSING_BUCKET, s3_key, video_path)
+            except Exception as e:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                logger.error(f"S3 download failed for {s3_key}: {e}")
+                raise HTTPException(status_code=500, detail=f"S3 download failed: {e}")
+        processing_status[job_id] = {
+            "status": "QUEUED",
+            "progress": 0.0,
+            "message": "Video uploaded, queued for processing",
+            "video_path": video_path,
+            "temp_dir": temp_dir,
+        }
+        background_tasks.add_task(process_video_task, job_id, video_path, temp_dir, proc_config)
+
+    logger.info(f"POST /process-video 200 job_id={job_id}")
     return {"job_id": job_id, "status": "QUEUED"}
+
+
+def process_video_worker(event: dict) -> dict:
+    """Entry point for async Lambda self-invocation (action=process_worker).
+
+    Downloads the video from S3, runs the full pipeline, and persists results
+    to S3/DynamoDB.  Never called via HTTP – invoked by Lambda async dispatch.
+    """
+    job_id = event["job_id"]
+    s3_key = event["s3_key"]
+    filename = event["filename"]
+    proc_config = ProcessingConfig(**event.get("config", {}))
+
+    logger.info(f"🚀 Worker started: job={job_id} file={filename}")
+
+    temp_dir = tempfile.mkdtemp()
+    video_path = os.path.join(temp_dir, filename)
+
+    try:
+        # Download video from S3
+        logger.info(f"Downloading s3://{PROCESSING_BUCKET}/{s3_key} → {video_path}")
+        _s3_client.download_file(PROCESSING_BUCKET, s3_key, video_path)
+
+        # Seed in-memory status so process_video_task update() calls don't KeyError
+        processing_status[job_id] = {
+            "status": "QUEUED",
+            "progress": 0.0,
+            "message": "Worker started",
+            "video_path": video_path,
+            "temp_dir": temp_dir,
+        }
+
+        # Run the full pipeline (updates DynamoDB at each stage)
+        process_video_task(job_id, video_path, temp_dir, proc_config)
+
+        logger.info(f"✅ Worker completed: job={job_id}")
+        return {"status": "ok", "job_id": job_id}
+
+    except Exception as e:
+        logger.error(f"❌ Worker failed: job={job_id}: {e}", exc_info=True)
+        _dynamo_update_status(job_id, "FAILED", error=str(e))
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        return {"status": "error", "job_id": job_id, "error": str(e)}
+
 
 
 def process_video_task(
