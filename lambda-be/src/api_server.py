@@ -458,9 +458,33 @@ def get_results(job_id: str):
 @app.get("/frames/{job_id}")
 def get_frames_list(job_id: str):
     """Return list of available frames for a job."""
-    if job_id not in processing_results:
-        raise HTTPException(status_code=404, detail="Results not found")
-    return {"frames": processing_results[job_id].get("snapshots", [])}
+    if job_id in processing_results:
+        return {"frames": processing_results[job_id].get("snapshots", [])}
+
+    # Fall back to S3: list annotated frames to reconstruct frame list
+    if _s3_client and RESULTS_BUCKET:
+        prefix = f"{RESULTS_PREFIX}/{job_id}/annotated_frames/"
+        try:
+            resp = _s3_client.list_objects_v2(Bucket=RESULTS_BUCKET, Prefix=prefix, MaxKeys=50)
+            frames = []
+            for obj in resp.get("Contents", []):
+                basename = obj["Key"].rsplit("/", 1)[-1]
+                parts = basename.replace("_annotated.png", "").split("_")
+                try:
+                    fidx_pos = parts.index("frame") + 1
+                    fidx = int(parts[fidx_pos])
+                    ts_str = parts[fidx_pos + 1].replace("ms", "")
+                    ts = float(ts_str)
+                    frames.append({"frame_idx": fidx, "timestamp_ms": ts, "has_annotated": True})
+                except (ValueError, IndexError):
+                    continue
+            frames.sort(key=lambda f: f["timestamp_ms"])
+            if frames:
+                return {"frames": frames}
+        except Exception as e:
+            logger.warning("S3 frames list failed for %s: %s", job_id, e)
+
+    raise HTTPException(status_code=404, detail="Results not found")
 
 
 @app.get("/download/json/{job_id}")
@@ -475,24 +499,42 @@ def download_json(job_id: str):
     raise HTTPException(status_code=404, detail="JSON not found")
 
 
+def _serve_frame_from_local_or_s3(job_id: str, frame_dict_key: str, frame_idx: int, s3_subdir: str):
+    """Try local file first, then fall back to S3 download."""
+    # Try in-memory results (same Lambda instance)
+    if job_id in processing_results:
+        fpath = processing_results[job_id].get(frame_dict_key, {}).get(frame_idx)
+        if fpath and os.path.exists(fpath):
+            return FileResponse(fpath, media_type="image/png",
+                                filename=f"{s3_subdir}_{frame_idx}.png")
+
+    # Fall back to S3
+    if _s3_client and RESULTS_BUCKET:
+        prefix = f"{RESULTS_PREFIX}/{job_id}/{s3_subdir}/"
+        try:
+            resp = _s3_client.list_objects_v2(Bucket=RESULTS_BUCKET, Prefix=prefix, MaxKeys=50)
+            for obj in resp.get("Contents", []):
+                key = obj["Key"]
+                basename = key.rsplit("/", 1)[-1]
+                if f"_frame_{frame_idx}_" in basename or f"_frame_{frame_idx}ms" in basename:
+                    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                    _s3_client.download_file(RESULTS_BUCKET, key, tmp.name)
+                    return FileResponse(tmp.name, media_type="image/png",
+                                        filename=basename)
+        except Exception as e:
+            logger.warning("S3 frame fetch failed for %s/%s/%d: %s", job_id, s3_subdir, frame_idx, e)
+
+    raise HTTPException(status_code=404, detail="Frame not found")
+
+
 @app.get("/download/frame/{job_id}/{frame_idx}")
 def download_frame(job_id: str, frame_idx: int):
-    if job_id not in processing_results:
-        raise HTTPException(status_code=404, detail="Results not found")
-    fpath = processing_results[job_id]["extracted_frames"].get(frame_idx)
-    if not fpath or not os.path.exists(fpath):
-        raise HTTPException(status_code=404, detail="Frame not found")
-    return FileResponse(fpath, media_type="image/png", filename=f"frame_{frame_idx}.png")
+    return _serve_frame_from_local_or_s3(job_id, "extracted_frames", frame_idx, "selected_frames")
 
 
 @app.get("/download/annotated-frame/{job_id}/{frame_idx}")
 def download_annotated_frame(job_id: str, frame_idx: int):
-    if job_id not in processing_results:
-        raise HTTPException(status_code=404, detail="Results not found")
-    fpath = processing_results[job_id].get("annotated_frames", {}).get(frame_idx)
-    if not fpath or not os.path.exists(fpath):
-        raise HTTPException(status_code=404, detail="Annotated frame not found")
-    return FileResponse(fpath, media_type="image/png", filename=f"annotated_frame_{frame_idx}.png")
+    return _serve_frame_from_local_or_s3(job_id, "annotated_frames", frame_idx, "annotated_frames")
 
 
 @app.delete("/cleanup/{job_id}")
