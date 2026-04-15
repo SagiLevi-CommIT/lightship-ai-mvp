@@ -12,7 +12,7 @@ This project uses **AWS SSO with role assumption** as the primary authentication
 ### Default Profile: `commit-devops-role`
 
 - **Account**: `095128162384`
-- **Region**: `eu-central-1`
+- **Region**: `us-east-1`
 - **Role**: `role-commit-corp-ai-devops`
 - **Source**: SSO via `ps-customer-devops-266731137418`
 
@@ -45,6 +45,6 @@ For CI/CD pipelines or when SSO is not available, use `.env` file:
 
 ## Bedrock Configuration
 
-- **Primary Region**: `eu-central-1`
+- **Primary Region**: `us-east-1`
 - **Model Access**: Claude Sonnet 4, NVIDIA models available
 - Ensure `.env` is in `.gitignore` to prevent credential leakage

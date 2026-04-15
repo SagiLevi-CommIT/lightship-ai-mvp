@@ -232,11 +232,10 @@ class FrameAnnotator:
         distance_order = {
             'very_far': 0,
             'far': 1,
-            'moderate': 2,
-            'close': 3,
-            'very_close': 4,
-            'dangerously_close': 5,
-            'n/a': 6  # Draw last (usually lane markings, should be on top)
+            'mid': 2,
+            'near': 3,
+            'danger_close': 4,
+            'n/a': 5,
         }
         sorted_objects = sorted(
             objects,

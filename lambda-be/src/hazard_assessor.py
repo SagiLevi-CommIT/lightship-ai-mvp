@@ -379,7 +379,7 @@ YOUR TASKS:
 
 2. REFINE DISTANCE LABELS
    For EACH valid object (not false positive), provide accurate distance based on YOUR VISUAL ANALYSIS:
-   - Options: dangerously_close, very_close, close, moderate, far, very_far, n/a
+   - Options: danger_close, near, mid, far, very_far, n/a
    - Use your judgment based on real-world appearance, perspective, depth cues, and object type
    - DO NOT use mechanical percentage calculations
    - Consider: object size in frame, depth perspective, partial occlusion, road context
@@ -446,7 +446,7 @@ CRITICAL RULES:
 - You MUST provide refined_objects entry for EVERY object in EVERY frame
 - Use frame_idx and object_index exactly as shown in the input (e.g., FRAME 0, Object 0)
 - is_false_positive must be true or false (boolean) - mark true if detection is incorrect based on visual inspection
-- refined_distance must be one of: dangerously_close, very_close, close, moderate, far, very_far, n/a
+- refined_distance must be one of: danger_close, near, mid, far, very_far, n/a
 - refined_priority must be one of: critical, high, medium, low, none
 - location_description required only for vehicles/pedestrians (empty string "" for others)
 - Return ONLY valid JSON, no explanations or markdown
@@ -697,7 +697,7 @@ Please fix your response and return ONLY valid JSON matching this exact schema:
       "frame_idx": <number>,
       "object_index": <number>,
       "is_false_positive": <true_or_false>,
-      "refined_distance": "<dangerously_close|very_close|close|moderate|far|very_far|n/a>",
+      "refined_distance": "<danger_close|near|mid|far|very_far|n/a>",
       "refined_priority": "<critical|high|medium|low|none>",
       "location_description": "<string or empty>"
     }}
