@@ -500,15 +500,17 @@ def download_json(job_id: str):
 
 
 def _serve_frame_from_local_or_s3(job_id: str, frame_dict_key: str, frame_idx: int, s3_subdir: str):
-    """Try local file first, then fall back to S3 download."""
-    # Try in-memory results (same Lambda instance)
+    """Try local file first, then redirect to S3 presigned URL to avoid ALB body size limit."""
+    # Try in-memory results (same Lambda instance) — only for small files
     if job_id in processing_results:
         fpath = processing_results[job_id].get(frame_dict_key, {}).get(frame_idx)
         if fpath and os.path.exists(fpath):
-            return FileResponse(fpath, media_type="image/png",
-                                filename=f"{s3_subdir}_{frame_idx}.png")
+            fsize = os.path.getsize(fpath)
+            if fsize < 500_000:
+                return FileResponse(fpath, media_type="image/png",
+                                    filename=f"{s3_subdir}_{frame_idx}.png")
 
-    # Fall back to S3
+    # Serve via S3 presigned URL (works for any size, bypasses ALB limit)
     if _s3_client and RESULTS_BUCKET:
         prefix = f"{RESULTS_PREFIX}/{job_id}/{s3_subdir}/"
         try:
@@ -517,10 +519,12 @@ def _serve_frame_from_local_or_s3(job_id: str, frame_dict_key: str, frame_idx: i
                 key = obj["Key"]
                 basename = key.rsplit("/", 1)[-1]
                 if f"_frame_{frame_idx}_" in basename or f"_frame_{frame_idx}ms" in basename:
-                    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-                    _s3_client.download_file(RESULTS_BUCKET, key, tmp.name)
-                    return FileResponse(tmp.name, media_type="image/png",
-                                        filename=basename)
+                    presigned = _s3_client.generate_presigned_url(
+                        "get_object",
+                        Params={"Bucket": RESULTS_BUCKET, "Key": key},
+                        ExpiresIn=3600,
+                    )
+                    return JSONResponse(content={"url": presigned, "filename": basename})
         except Exception as e:
             logger.warning("S3 frame fetch failed for %s/%s/%d: %s", job_id, s3_subdir, frame_idx, e)
 

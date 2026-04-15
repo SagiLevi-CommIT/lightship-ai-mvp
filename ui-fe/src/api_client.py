@@ -106,23 +106,33 @@ class APIClient:
             logger.error("Get frames list error: %s", e)
             return []
 
-    def get_frame_image(self, job_id: str, frame_idx: int) -> Optional[bytes]:
+    def _fetch_frame(self, url: str) -> Optional[bytes]:
+        """Fetch frame image — handles both direct binary and presigned URL JSON responses."""
         try:
-            response = self.session.get(
-                f"{self.base_url}/download/frame/{job_id}/{frame_idx}", timeout=15)
-            return response.content if response.status_code == 200 else None
+            response = self.session.get(url, timeout=15)
+            if response.status_code != 200:
+                return None
+            ct = response.headers.get("content-type", "")
+            if "image/" in ct:
+                return response.content
+            try:
+                data = response.json()
+                presigned_url = data.get("url")
+                if presigned_url:
+                    img_resp = requests.get(presigned_url, timeout=30)
+                    return img_resp.content if img_resp.status_code == 200 else None
+            except Exception:
+                return response.content
+            return response.content
         except Exception as e:
-            logger.error("Get frame image error: %s", e)
+            logger.error("Fetch frame error: %s", e)
             return None
 
+    def get_frame_image(self, job_id: str, frame_idx: int) -> Optional[bytes]:
+        return self._fetch_frame(f"{self.base_url}/download/frame/{job_id}/{frame_idx}")
+
     def get_annotated_frame_image(self, job_id: str, frame_idx: int) -> Optional[bytes]:
-        try:
-            response = self.session.get(
-                f"{self.base_url}/download/annotated-frame/{job_id}/{frame_idx}", timeout=15)
-            return response.content if response.status_code == 200 else None
-        except Exception as e:
-            logger.error("Get annotated frame error: %s", e)
-            return None
+        return self._fetch_frame(f"{self.base_url}/download/annotated-frame/{job_id}/{frame_idx}")
 
     def list_jobs(self, limit: int = 50) -> list:
         try:
