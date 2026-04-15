@@ -1,24 +1,42 @@
 # Lightship MVP — Dashcam Video Annotation & Classification
 
 Automated dashcam video annotation and classification system for Lightship Neuroscience.
-Ingests fleet dashcam video, detects road objects via Amazon Rekognition, classifies videos
-into 4 training types via Bedrock Claude, and generates client-ready JSON configs.
+Uses Amazon Rekognition for object detection and Bedrock Claude for video classification
+and hazard assessment. Generates client-ready config JSONs for 4 training types.
+
+## Quick Start
+
+### Deploy to AWS
+
+```bash
+./deploy.sh
+```
+
+One command deploys everything: Lambda backend, ECS frontend, ALB routing.
+
+### Access
+
+- **Frontend:** `http://lightship-mvp-alb-140533025.us-east-1.elb.amazonaws.com/`
+- **API:** `http://lightship-mvp-alb-140533025.us-east-1.elb.amazonaws.com/health`
 
 ## Architecture
 
 ```
-User → Streamlit UI (ECS Fargate)
-         ↓
-       ALB → Lambda (FastAPI backend)
-         ↓
-       Pipeline:
-         1. Frame Extraction (OpenCV)
-         2. Object Detection (Amazon Rekognition)
-         3. Hazard Assessment (Bedrock Claude)
-         4. Video Classification (Bedrock Claude)
-         5. Config JSON Generation
-         6. Frame Annotation (OpenCV)
-         7. S3 Persistence + DynamoDB Tracking
+Internet ──→ ALB
+              ├── / (default)          ──→ ECS Fargate (Streamlit UI)
+              └── /health, /process-video,
+                  /status/*, /results/*,
+                  /download/*, /presign-upload,
+                  /jobs                 ──→ Lambda (FastAPI + Mangum)
+
+Lambda Pipeline:
+  1. Frame Extraction (OpenCV)
+  2. Object Detection (Amazon Rekognition)
+  3. Hazard Assessment (Bedrock Claude)
+  4. Video Classification (Bedrock Claude → 4 types)
+  5. Config JSON Generation (client format)
+  6. Frame Annotation (OpenCV)
+  7. S3 Persistence + DynamoDB Tracking
 ```
 
 ## Project Structure
@@ -27,94 +45,74 @@ User → Streamlit UI (ECS Fargate)
 ├── lambda-be/               # Backend (Lambda container)
 │   ├── src/
 │   │   ├── api_server.py          # FastAPI REST API
-│   │   ├── lambda_function.py     # Lambda entry point
+│   │   ├── lambda_function.py     # Lambda entry point (API + worker)
 │   │   ├── pipeline.py            # Pipeline orchestrator
-│   │   ├── rekognition_labeler.py # Rekognition detection
+│   │   ├── rekognition_labeler.py # Rekognition DetectLabels
 │   │   ├── video_classifier.py    # Bedrock video classification
 │   │   ├── config_generator.py    # Client config JSON generator
 │   │   ├── hazard_assessor.py     # Bedrock hazard assessment
-│   │   ├── frame_extractor.py     # Frame extraction
+│   │   ├── frame_extractor.py     # Frame extraction (OpenCV)
 │   │   ├── frame_annotator.py     # Bounding box annotation
-│   │   ├── merger.py              # Output merging
-│   │   ├── video_loader.py        # Video metadata
-│   │   ├── snapshot_selector.py   # Frame selection
+│   │   ├── merger.py              # Output merging + detection_summary
 │   │   ├── schemas.py             # Pydantic models
 │   │   └── config.py              # Configuration
 │   ├── Dockerfile
 │   └── requirements.txt
-├── ui-fe/                   # Frontend (Streamlit)
+├── ui-fe/                   # Frontend (Streamlit ECS)
 │   ├── src/
-│   │   ├── streamlit_app.py       # Main Streamlit app
-│   │   ├── api_client.py          # Backend API client
-│   │   └── visualization.py       # Frame visualization
-│   ├── Dockerfile
-│   └── requirements.txt
+│   │   ├── streamlit_app.py
+│   │   ├── api_client.py
+│   │   └── visualization.py
+│   └── Dockerfile
 ├── infrastructure/          # CloudFormation IaC
 │   ├── vpc-stack.yaml
 │   ├── app-stack.yaml
-│   ├── frontend-service-stack.yaml
 │   ├── backend-lambda-stack.yaml
-│   └── deploy.sh
+│   └── frontend-service-stack.yaml
+├── deploy.sh                # One-command deploy script
 ├── tests/                   # Integration tests
 └── cicd/                    # CI/CD (CodeBuild)
 ```
 
-## Quick Start
+## Video Classification Types
 
-### Prerequisites
-- Python 3.11+
-- AWS account with Rekognition, Bedrock, S3, DynamoDB access
-- AWS CLI configured with appropriate IAM role
+| Type | Config Format | Description |
+|------|--------------|-------------|
+| `reactivity_braking` | Reactions config | Quick driver reaction required |
+| `qa_educational` | Decisions config | Educational Q&A scenario |
+| `hazard_detection` | Detection config | Hazard monitoring scenario |
+| `job_site_detection` | Jobsite config | Construction site (placeholder) |
 
-### Local Development
+## S3 Output Layout
 
-```bash
-# Clone and install
-cd lambda-be
-pip install -r requirements.txt
-
-# Set environment
-cp ../.env.example .env
-# Edit .env with your AWS settings
-
-# Run backend
-python -m src.api_server
-
-# In another terminal, run frontend
-cd ../ui-fe
-pip install -r requirements.txt
-streamlit run src/streamlit_app.py
+```
+results/{job_id}/
+  ├── config.json              # Client-format config
+  ├── detection_summary.json   # Detection statistics
+  ├── annotated_frames/        # Annotated frame images
+  └── *_pipeline.json          # Full pipeline output
 ```
 
-### Environment Variables
+## API Endpoints
 
-See `.env.example` for all settings. Key variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `AWS_REGION` | AWS region | `us-east-1` |
-| `PROCESSING_BUCKET` | S3 bucket for videos/results | (required) |
-| `DYNAMODB_TABLE` | DynamoDB job table | `lightship_jobs` |
-| `BEDROCK_MODEL_ID` | Bedrock model for LLM | Claude Sonnet 4 |
-| `BACKEND_API_URL` | Backend URL for frontend | `http://localhost:8000` |
-
-## Pipeline Output
-
-The system generates per-video config JSONs in the client's application format:
-
-- **Detection config** (`hazard_detection`): hazard coordinates, descriptions, risk levels
-- **Decisions config** (`qa_educational`): Q&A questions with answer options
-- **Reactions config** (`reactivity_braking`): reaction time windows, hazard positions
-- **Jobsite config** (`job_site_detection`): placeholder (awaiting client template)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| GET | `/jobs` | List recent jobs |
+| GET | `/presign-upload?filename=...` | Get S3 presigned upload URL |
+| POST | `/process-video` | Start video processing |
+| GET | `/status/{job_id}` | Get job status |
+| GET | `/results/{job_id}` | Get job results |
+| GET | `/download/json/{job_id}` | Download output JSON |
 
 ## Deployment
 
-See `DEPLOYMENT.md` for CloudFormation deployment instructions.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full deployment guide.
 
-## Status
+## Implementation Status
 
-See `IMPLEMENTATION_STATUS.md` for current implementation status and known gaps.
+See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for current status.
 
 ---
 
-**Timeline:** Mar 5 – Apr 30, 2026 | **Region:** us-east-1
+**Account:** 336090301206 | **Region:** us-east-1 | **Timeline:** Mar 5 – Apr 30, 2026

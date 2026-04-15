@@ -2,112 +2,72 @@
 
 **Last Updated:** 2026-04-15
 **Pipeline:** Rekognition-only (YOLO removed)
-**Region:** us-east-1
+**Region:** us-east-1 | **Account:** 336090301206
 
 ---
 
-## Architecture Overview
+## Deployment
 
-The Lightship MVP is a Rekognition-based dashcam video annotation and classification system.
+| Component | Status | Details |
+|-----------|--------|---------|
+| VPC Stack | ✅ Deployed | `lightship-mvp-vpc` |
+| App Stack | ✅ Deployed | `lightship-mvp-app` (ALB, ECR, S3, DynamoDB, SQS, SNS, ECS, IAM, KMS) |
+| Backend Lambda Stack | ✅ Deployed | `lightship-mvp-backend-lambda` |
+| CI/CD Stack | ✅ Deployed | `lightship-mvp-cicd` |
+| One-Command Deploy | ✅ Implemented | `./deploy.sh` |
 
-### Pipeline Flow
+## Pipeline
 
-```
-Upload Video → Extract Frames → Rekognition Detection → Hazard Assessment (LLM)
-  → Video Classification (LLM) → Client Config JSON Generation → Annotated Frames
-  → S3 Persistence → DynamoDB Status Update → SNS Notification (planned)
-```
+| Stage | Status | Technology |
+|-------|--------|------------|
+| Frame Extraction | ✅ | OpenCV |
+| Object Detection | ✅ | Amazon Rekognition DetectLabels |
+| Hazard Assessment | ✅ | Amazon Bedrock Claude (graceful degradation) |
+| Video Classification | ✅ | Amazon Bedrock Claude — 4 types |
+| Config Generation | ✅ | detection, decisions, reactions, jobsite formats |
+| Frame Annotation | ✅ | OpenCV bounding boxes + labels |
+| S3 Persistence | ✅ | `results/{job_id}/config.json`, `detection_summary.json`, `annotated_frames/` |
+| DynamoDB Tracking | ✅ | QUEUED → PROCESSING → COMPLETED/FAILED |
 
-### Core Components
+## Infrastructure
 
-| Component | Status | Technology |
-|-----------|--------|------------|
-| Object Detection | ✅ Implemented | Amazon Rekognition DetectLabels |
-| Depth/Distance | ✅ Implemented | Size-heuristic (bbox/frame ratio) |
-| Hazard Assessment | ✅ Implemented | Amazon Bedrock (Claude) |
-| Video Classification | ✅ Implemented | Amazon Bedrock (Claude) — 4 types |
-| Config Generation | ✅ Implemented | detection, decisions, reactions formats |
-| Frame Annotation | ✅ Implemented | OpenCV bounding boxes + labels |
-| S3 Persistence | ✅ Implemented | Results uploaded to S3 after processing |
-| DynamoDB Tracking | ✅ Implemented | Job status, video_class, road_type |
-| Streamlit UI | ✅ Updated | Upload, processing, results, history |
-| Jobsite Config | 🔲 Placeholder | Awaiting client config template |
-| Step Functions | 🔲 Not started | Architecture planned |
-| ECS Workers | 🔲 Not started | Architecture planned |
-| SQS/SNS | 🔲 Not started | Architecture planned |
-| Cross-frame Tracking | 🔲 Not started | IoU-based matching planned |
-| Lane Detection | 🔲 Not started | Dedicated model needed |
-| Single Image Mode | 🔲 Not started | API endpoint planned |
-| WAF/CloudTrail | 🔲 Not started | Security hardening planned |
+| Resource | Status | Name |
+|----------|--------|------|
+| ALB | ✅ Active | `lightship-mvp-alb` |
+| Lambda | ✅ Active | `lightship-mvp-backend` (3008 MB, 900s timeout) |
+| ECS Cluster | ✅ Active | `lightship-mvp-cluster` |
+| ECS Service | ✅ Active | `lightship-mvp-frontend-service` |
+| S3 Bucket | ✅ Active | `lightship-mvp-processing-336090301206` |
+| DynamoDB | ✅ Active | `lightship_jobs` |
+| SQS | ✅ Created | `lightship-mvp-processing-queue` + DLQ |
+| SNS | ✅ Created | `lightship-mvp-notifications` |
+| KMS | ✅ Active | `alias/lightship-mvp` |
+| CloudWatch | ✅ Active | Log groups, alarms, dashboard |
 
----
+## UI (Streamlit)
 
-## Video Classification Types
+| Feature | Status |
+|---------|--------|
+| Upload single video | ✅ |
+| Upload batch videos | ✅ |
+| Processing progress | ✅ |
+| Results display | ✅ |
+| Client config download | ✅ |
+| Job history | ✅ |
+| API health indicator | ✅ |
 
-| Type | Config Format | Status |
-|------|---------------|--------|
-| `reactivity_braking` | ReactionsConfigOutput | ✅ Implemented |
-| `qa_educational` | DecisionsConfigOutput | ✅ Implemented |
-| `hazard_detection` | DetectionConfigOutput | ✅ Implemented |
-| `job_site_detection` | JobsiteConfigOutput | 🔲 Placeholder (no client template) |
+## Taxonomy (Client-Aligned)
 
----
+- **Distance:** `danger_close`, `near`, `mid`, `far`, `very_far` (+ `n/a`)
+- **Road Types:** `highway`, `city`, `town`, `rural`
+- **Speed:** Road speed limit categories
+- **Object Classes:** car, truck, bus, motorcycle, bicycle, pedestrian, cone, barrier, etc.
 
-## Taxonomy (Interim — Aligned to Client Emails)
+## Known Gaps
 
-### Distance Categories (5)
-`danger_close`, `near`, `mid`, `far`, `very_far` (+ `n/a`)
-
-### Road Types
-`highway`, `city`, `town`, `rural`
-
-### Speed (Road Speed Limit)
-`<15_mph`, `15-25_mph`, `25-40_mph`, `40-55_mph`, `55-70_mph`, `>70_mph`
-
-### Object Classes (GT-aligned)
-`car`, `truck`, `bus`, `motorcycle`, `bicycle`, `pedestrian`, `construction_worker`, `cone`, `barrier`, `heavy_equipment`, `construction_sign`, `fencing`, `debris`, `animal`, `other`
-
-### Traffic Signal Labels
-`red`, `yellow`, `green`, `flashing_red`, `flashing_yellow`, `off`, `other`
-
-### Sign Labels
-`speed_limit`, `stop`, `yield`, `warning`, `construction`, `info`
-
----
-
-## Config Output Format
-
-Generated configs match the client's application schema:
-
-- **detection_config**: `hazard_x`, `hazard_y`, `hazard_size`, `hazard_desc`, `trial_start_prompt`, `hazard_view_duration`, `road`, `speed`, `traffic`, `collision`, `space`
-- **decisions_config**: `questions[]` with Q&A, `trial_start_prompt`
-- **reactions_config**: `reaction_time_window`, hazard coordinates, `trial_start_prompt`
-- **jobsite_config**: `objects_detected[]`, `hazards[]` (placeholder)
-
----
-
-## Known Gaps / Client Dependencies
-
-1. **Jobsite config template** — client TODO (blocks full jobsite pipeline)
-2. **Distance categories confirmation** — 3 (GT) vs 5 (email) — using 5 per email
-3. **Road type taxonomy** — GT uses "urban/city"; code uses "city" per spec
-4. **YOLO licensing decision** — resolved by switching to Rekognition
-5. **Step Functions orchestration** — deferred to Phase 2
-6. **ECS Fargate workers** — deferred to Phase 2
-7. **Cross-frame tracking** — deferred to Phase 4
-8. **Lane detection model** — deferred to Phase 3
-9. **WAF, CloudTrail, VPC Flow Logs** — deferred to Phase 5
-
----
-
-## Environment Variables
-
-See `.env.example` for the complete list.
-
-Key variables:
-- `AWS_REGION` — must be `us-east-1`
-- `PROCESSING_BUCKET` — S3 bucket for video input/output
-- `RESULTS_BUCKET` — S3 bucket for persisted results
-- `DYNAMODB_TABLE` — DynamoDB table name
-- `BEDROCK_MODEL_ID` — Bedrock model for classification/hazard assessment
-- `BACKEND_API_URL` — Backend URL for frontend (was previously misnamed `BACKEND_URL`)
+1. **Jobsite config template** — placeholder (client dependency)
+2. **Step Functions orchestration** — IAM role ready, state machine deferred
+3. **ECS Workers** — architecture ready, not yet needed at MVP volume
+4. **Cross-frame tracking** — deferred to Phase 4
+5. **Lane detection model** — deferred to Phase 3
+6. **WAF, CloudTrail** — deferred to Phase 5

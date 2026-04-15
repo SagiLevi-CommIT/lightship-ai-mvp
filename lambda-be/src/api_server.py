@@ -392,25 +392,37 @@ def process_video_task(
             "current_step": "processing",
         })
 
-        original_output_dir = pipeline.merger.output_dir
         pipeline.merger.output_dir = temp_dir
 
-        try:
-            output_json_path = pipeline.process_video(video_path, is_train=False)
-            if output_json_path is None:
-                raise ValueError("Pipeline returned None")
+        output_json_path = pipeline.process_video(video_path, is_train=False)
+        if output_json_path is None:
+            raise ValueError("Pipeline returned None — check logs for details")
 
-            final_output_path = os.path.join(temp_dir, "output.json")
-            if output_json_path != final_output_path:
+        # merger now writes output.json directly into temp_dir
+        final_output_path = os.path.join(temp_dir, "output.json")
+        if not os.path.exists(final_output_path):
+            if os.path.exists(output_json_path):
                 shutil.copy2(output_json_path, final_output_path)
-            output_json_path = final_output_path
-        finally:
-            pipeline.merger.output_dir = original_output_dir
+            else:
+                raise ValueError("No output JSON produced")
+        output_json_path = final_output_path
 
         processing_status[job_id].update({
             "progress": 0.8, "message": "Persisting results",
             "current_step": "persist",
         })
+
+        # Copy annotated frames from pipeline output into temp_dir for S3 upload
+        import glob as _glob
+        ann_src = os.path.join(OUTPUT_DIR, "delivery", "annotated_frames") if "OUTPUT_DIR" in dir() else "/tmp/output/delivery/annotated_frames"
+        from src.config import OUTPUT_DIR as _OUTPUT_DIR
+        ann_src = os.path.join(_OUTPUT_DIR, "delivery", "annotated_frames")
+        if os.path.isdir(ann_src):
+            ann_dest = os.path.join(temp_dir, "annotated_frames")
+            try:
+                shutil.copytree(ann_src, ann_dest, dirs_exist_ok=True)
+            except Exception as e:
+                logger.warning("Failed to copy annotated frames: %s", e)
 
         s3_results_uri = _upload_results_to_s3(job_id, temp_dir)
 

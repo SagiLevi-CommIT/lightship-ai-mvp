@@ -544,8 +544,8 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref FrontendTargetGroup
 
-  # ALB Listener Rule for Backend API paths
-  BackendListenerRule:
+  # ALB Listener Rules for Backend API paths
+  BackendListenerRuleAPI:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
       ListenerArn: !Ref ALBListenerHTTP
@@ -558,6 +558,21 @@ Resources:
             - '/status/*'
             - '/results/*'
             - '/download/*'
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref BackendTargetGroup
+
+  BackendListenerRuleExtra:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref ALBListenerHTTP
+      Priority: 99
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - '/presign-upload'
+            - '/jobs'
+            - '/cleanup/*'
       Actions:
         - Type: forward
           TargetGroupArn: !Ref BackendTargetGroup
