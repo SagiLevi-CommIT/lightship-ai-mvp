@@ -1,0 +1,14 @@
+---
+description: Docs/status hygiene: update README/*SUMMARY/IMPLEMENTATION_STATUS when behavior changes.
+globs: README.md,**/*SUMMARY.md,IMPLEMENTATION_STATUS.md
+alwaysApply: false
+---
+
+# Documentation & status updates
+
+- If code behavior, CLI, env vars, or setup steps change:
+  - Update `README.md` and/or the relevant `*SUMMARY.md`.
+- Always update `IMPLEMENTATION_STATUS.md`:
+  - What was done
+  - What remains
+  - Test status (passed/failed + command)

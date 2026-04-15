@@ -1,0 +1,50 @@
+---
+description: AWS environment configuration - SSO authentication and Bedrock setup.
+alwaysApply: true
+---
+
+# AWS Environment Configuration
+
+## Authentication (Primary: SSO with Assume Role)
+
+This project uses **AWS SSO with role assumption** as the primary authentication method.
+
+### Default Profile: `commit-devops-role`
+
+- **Account**: `095128162384`
+- **Region**: `eu-central-1`
+- **Role**: `role-commit-corp-ai-devops`
+- **Source**: SSO via `ps-customer-devops-266731137418`
+
+### Daily Login
+
+```bash
+# Login to SSO (required once per session, ~8-12 hours)
+aws sso login --profile ps-customer-devops-266731137418
+
+# Verify connection
+aws sts get-caller-identity
+```
+
+### Agent Guidelines - AWS Authentication
+
+1. **Prefer SSO/Profile**: Use `--profile commit-devops-role` or rely on `AWS_PROFILE` env var
+2. **boto3 usage**: Let boto3 auto-discover credentials from profile (no explicit keys)
+3. **Never hardcode credentials** in source code
+4. **If SSO expired**: Guide user to run `aws sso login --profile ps-customer-devops-266731137418`
+
+## Fallback: `.env` File (CI/CD or Specific Use Cases)
+
+For CI/CD pipelines or when SSO is not available, use `.env` file:
+
+- **AWS_REGION** - AWS region for services
+- **AWS_ACCESS_KEY_ID** - AWS access key (only for CI/CD)
+- **AWS_SECRET_ACCESS_KEY** - AWS secret access key (only for CI/CD)
+- **BEDROCK_MODEL_ID** - Bedrock model identifier
+- **TEMPERATURE**, **MAX_TOKENS**, **TOP_P**, **TOP_K** - LLM parameters
+
+## Bedrock Configuration
+
+- **Primary Region**: `eu-central-1`
+- **Model Access**: Claude Sonnet 4, NVIDIA models available
+- Ensure `.env` is in `.gitignore` to prevent credential leakage

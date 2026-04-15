@@ -1,0 +1,95 @@
+---
+description: AWS resource naming conventions and tagging standards. Use when creating/modifying AWS infrastructure, CloudFormation templates, or Terraform configs.
+globs: "*.yaml,*.yml,*.tf,infrastructure/**/*,cicd/**/*"
+alwaysApply: false
+---
+
+# AWS Resources Naming Convention
+
+Standard naming convention for AWS resources to ensure consistent identification.
+
+## Naming Structure
+
+### Multi-VPC Solutions
+```
+<object-type>-<vpc-name>-<object-name>[-<version>]
+```
+Examples: `i-mgmt-bastion-linux-v01`, `net-dev-private-az1`, `sgr-prod-web-servers`
+
+### Single VPC Solutions
+```
+<object-type>-<object-name>[-<version>]
+```
+Examples: `i-bastion-linux-v01`, `alb-web-frontend`
+
+## Format Rules
+
+- **All lowercase letters**
+- **No spaces** - use hyphens (`-`) as separators
+- **Version format**: `v##` (e.g., `v01`, `v02`) - never use `new`, `old`, `current`
+- **Temporary objects**: Add `_temp` suffix
+
+## Object Type Prefixes
+
+| Prefix | Resource | Prefix | Resource |
+|--------|----------|--------|----------|
+| `i` | EC2 Instance | `vpc` | VPC |
+| `lt` | Launch Template | `net` | Subnet |
+| `asg` | Auto-Scaling Group | `sgr` | Security Group |
+| `alb` | Application LB | `rtb` | Routing Table |
+| `nlb` | Network LB | `igw` | Internet Gateway |
+| `tg` | Target Group | `nat` | NAT Gateway |
+| `ecs` | ECS Cluster | `vpce` | VPC Endpoint |
+| `ecr` | ECR Repository | `eip` | Elastic IP |
+| `svc` | ECS Service | `pcx` | Peering Connection |
+| `taskdef` | ECS Task Definition | `acl` | Network ACL |
+| `lambda` | Lambda Function | `policy` | IAM Policy |
+| `rds` | RDS Instance | `role` | IAM Role |
+| `cb` | CodeBuild | `cmk` | KMS Key |
+| `repo` | CodeCommit | `lgr` | CloudWatch Log Group |
+| `cf` | CloudFormation Stack | `ebr` | EventBridge Rule |
+| `apigw` | API Gateway | `sns` | SNS Topic |
+
+## Environment Examples
+
+### Development
+```
+vpc-dev
+net-dev-private-az1
+sgr-dev-web-servers
+i-dev-app-server-v01
+alb-dev-web-frontend
+ecs-dev-cluster
+```
+
+### Production
+```
+vpc-prod
+net-prod-private-az1
+sgr-prod-db-access
+rds-prod-primary-v02
+lambda-prod-data-processor
+```
+
+## Required Tags
+
+| Tag | Purpose | Example |
+|-----|---------|---------|
+| `Name` | Resource identifier | `i-dev-web-server-v01` |
+| `Description` | Resource purpose | `Development web server` |
+| `Created-by` | Creator identity | `john.doe@company.com` |
+| `Environment` | Environment type | `dev`, `stg`, `prod` |
+| `Project` | Project name | `ceel-poc` |
+
+## AgentCore-Specific Naming
+
+| Resource | Pattern | Example |
+|----------|---------|---------|
+| AgentCore Runtime | `<Project><Env><Agent>Runtime-*` | `CeelPocOrchestratorRuntime-xyz` |
+| Backend ECR | `<project>-<agent>` | `ceel-orchestrator`, `ceel-analyzer` |
+| Frontend ECR | `<project>-frontend` | `ceel-frontend` |
+| Log Group (Agent) | `/aws/agentcore/<project>-<agent>` | `/aws/agentcore/ceel-orchestrator` |
+| Log Group (ECS) | `/ecs/<project>-frontend` | `/ecs/ceel-frontend` |
+| ALB | `alb-<project>-<env>` | `alb-ceel-poc` |
+| ECS Cluster | `ecs-<project>-<env>-cluster` | `ecs-ceel-poc-cluster` |
+| IAM Role (Agent) | `<project>-<env>-<agent>-role` | `ceel-poc-orchestrator-role` |
