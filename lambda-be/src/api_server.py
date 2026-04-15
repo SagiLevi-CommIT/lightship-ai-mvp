@@ -336,6 +336,18 @@ def process_video_task(job_id: str, video_path: str, temp_dir: str, config: Proc
         processing_status[job_id].update({"progress": 0.8, "message": "Persisting results",
                                           "current_step": "persist"})
 
+        # Copy selected frames into temp_dir so they survive across Lambda invocations
+        sel_dest = os.path.join(temp_dir, "selected_frames")
+        os.makedirs(sel_dest, exist_ok=True)
+        for idx, fpath in pipe_result.selected_frame_paths.items():
+            if os.path.exists(fpath):
+                dest = os.path.join(sel_dest, os.path.basename(fpath))
+                try:
+                    shutil.copy2(fpath, dest)
+                    pipe_result.selected_frame_paths[idx] = dest
+                except Exception as e:
+                    logger.warning("Failed to copy selected frame %d: %s", idx, e)
+
         # Copy annotated frames into temp_dir for S3 upload
         ann_dest = os.path.join(temp_dir, "annotated_frames")
         os.makedirs(ann_dest, exist_ok=True)
@@ -344,6 +356,7 @@ def process_video_task(job_id: str, video_path: str, temp_dir: str, config: Proc
                 dest = os.path.join(ann_dest, os.path.basename(ann_path))
                 try:
                     shutil.copy2(ann_path, dest)
+                    pipe_result.annotated_frame_paths[idx] = dest
                 except Exception as e:
                     logger.warning("Failed to copy annotated frame %d: %s", idx, e)
 
@@ -354,16 +367,11 @@ def process_video_task(job_id: str, video_path: str, temp_dir: str, config: Proc
 
         video_metadata = pipeline.video_loader.load_video_metadata(video_path)
 
-        # Build frames info from PipelineResult
+        # Build frames info from PipelineResult (paths already point to temp_dir copies)
         extracted_frames: Dict[int, str] = dict(pipe_result.selected_frame_paths)
-        annotated_frames: Dict[int, str] = {}
-        for idx, ann_path in pipe_result.annotated_frame_paths.items():
-            if os.path.exists(ann_path):
-                annotated_frames[idx] = ann_path
-            else:
-                dest = os.path.join(ann_dest, os.path.basename(ann_path))
-                if os.path.exists(dest):
-                    annotated_frames[idx] = dest
+        annotated_frames: Dict[int, str] = {
+            idx: p for idx, p in pipe_result.annotated_frame_paths.items() if os.path.exists(p)
+        }
 
         snapshots_info = []
         for idx in sorted(pipe_result.snapshot_timestamps.keys()):
