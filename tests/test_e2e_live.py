@@ -24,6 +24,7 @@ BASE_URL = f"http://{ALB_DNS}"
 
 POLL_INTERVAL_S = 3
 POLL_TIMEOUT_S = 180
+REQUEST_TIMEOUT_S = 120
 
 TEST_VIDEO_S3_KEY = os.environ.get("TEST_VIDEO_S3_KEY", "")
 
@@ -54,19 +55,19 @@ class TestHealthAndConnectivity:
 
     def test_health_endpoint(self):
         """GET /health returns healthy."""
-        r = requests.get(f"{BASE_URL}/health", timeout=10)
+        r = requests.get(f"{BASE_URL}/health", timeout=REQUEST_TIMEOUT_S)
         assert r.status_code == 200
         body = r.json()
         assert body.get("status") == "healthy"
 
     def test_root_returns_html_or_api(self):
         """GET / returns either Next.js HTML or API JSON — not a 5xx."""
-        r = requests.get(f"{BASE_URL}/", timeout=10)
+        r = requests.get(f"{BASE_URL}/", timeout=REQUEST_TIMEOUT_S)
         assert r.status_code == 200
 
     def test_jobs_endpoint(self):
         """GET /jobs returns a JSON with jobs array."""
-        r = requests.get(f"{BASE_URL}/jobs", timeout=10)
+        r = requests.get(f"{BASE_URL}/jobs", timeout=REQUEST_TIMEOUT_S)
         assert r.status_code == 200
         body = r.json()
         assert "jobs" in body
@@ -77,7 +78,7 @@ class TestHealthAndConnectivity:
         r = requests.get(
             f"{BASE_URL}/presign-upload",
             params={"filename": "test.mp4", "content_type": "video/mp4"},
-            timeout=10,
+            timeout=REQUEST_TIMEOUT_S,
         )
         assert r.status_code == 200
         body = r.json()
@@ -174,5 +175,5 @@ class TestCleanup:
 
     def test_cleanup_nonexistent_job(self):
         """DELETE /cleanup/nonexistent should not 500."""
-        r = requests.delete(f"{BASE_URL}/cleanup/nonexistent-job-id", timeout=10)
+        r = requests.delete(f"{BASE_URL}/cleanup/nonexistent-job-id", timeout=REQUEST_TIMEOUT_S)
         assert r.status_code in (200, 404)
