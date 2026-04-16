@@ -1,7 +1,7 @@
 {
   "family": "lightship-mvp-frontend",
-  "taskRoleArn": "arn:aws:iam::533267103017:role/lightship-mvp-ecs-task-role",
-  "executionRoleArn": "arn:aws:iam::533267103017:role/lightship-mvp-ecs-execution-role",
+  "taskRoleArn": "arn:aws:iam::336090301206:role/lightship-mvp-ecs-task-role",
+  "executionRoleArn": "arn:aws:iam::336090301206:role/lightship-mvp-ecs-execution-role",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "512",
@@ -9,30 +9,26 @@
   "containerDefinitions": [
     {
       "name": "lightship-frontend",
-      "image": "533267103017.dkr.ecr.us-east-1.amazonaws.com/lightship-frontend:latest",
+      "image": "336090301206.dkr.ecr.us-east-1.amazonaws.com/lightship-frontend:latest",
       "essential": true,
       "portMappings": [
         {
-          "containerPort": 8501,
+          "containerPort": 3000,
           "protocol": "tcp"
         }
       ],
       "environment": [
         {
-          "name": "STREAMLIT_SERVER_PORT",
-          "value": "8501"
+          "name": "PORT",
+          "value": "3000"
         },
         {
-          "name": "STREAMLIT_SERVER_ADDRESS",
-          "value": "0.0.0.0"
+          "name": "NODE_ENV",
+          "value": "production"
         },
         {
-          "name": "STREAMLIT_SERVER_HEADLESS",
-          "value": "true"
-        },
-        {
-          "name": "BACKEND_API_URL",
-          "value": "https://cnt6274duqmmfk7gyzp6hbu2t40tptwr.lambda-url.us-east-1.on.aws"
+          "name": "NEXT_PUBLIC_API_BASE",
+          "value": ""
         },
         {
           "name": "AWS_REGION",
@@ -48,7 +44,7 @@
         }
       },
       "healthCheck": {
-        "command": ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8501/_stcore/health || exit 1"],
+        "command": ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"],
         "interval": 30,
         "timeout": 10,
         "retries": 3,
@@ -57,4 +53,3 @@
     }
   ]
 }
-
