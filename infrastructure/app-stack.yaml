@@ -499,7 +499,7 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # Target Group for Frontend (ECS Service will be added later)
+  # Target Group for Frontend (Next.js on port 3000)
   FrontendTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -510,6 +510,7 @@ Resources:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
       TargetType: ip
       HealthCheckPath: /
+      HealthCheckPort: '3000'
       HealthCheckIntervalSeconds: 30
       HealthCheckTimeoutSeconds: 10
       HealthyThresholdCount: 2
