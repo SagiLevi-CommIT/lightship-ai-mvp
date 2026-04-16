@@ -21,6 +21,7 @@ from botocore.exceptions import ClientError
 
 from src.pipeline import Pipeline
 from src.config import SNAPSHOT_STRATEGY, MAX_SNAPSHOTS_PER_VIDEO, TEMP_FRAMES_DIR
+from src.config_generator import generate_client_configs, write_client_configs
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -621,6 +622,94 @@ def download_frame(job_id: str, frame_idx: int):
         media_type="image/png",
         filename=f"frame_{frame_idx}.png"
     )
+
+
+@app.get("/client-configs/{job_id}")
+def get_client_configs(job_id: str):
+    """Return the four client-config families for a completed job.
+
+    Maps the pipeline `VideoOutput` to the reactivity / educational /
+    hazard / jobsite config families requested in the MVP brief.
+    """
+    if job_id not in processing_results:
+        raise HTTPException(status_code=404, detail="Results not found")
+
+    json_path = processing_results[job_id]["output_json"]
+    if not os.path.exists(json_path):
+        raise HTTPException(status_code=404, detail="Results JSON missing")
+
+    try:
+        from src.schemas import VideoOutput
+        with open(json_path, "r", encoding="utf-8") as fp:
+            video_output = VideoOutput(**json.load(fp))
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Failed to load VideoOutput for {job_id}: {e}")
+        raise HTTPException(status_code=500, detail="Results parse failed") from e
+
+    return generate_client_configs(video_output)
+
+
+@app.post("/process-image")
+async def process_image(
+    image: Optional[UploadFile] = File(None),
+    s3_key: Optional[str] = Form(None),
+    config: Optional[str] = Form(None),
+):
+    """Single-image (job-site) processing mode.
+
+    Accepts either a presigned-uploaded S3 key or a direct multipart image
+    and returns detection + classification inline (no DynamoDB job is
+    created because the call is synchronous and short-lived).
+    """
+    if image is None and not s3_key:
+        raise HTTPException(status_code=422, detail="Either 'image' or 's3_key' must be provided")
+
+    proc_config = ProcessingConfig(**json.loads(config)) if config else ProcessingConfig()
+
+    temp_dir = tempfile.mkdtemp()
+    try:
+        if s3_key:
+            if _s3_client is None:
+                raise HTTPException(status_code=503, detail="S3 client not available")
+            filename = s3_key.split("/")[-1]
+            local_path = os.path.join(temp_dir, filename)
+            _s3_client.download_file(PROCESSING_BUCKET, s3_key, local_path)
+        else:
+            filename = image.filename
+            local_path = os.path.join(temp_dir, filename)
+            data = await image.read()
+            with open(local_path, "wb") as fp:
+                fp.write(data)
+
+        # Lazy import to avoid heavy deps when only video mode is used
+        from src.cv_labeler import CVLabeler
+        from src.camera_profiles import detect_camera_from_filename, get_camera_profile
+
+        camera_profile = get_camera_profile(detect_camera_from_filename(filename))
+        labeler = CVLabeler(camera_profile=camera_profile)
+
+        import cv2 as _cv2
+        img = _cv2.imread(local_path)
+        if img is None:
+            raise HTTPException(status_code=400, detail="Failed to decode image")
+        h, w = img.shape[:2]
+        objects = labeler.label_frame(local_path, timestamp_ms=0.0, video_width=w, video_height=h)
+
+        return {
+            "filename": filename,
+            "camera": camera_profile.name,
+            "width": w,
+            "height": h,
+            "objects": [o.model_dump() for o in objects],
+            "num_objects": len(objects),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"/process-image failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @app.delete("/cleanup/{job_id}")

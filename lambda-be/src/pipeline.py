@@ -32,6 +32,7 @@ from src.config import (
 )
 from src.frame_selector import select_frames_by_clustering
 from src.frame_preprocessor import preprocess_frame
+from src.config_generator import write_client_configs
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +175,16 @@ class Pipeline:
 
             summary = self.merger.get_summary_stats(video_output)
             logger.info(f"Summary: {summary}")
+
+            # Step 5b: Generate client-ready config families alongside the
+            # core output JSON so downstream consumers can pull ready-to-use
+            # reactivity/educational/hazard/jobsite configs.
+            try:
+                configs_dir = Path(output_path).parent / "client_configs"
+                written = write_client_configs(video_output, configs_dir)
+                logger.info(f"Wrote client configs: {list(written)}")
+            except Exception as cfg_err:  # noqa: BLE001
+                logger.warning(f"Client config generation failed: {cfg_err}")
 
             # Step 6: Cleanup temporary frames
             if self.cleanup_frames and 'all_extracted_frames' in locals():
