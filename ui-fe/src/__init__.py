@@ -1,2 +1,0 @@
-"""Lightship MVP Streamlit UI."""
-

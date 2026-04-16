@@ -1,0 +1,23 @@
+---
+description: Testing workflow: pytest-first, regression tests, and ad-hoc test scripts with src on path.
+globs: tests/**/*.py,**/*test*.py
+alwaysApply: false
+---
+
+# Testing rules
+
+## Default
+- Prefer **pytest** style tests when the repo uses pytest.
+- Name tests `test_*.py`; keep tests deterministic and fast.
+
+## Bugfix pattern
+1. Create a failing test (or minimal repro script).
+2. Apply the fix.
+3. Ensure the test passes; add a regression test if needed.
+
+## If you create an ad-hoc test script
+- Add `sys.path.append("src")` at the top (repo convention).
+- Use the project logging standard (module logger + basicConfig/dictConfig if available).
+
+## When tests are missing / blocked
+- Still provide a **verification step** (command + expected output) so a human can validate quickly.

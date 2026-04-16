@@ -1,0 +1,233 @@
+---
+description: MCP servers usage - Context7 for libraries, Exa for web/code search, AWS MCPs for AWS services.
+alwaysApply: true
+---
+
+# MCP Servers Usage
+
+Use MCP servers to fetch up-to-date documentation and code examples.
+
+## Available MCP Servers
+
+| Server | Purpose | Best For |
+|--------|---------|----------|
+| **context7** | Library/framework docs | Third-party libraries, SDKs, frameworks |
+| **exa** | AI-powered web & code search | Real-time web search, code examples, company research |
+| **bedrock-agentcore-mcp** | AgentCore platform | Runtime, Memory, Gateway, deployment |
+| **aws-documentation-mcp** | Official AWS docs | AWS services, APIs, best practices |
+
+## Priority Order for Different Query Types
+
+### For Library/Framework Documentation
+1. **Context7 MCP** - First choice for structured library docs
+2. **Exa MCP** (`get_code_context_exa`) - When Context7 lacks the library or need diverse real-world examples
+3. **Web Search** - Last resort
+
+### For General Web Search / Real-time Information
+1. **Exa MCP** (`web_search_exa`) - First choice, AI-optimized context
+2. **Generic WebSearch** - Fallback if Exa unavailable
+
+### For AWS Services
+1. **Bedrock AgentCore MCP** - For AgentCore-specific questions (Runtime, Memory, Gateway)
+2. **AWS Documentation MCP** - For general AWS services (S3, Lambda, IAM, etc.)
+3. **Context7** - For boto3/SDK code examples
+
+### For Company/Business Research
+1. **Exa MCP** (`company_research_exa`) - Comprehensive company information
+
+---
+
+## Exa MCP (`user-exa`)
+
+### When to Use
+- **Web Search**: Real-time information, current events, recent updates
+- **Code Context**: Finding code examples, library usage patterns, SDK documentation
+- **Company Research**: Business information, company profiles, industry analysis
+
+### Available Tools
+
+| Tool | Purpose | Key Args |
+|------|---------|----------|
+| `web_search_exa` | Real-time web search with AI-optimized results | `query`, `numResults`, `type` |
+| `get_code_context_exa` | Code snippets, docs, examples for libraries/APIs | `query`, `tokensNum` |
+| `company_research_exa` | Company information and profiles | `companyName`, `numResults` |
+| `crawling_exa` | Deep crawl content beyond search results | `query` |
+
+### How to Use
+
+```
+# Web search (real-time information)
+web_search_exa: query="latest React 19 features", numResults=8, type="auto"
+
+# Code context (library/SDK examples)
+get_code_context_exa: query="Python boto3 S3 upload with progress bar", tokensNum=5000
+
+# Company research
+company_research_exa: companyName="Anthropic", numResults=5
+```
+
+### Tool Parameters
+
+**`web_search_exa`**:
+- `query` (required): Search query
+- `numResults` (default: 8): Number of results
+- `type`: `"auto"` (balanced), `"fast"` (quick), `"deep"` (comprehensive)
+- `livecrawl`: `"fallback"` (cached first) or `"preferred"` (live crawl priority)
+- `contextMaxCharacters` (default: 10000): Max chars for context
+
+**`get_code_context_exa`**:
+- `query` (required): Specific query like "React useState hook examples"
+- `tokensNum` (default: 5000, range: 1000-50000): Adjust based on complexity
+
+**`company_research_exa`**:
+- `companyName` (required): Company name to research
+- `numResults` (default: 5): Number of results
+
+### Best Practices
+- Use specific queries: "Next.js 14 app router authentication" (good) vs "auth" (bad)
+- For code context, include language/framework: "Python pandas dataframe filtering"
+- Prefer `type="deep"` for comprehensive research, `type="fast"` for quick lookups
+- Use higher `tokensNum` (10000+) for complex library documentation
+
+---
+
+## Context7 MCP (`user-context7`)
+
+### When to Use
+- Questions about libraries, frameworks, SDKs (React, Django, Strands, etc.)
+- "How to" questions involving external packages
+- Need code examples for a specific technology
+
+### How to Use
+1. Call `resolve-library-id` with library name and user's question
+2. Select best match (prefer higher Code Snippets + Benchmark Score)
+3. Call `query-docs` with specific questions
+
+### Constraints
+- **Max 3 calls per question**
+- Use specific queries: "How to configure JWT in Express" (good) vs "auth" (bad)
+
+---
+
+## Bedrock AgentCore MCP (`user-bedrock-agentcore-mcp-server`)
+
+### When to Use
+- Building or deploying agents with AgentCore Runtime
+- Configuring AgentCore Memory (event/semantic memory)
+- Setting up AgentCore Gateway (API-to-tool transformation)
+- AgentCore Code Interpreter or Browser questions
+- Troubleshooting AgentCore deployments
+
+### Available Tools
+
+| Tool | Purpose | Args |
+|------|---------|------|
+| `search_agentcore_docs` | Search all AgentCore documentation | `query`, `k` (results) |
+| `fetch_agentcore_doc` | Fetch full document by URL | `uri` |
+| `manage_agentcore_runtime` | Runtime deployment guide | None |
+| `manage_agentcore_gateway` | Gateway management guide | None |
+| `manage_agentcore_memory` | Memory configuration guide | None |
+
+### How to Use
+
+```
+# Search AgentCore docs
+search_agentcore_docs: query="deploy agent to runtime", k=5
+
+# Get full document
+fetch_agentcore_doc: uri="https://..."
+
+# Get runtime deployment guide (no args needed)
+manage_agentcore_runtime
+
+# Get gateway guide (no args needed)
+manage_agentcore_gateway
+
+# Get memory guide (no args needed)
+manage_agentcore_memory
+```
+
+### Coverage
+- Platform services: Runtime, Memory, Code Interpreter, Browser, Gateway, Observability, Identity
+- Getting started guides and tutorials
+- API references (data plane and control APIs)
+- Framework integrations: Strands, LangGraph, CrewAI
+
+---
+
+## AWS Documentation MCP (`user-awslabs.aws-documentation-mcp-server`)
+
+### When to Use
+- Questions about AWS services (S3, Bedrock, Lambda, IAM, etc.)
+- AWS API references and best practices
+- Finding new features for AWS services
+- Troubleshooting AWS configurations
+
+### Available Tools
+
+| Tool | Purpose |
+|------|---------|
+| `search_documentation` | Search across all AWS docs |
+| `read_documentation` | Fetch full page content as markdown |
+| `recommend` | Get related docs (Highly Rated, New, Similar, Journey) |
+
+### How to Use
+
+```
+# Search for documentation
+search_documentation: search_phrase="Bedrock AgentCore deployment", limit=10
+
+# Read a specific page
+read_documentation: url="https://docs.aws.amazon.com/...", max_length=5000
+
+# Get recommendations (find new features)
+recommend: url="https://docs.aws.amazon.com/service/welcome.html"
+```
+
+### Search Tips
+- Include service names: "S3 bucket versioning" not just "versioning"
+- Use `product_types` filter: `["Amazon Bedrock"]`
+- Use `guide_types` filter: `["User Guide", "API Reference"]`
+
+---
+
+## Combined Examples
+
+### Example 1: AgentCore + Library Question
+
+User asks: "How to deploy a Strands Agent to Bedrock AgentCore Runtime?"
+
+1. **AgentCore MCP**: `manage_agentcore_runtime` for deployment workflow
+2. **AgentCore MCP**: `search_agentcore_docs` query="strands agent deployment" for specific steps
+3. **Context7**: `resolve-library-id` → `query-docs` for Strands Agents code patterns
+4. Combine sources for comprehensive answer
+
+### Example 2: AWS Service Question
+
+User asks: "How to configure S3 bucket policies?"
+
+1. **AWS Documentation MCP**: `search_documentation` → `read_documentation`
+2. **Context7**: For boto3/SDK code examples
+3. Skip Exa/AgentCore (not needed)
+
+### Example 3: Library with Real-world Examples
+
+User asks: "How to implement OAuth with FastAPI?"
+
+1. **Context7**: `resolve-library-id` → `query-docs` for FastAPI official patterns
+2. **Exa**: `get_code_context_exa` query="FastAPI OAuth2 JWT implementation example" for diverse real-world code
+3. Combine structured docs with practical examples
+
+### Example 4: Current Technology News/Updates
+
+User asks: "What are the latest features in Python 3.13?"
+
+1. **Exa**: `web_search_exa` query="Python 3.13 new features release", type="auto"
+2. Skip Context7/AWS (need real-time information)
+
+### Example 5: Company/Business Research
+
+User asks: "Tell me about Vercel's infrastructure"
+
+1. **Exa**: `company_research_exa` companyName="Vercel"
+2. **Exa**: `web_search_exa` query="Vercel infrastructure architecture edge network" for technical details

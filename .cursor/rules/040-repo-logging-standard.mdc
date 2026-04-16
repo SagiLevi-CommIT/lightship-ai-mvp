@@ -1,0 +1,15 @@
+---
+description: Logging standard: dictConfig, console + timed rotating file at ./.logs/app.log.
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# Logging standard
+
+- Centralize config via `logging.config.dictConfig` when feasible.
+- Handlers:
+  - Console (stream)
+  - Timed rotating file handler at `./.logs/app.log` (rotate nightly, keep ~7 backups)
+- Levels:
+  - INFO: milestones, I/O boundaries, durations, major success/failure
+  - DEBUG: parameters (no PII), branch choices, key computed values

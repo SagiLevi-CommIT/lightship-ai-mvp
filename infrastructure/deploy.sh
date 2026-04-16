@@ -181,8 +181,8 @@ build_and_push_images() {
     
     # Build and push frontend image
     print_status "Building frontend image..."
-    cd s3-ui-fe
-    docker build -t $FRONTEND_ECR:latest .
+    cd ui-fe
+    docker build --build-arg NEXT_PUBLIC_API_BASE="" -t $FRONTEND_ECR:latest .
     docker push $FRONTEND_ECR:latest
     cd ..
     
@@ -190,8 +190,8 @@ build_and_push_images() {
     
     # Build and push backend image
     print_status "Building backend image..."
-    cd s3-lambda-be
-    docker build -f Dockerfile.lambda -t $BACKEND_ECR:latest .
+    cd lambda-be
+    docker build -t $BACKEND_ECR:latest .
     docker push $BACKEND_ECR:latest
     cd ..
     

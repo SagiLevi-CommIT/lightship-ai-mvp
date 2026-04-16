@@ -1,0 +1,27 @@
+---
+description: Core guardrails: PowerShell, .venv, tests, minimal diffs, update docs/status.
+alwaysApply: true
+---
+
+# Core guardrails (AL Solutions)
+
+## Environment / execution
+- **Windows PowerShell** is the default shell.
+- Always run Python via the project virtual environment **.venv** (activate it or call its python).
+- Never "create a .venv folder manually"; create the venv with a command (it will create the folder).
+
+## Change discipline
+- Prefer **small, safe diffs** over rewrites. Preserve existing behavior unless asked to change it.
+- Before implementing, quickly scan relevant files to avoid hallucinating APIs or structures.
+
+## Dependencies
+- If you add/change dependencies, **update `requirements.txt`** (and any lock/constraints file if present).
+
+## Verification
+- For bugfixes: reproduce → add/regression test → fix → re-run tests.
+- For features: implement + tests + brief rationale.
+- If no tests exist, add a minimal one or a simple verification script.
+
+## Project docs / status
+- Update `IMPLEMENTATION_STATUS.md` with what is done and whether tests passed.
+- Update any relevant `README.md` / `*SUMMARY.md` files to reflect changes.

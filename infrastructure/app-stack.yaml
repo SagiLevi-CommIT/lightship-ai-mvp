@@ -182,10 +182,10 @@ Resources:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 8501
-          ToPort: 8501
+          FromPort: 3000
+          ToPort: 3000
           SourceSecurityGroupId: !Ref ALBSecurityGroup
-          Description: Streamlit from ALB
+          Description: Next.js frontend from ALB
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -504,7 +504,7 @@ Resources:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: !Sub '${ProjectName}-${Environment}-frontend-tg'
-      Port: 8501
+      Port: 3000
       Protocol: HTTP
       VpcId:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
@@ -558,6 +558,11 @@ Resources:
             - '/status/*'
             - '/results/*'
             - '/download/*'
+            - '/presign-upload'
+            - '/jobs'
+            - '/frames/*'
+            - '/pipeline-result/*'
+            - '/cleanup/*'
       Actions:
         - Type: forward
           TargetGroupArn: !Ref BackendTargetGroup
