@@ -1,0 +1,199 @@
+{
+  "filename": "hazard_still_2-11.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 251,
+        "y": 301
+      },
+      "polygon": [
+        {
+          "x": 104,
+          "y": 5
+        },
+        {
+          "x": 418,
+          "y": 5
+        },
+        {
+          "x": 411,
+          "y": 602
+        },
+        {
+          "x": 72,
+          "y": 590
+        }
+      ],
+      "x_min": 72,
+      "x_max": 418,
+      "y_min": 5,
+      "y_max": 602,
+      "width": 346,
+      "height": 597,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 650,
+        "y": 173
+      },
+      "polygon": [
+        {
+          "x": 537,
+          "y": 59
+        },
+        {
+          "x": 763,
+          "y": 59
+        },
+        {
+          "x": 763,
+          "y": 286
+        },
+        {
+          "x": 537,
+          "y": 286
+        }
+      ],
+      "x_min": 537,
+      "x_max": 763,
+      "y_min": 59,
+      "y_max": 286,
+      "width": 226,
+      "height": 227,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 686,
+        "y": 418
+      },
+      "polygon": [
+        {
+          "x": 572,
+          "y": 304
+        },
+        {
+          "x": 799,
+          "y": 304
+        },
+        {
+          "x": 799,
+          "y": 531
+        },
+        {
+          "x": 572,
+          "y": 531
+        }
+      ],
+      "x_min": 572,
+      "x_max": 799,
+      "y_min": 304,
+      "y_max": 531,
+      "width": 227,
+      "height": 227,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 984,
+        "y": 276
+      },
+      "polygon": [
+        {
+          "x": 870,
+          "y": 163
+        },
+        {
+          "x": 1097,
+          "y": 163
+        },
+        {
+          "x": 1097,
+          "y": 389
+        },
+        {
+          "x": 870,
+          "y": 389
+        }
+      ],
+      "x_min": 870,
+      "x_max": 1097,
+      "y_min": 163,
+      "y_max": 389,
+      "width": 227,
+      "height": 226,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "wires/cables",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 651,
+        "y": 353
+      },
+      "polygon": [
+        {
+          "x": 322,
+          "y": 488
+        },
+        {
+          "x": 460,
+          "y": 469
+        },
+        {
+          "x": 568,
+          "y": 281
+        },
+        {
+          "x": 1101,
+          "y": 13
+        },
+        {
+          "x": 1178,
+          "y": 55
+        },
+        {
+          "x": 639,
+          "y": 334
+        },
+        {
+          "x": 579,
+          "y": 594
+        },
+        {
+          "x": 358,
+          "y": 593
+        }
+      ],
+      "x_min": 322,
+      "x_max": 1178,
+      "y_min": 13,
+      "y_max": 594,
+      "width": 856,
+      "height": 581,
+      "distance": "near"
+    }
+  ]
+}

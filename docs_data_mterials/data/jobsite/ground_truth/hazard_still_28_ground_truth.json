@@ -1,0 +1,113 @@
+{
+  "filename": "hazard_still_28.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "floor_conditions_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1140,
+        "y": 1255
+      },
+      "polygon": [
+        {
+          "x": 59,
+          "y": 1089
+        },
+        {
+          "x": 1750,
+          "y": 1074
+        },
+        {
+          "x": 2751,
+          "y": 1405
+        },
+        {
+          "x": 0,
+          "y": 1450
+        }
+      ],
+      "x_min": 0,
+      "x_max": 2751,
+      "y_min": 1074,
+      "y_max": 1450,
+      "width": 2751,
+      "height": 376,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1528,
+        "y": 760
+      },
+      "polygon": [
+        {
+          "x": 870,
+          "y": 419
+        },
+        {
+          "x": 2114,
+          "y": 263
+        },
+        {
+          "x": 2256,
+          "y": 1172
+        },
+        {
+          "x": 870,
+          "y": 1187
+        }
+      ],
+      "x_min": 870,
+      "x_max": 2256,
+      "y_min": 263,
+      "y_max": 1187,
+      "width": 1386,
+      "height": 924,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1786,
+        "y": 666
+      },
+      "polygon": [
+        {
+          "x": 1550,
+          "y": 430
+        },
+        {
+          "x": 2021,
+          "y": 430
+        },
+        {
+          "x": 2021,
+          "y": 902
+        },
+        {
+          "x": 1550,
+          "y": 902
+        }
+      ],
+      "x_min": 1550,
+      "x_max": 2021,
+      "y_min": 430,
+      "y_max": 902,
+      "width": 471,
+      "height": 472,
+      "distance": "mid"
+    }
+  ]
+}

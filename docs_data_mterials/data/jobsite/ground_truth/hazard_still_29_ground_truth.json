@@ -1,0 +1,113 @@
+{
+  "filename": "hazard_still_29.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "overhead_obstruction_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1628,
+        "y": 361
+      },
+      "polygon": [
+        {
+          "x": 768,
+          "y": 29
+        },
+        {
+          "x": 2483,
+          "y": 0
+        },
+        {
+          "x": 2007,
+          "y": 711
+        },
+        {
+          "x": 1253,
+          "y": 702
+        }
+      ],
+      "x_min": 768,
+      "x_max": 2483,
+      "y_min": 0,
+      "y_max": 711,
+      "width": 1715,
+      "height": 711,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "forklift",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1183,
+        "y": 928
+      },
+      "polygon": [
+        {
+          "x": 675,
+          "y": 420
+        },
+        {
+          "x": 1691,
+          "y": 420
+        },
+        {
+          "x": 1691,
+          "y": 1436
+        },
+        {
+          "x": 675,
+          "y": 1436
+        }
+      ],
+      "x_min": 675,
+      "x_max": 1691,
+      "y_min": 420,
+      "y_max": 1436,
+      "width": 1016,
+      "height": 1016,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1182,
+        "y": 878
+      },
+      "polygon": [
+        {
+          "x": 990,
+          "y": 686
+        },
+        {
+          "x": 1373,
+          "y": 686
+        },
+        {
+          "x": 1373,
+          "y": 1069
+        },
+        {
+          "x": 990,
+          "y": 1069
+        }
+      ],
+      "x_min": 990,
+      "x_max": 1373,
+      "y_min": 686,
+      "y_max": 1069,
+      "width": 383,
+      "height": 383,
+      "distance": "mid"
+    }
+  ]
+}

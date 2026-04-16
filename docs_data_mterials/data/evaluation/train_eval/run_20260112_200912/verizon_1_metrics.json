@@ -1,0 +1,433 @@
+{
+  "video_name": "verizon_1",
+  "geometric": {
+    "gt": 8,
+    "detected": 2,
+    "matched": 0,
+    "false_positives": 2,
+    "false_negatives": 8
+  },
+  "non_geometric": {
+    "gt": 13,
+    "detected": 13,
+    "matched": 4,
+    "false_positives": 9,
+    "false_negatives": 9
+  },
+  "frames": [
+    {
+      "timestamp_ms": 2879.665,
+      "frame_path": "evaluation/train_eval/run_20260112_200912/temp_frames/verizon_1_frame_28_2880ms.png",
+      "total_gt": 6,
+      "total_detected": 7,
+      "total_matched": 0,
+      "geometric": {
+        "gt": 2,
+        "detected": 2,
+        "matched": 0,
+        "false_positives": 2,
+        "false_negatives": 2
+      },
+      "non_geometric": {
+        "gt": 4,
+        "detected": 5,
+        "matched": 0,
+        "false_positives": 5,
+        "false_negatives": 4
+      },
+      "per_class": {
+        "vehicle": {
+          "tp": 0,
+          "fp": 5,
+          "fn": 2
+        },
+        "lane": {
+          "tp": 0,
+          "fp": 2,
+          "fn": 2
+        },
+        "truck": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2
+        }
+      },
+      "matches": [],
+      "false_positives": [
+        {
+          "class": "vehicle",
+          "bbox": [
+            556.1419677734375,
+            368.7214660644531,
+            588.0621337890625,
+            394.9252624511719
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            437.156982421875,
+            361.2064208984375,
+            511.5535888671875,
+            421.56317138671875
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            397.91070556640625,
+            354.89678955078125,
+            423.90191650390625,
+            379.49224853515625
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            600.2811279296875,
+            369.92547607421875,
+            622.1282958984375,
+            385.18115234375
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            351.26617431640625,
+            365.8150634765625,
+            399.918212890625,
+            400.15380859375
+          ]
+        },
+        {
+          "class": "lane(current)",
+          "bbox": [
+            366.0,
+            558.0,
+            450.0,
+            720.0
+          ]
+        },
+        {
+          "class": "lane(current)",
+          "bbox": [
+            710.0,
+            472.0,
+            722.0,
+            488.0
+          ]
+        }
+      ],
+      "false_negatives": [
+        {
+          "class": "truck",
+          "bbox": [
+            428.9333324432373,
+            349.7333297729492,
+            525.9333324432373,
+            431.7333297729492
+          ]
+        },
+        {
+          "class": "truck",
+          "bbox": [
+            315.9333324432373,
+            336.7333297729492,
+            412.9333324432373,
+            418.7333297729492
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            550.9333324432373,
+            356.7333297729492,
+            598.9333324432373,
+            404.7333297729492
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            591.9333324432373,
+            347.7333297729492,
+            639.9333324432373,
+            395.7333297729492
+          ]
+        },
+        {
+          "class": "lane(current)",
+          "bbox": [
+            409.9333324432373,
+            372.7333297729492,
+            780.9333324432373,
+            552.7333297729492
+          ]
+        },
+        {
+          "class": "lane",
+          "bbox": [
+            60.933332443237305,
+            382.0666732788086,
+            617.9333324432373,
+            560.7333297729492
+          ]
+        }
+      ]
+    },
+    {
+      "timestamp_ms": 6133.171,
+      "frame_path": "evaluation/train_eval/run_20260112_200912/temp_frames/verizon_1_frame_61_6133ms.png",
+      "total_gt": 6,
+      "total_detected": 4,
+      "total_matched": 2,
+      "geometric": {
+        "gt": 3,
+        "detected": 0,
+        "matched": 0,
+        "false_positives": 0,
+        "false_negatives": 3
+      },
+      "non_geometric": {
+        "gt": 3,
+        "detected": 4,
+        "matched": 2,
+        "false_positives": 2,
+        "false_negatives": 1
+      },
+      "per_class": {
+        "truck": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "vehicle": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 1
+        },
+        "lane": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3
+        }
+      },
+      "matches": [
+        {
+          "detected_class": "truck",
+          "gt_class": "truck",
+          "iou": 0.652
+        },
+        {
+          "detected_class": "vehicle",
+          "gt_class": "vehicle",
+          "iou": 0.537
+        }
+      ],
+      "false_positives": [
+        {
+          "class": "vehicle",
+          "bbox": [
+            605.4354248046875,
+            364.67315673828125,
+            646.026123046875,
+            404.53253173828125
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            436.34283447265625,
+            369.3291015625,
+            473.53717041015625,
+            397.3858642578125
+          ]
+        }
+      ],
+      "false_negatives": [
+        {
+          "class": "vehicle",
+          "bbox": [
+            594.9333324432373,
+            356.7333297729492,
+            667.9333324432373,
+            411.7333297729492
+          ]
+        },
+        {
+          "class": "lane(current)",
+          "bbox": [
+            302.9333324432373,
+            389.7333297729492,
+            742.9333324432373,
+            560.7333297729492
+          ]
+        },
+        {
+          "class": "lane",
+          "bbox": [
+            11.933332443237305,
+            384.0666732788086,
+            616.9333324432373,
+            549.0666732788086
+          ]
+        },
+        {
+          "class": "lane(merging)",
+          "bbox": [
+            647.9333324432373,
+            381.0666732788086,
+            1071.9333324432373,
+            568.0666732788086
+          ]
+        }
+      ]
+    },
+    {
+      "timestamp_ms": 10900.809000000001,
+      "frame_path": "evaluation/train_eval/run_20260112_200912/temp_frames/verizon_1_frame_109_10901ms.png",
+      "total_gt": 9,
+      "total_detected": 4,
+      "total_matched": 2,
+      "geometric": {
+        "gt": 3,
+        "detected": 0,
+        "matched": 0,
+        "false_positives": 0,
+        "false_negatives": 3
+      },
+      "non_geometric": {
+        "gt": 6,
+        "detected": 4,
+        "matched": 2,
+        "false_positives": 2,
+        "false_negatives": 4
+      },
+      "per_class": {
+        "truck": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "vehicle": {
+          "tp": 1,
+          "fp": 2,
+          "fn": 2
+        },
+        "brake_lights": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1
+        },
+        "unknown_sign": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1
+        },
+        "lane": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3
+        }
+      },
+      "matches": [
+        {
+          "detected_class": "truck",
+          "gt_class": "truck",
+          "iou": 0.667
+        },
+        {
+          "detected_class": "vehicle",
+          "gt_class": "vehicle",
+          "iou": 0.554
+        }
+      ],
+      "false_positives": [
+        {
+          "class": "vehicle",
+          "bbox": [
+            538.388671875,
+            370.42449951171875,
+            590.2808837890625,
+            406.48895263671875
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            436.38702392578125,
+            361.5797119140625,
+            514.1817016601562,
+            412.9658203125
+          ]
+        }
+      ],
+      "false_negatives": [
+        {
+          "class": "brake_lights",
+          "bbox": [
+            564.9333324432373,
+            333.066650390625,
+            812.9333324432373,
+            529.066650390625
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            395,
+            345.5,
+            545,
+            420.5
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            525.9333324432373,
+            355.0666732788086,
+            599.9333324432373,
+            421.0666732788086
+          ]
+        },
+        {
+          "class": "unknown_sign",
+          "bbox": [
+            771.9333324432373,
+            314.7333297729492,
+            827.9333324432373,
+            366.7333297729492
+          ]
+        },
+        {
+          "class": "lane(current)",
+          "bbox": [
+            434.9333324432373,
+            407.7333297729492,
+            842.9333324432373,
+            576.7333297729492
+          ]
+        },
+        {
+          "class": "lane",
+          "bbox": [
+            99.9333324432373,
+            391.7333297729492,
+            637.9333324432373,
+            553.7333297729492
+          ]
+        },
+        {
+          "class": "lane",
+          "bbox": [
+            712.9333324432373,
+            385.0666732788086,
+            1272.9333324432373,
+            596.0666732788086
+          ]
+        }
+      ]
+    }
+  ],
+  "timestamp": "2026-01-12T20:14:01.861912"
+}

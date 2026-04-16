@@ -1,0 +1,253 @@
+{
+  "filename": "hazard_still_2-9.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "trench",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 447,
+        "y": 320
+      },
+      "polygon": [
+        {
+          "x": 3,
+          "y": 28
+        },
+        {
+          "x": 885,
+          "y": 16
+        },
+        {
+          "x": 896,
+          "y": 634
+        },
+        {
+          "x": 3,
+          "y": 602
+        }
+      ],
+      "x_min": 3,
+      "x_max": 896,
+      "y_min": 16,
+      "y_max": 634,
+      "width": 893,
+      "height": 618,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "trenching_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 447,
+        "y": 320
+      },
+      "polygon": [
+        {
+          "x": 3,
+          "y": 28
+        },
+        {
+          "x": 885,
+          "y": 16
+        },
+        {
+          "x": 896,
+          "y": 634
+        },
+        {
+          "x": 3,
+          "y": 602
+        }
+      ],
+      "x_min": 3,
+      "x_max": 896,
+      "y_min": 16,
+      "y_max": 634,
+      "width": 893,
+      "height": 618,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "ladder",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 196,
+        "y": 240
+      },
+      "polygon": [
+        {
+          "x": 114,
+          "y": 133
+        },
+        {
+          "x": 188,
+          "y": 135
+        },
+        {
+          "x": 292,
+          "y": 329
+        },
+        {
+          "x": 189,
+          "y": 363
+        }
+      ],
+      "x_min": 114,
+      "x_max": 292,
+      "y_min": 133,
+      "y_max": 363,
+      "width": 178,
+      "height": 230,
+      "distance": "far"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 216,
+        "y": 461
+      },
+      "polygon": [
+        {
+          "x": 144,
+          "y": 357
+        },
+        {
+          "x": 249,
+          "y": 354
+        },
+        {
+          "x": 295,
+          "y": 565
+        },
+        {
+          "x": 176,
+          "y": 568
+        }
+      ],
+      "x_min": 144,
+      "x_max": 295,
+      "y_min": 354,
+      "y_max": 568,
+      "width": 151,
+      "height": 214,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 529,
+        "y": 502
+      },
+      "polygon": [
+        {
+          "x": 457,
+          "y": 398
+        },
+        {
+          "x": 562,
+          "y": 395
+        },
+        {
+          "x": 608,
+          "y": 606
+        },
+        {
+          "x": 489,
+          "y": 609
+        }
+      ],
+      "x_min": 457,
+      "x_max": 608,
+      "y_min": 395,
+      "y_max": 609,
+      "width": 151,
+      "height": 214,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 624,
+        "y": 450
+      },
+      "polygon": [
+        {
+          "x": 555,
+          "y": 327
+        },
+        {
+          "x": 660,
+          "y": 325
+        },
+        {
+          "x": 716,
+          "y": 597
+        },
+        {
+          "x": 565,
+          "y": 550
+        }
+      ],
+      "x_min": 555,
+      "x_max": 716,
+      "y_min": 325,
+      "y_max": 597,
+      "width": 161,
+      "height": 272,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 161,
+        "y": 123
+      },
+      "polygon": [
+        {
+          "x": 94,
+          "y": 47
+        },
+        {
+          "x": 198,
+          "y": 45
+        },
+        {
+          "x": 234,
+          "y": 183
+        },
+        {
+          "x": 116,
+          "y": 216
+        }
+      ],
+      "x_min": 94,
+      "x_max": 234,
+      "y_min": 45,
+      "y_max": 216,
+      "width": 140,
+      "height": 171,
+      "distance": "far"
+    }
+  ]
+}

@@ -1,0 +1,218 @@
+{
+  "filename": "hazard_still_3-1_panel_4-0.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "jobsite_objects": [
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 98,
+            "y": 579
+          },
+          "bbox": {
+            "x_min": 70,
+            "x_max": 125,
+            "y_min": 551,
+            "y_max": 606,
+            "width": 55,
+            "height": 55
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 149,
+            "y": 567
+          },
+          "bbox": {
+            "x_min": 121,
+            "x_max": 176,
+            "y_min": 539,
+            "y_max": 594,
+            "width": 55,
+            "height": 55
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 238,
+            "y": 537
+          },
+          "bbox": {
+            "x_min": 210,
+            "x_max": 266,
+            "y_min": 509,
+            "y_max": 564,
+            "width": 56,
+            "height": 55
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 284,
+            "y": 530
+          },
+          "bbox": {
+            "x_min": 256,
+            "x_max": 311,
+            "y_min": 502,
+            "y_max": 558,
+            "width": 55,
+            "height": 56
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 478,
+            "y": 500
+          },
+          "bbox": {
+            "x_min": 450,
+            "x_max": 505,
+            "y_min": 472,
+            "y_max": 527,
+            "width": 55,
+            "height": 55
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 135,
+            "y": 446
+          },
+          "bbox": {
+            "x_min": 107,
+            "x_max": 162,
+            "y_min": 418,
+            "y_max": 473,
+            "width": 55,
+            "height": 55
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 117,
+            "y": 317
+          },
+          "bbox": {
+            "x_min": 89,
+            "x_max": 144,
+            "y_min": 289,
+            "y_max": 344,
+            "width": 55,
+            "height": 55
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 285,
+            "y": 324
+          },
+          "bbox": {
+            "x_min": 257,
+            "x_max": 312,
+            "y_min": 296,
+            "y_max": 352,
+            "width": 55,
+            "height": 56
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 479,
+            "y": 325
+          },
+          "bbox": {
+            "x_min": 451,
+            "x_max": 506,
+            "y_min": 297,
+            "y_max": 352,
+            "width": 55,
+            "height": 55
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 485,
+            "y": 406
+          },
+          "bbox": {
+            "x_min": 445,
+            "x_max": 522,
+            "y_min": 297,
+            "y_max": 518,
+            "width": 77,
+            "height": 221
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 270,
+            "y": 424
+          },
+          "bbox": {
+            "x_min": 222,
+            "x_max": 331,
+            "y_min": 287,
+            "y_max": 559,
+            "width": 109,
+            "height": 272
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 121,
+            "y": 444
+          },
+          "bbox": {
+            "x_min": 67,
+            "x_max": 198,
+            "y_min": 282,
+            "y_max": 606,
+            "width": 131,
+            "height": 324
+          }
+        }
+      ]
+    }
+  ]
+}

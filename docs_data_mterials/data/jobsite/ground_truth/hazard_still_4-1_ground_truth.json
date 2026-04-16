@@ -1,0 +1,218 @@
+{
+  "filename": "hazard_still_4-1.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "electrocution_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2467,
+        "y": 380
+      },
+      "polygon": [
+        {
+          "x": 2199,
+          "y": 9
+        },
+        {
+          "x": 2737,
+          "y": 5
+        },
+        {
+          "x": 2737,
+          "y": 755
+        },
+        {
+          "x": 2195,
+          "y": 750
+        }
+      ],
+      "x_min": 2195,
+      "x_max": 2737,
+      "y_min": 5,
+      "y_max": 755,
+      "width": 542,
+      "height": 750,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "electrocution_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2471,
+        "y": 1119
+      },
+      "polygon": [
+        {
+          "x": 2203,
+          "y": 748
+        },
+        {
+          "x": 2740,
+          "y": 744
+        },
+        {
+          "x": 2740,
+          "y": 1495
+        },
+        {
+          "x": 2199,
+          "y": 1490
+        }
+      ],
+      "x_min": 2199,
+      "x_max": 2740,
+      "y_min": 744,
+      "y_max": 1495,
+      "width": 541,
+      "height": 751,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "poor_maintenance_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2471,
+        "y": 1119
+      },
+      "polygon": [
+        {
+          "x": 2203,
+          "y": 748
+        },
+        {
+          "x": 2740,
+          "y": 744
+        },
+        {
+          "x": 2740,
+          "y": 1495
+        },
+        {
+          "x": 2199,
+          "y": 1490
+        }
+      ],
+      "x_min": 2199,
+      "x_max": 2740,
+      "y_min": 744,
+      "y_max": 1495,
+      "width": 541,
+      "height": 751,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1373,
+        "y": 385
+      },
+      "polygon": [
+        {
+          "x": 1105,
+          "y": 14
+        },
+        {
+          "x": 1642,
+          "y": 10
+        },
+        {
+          "x": 1642,
+          "y": 761
+        },
+        {
+          "x": 1101,
+          "y": 756
+        }
+      ],
+      "x_min": 1101,
+      "x_max": 1642,
+      "y_min": 10,
+      "y_max": 761,
+      "width": 541,
+      "height": 751,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "ladder_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 829,
+        "y": 1127
+      },
+      "polygon": [
+        {
+          "x": 561,
+          "y": 756
+        },
+        {
+          "x": 1099,
+          "y": 752
+        },
+        {
+          "x": 1099,
+          "y": 1502
+        },
+        {
+          "x": 558,
+          "y": 1497
+        }
+      ],
+      "x_min": 558,
+      "x_max": 1099,
+      "y_min": 752,
+      "y_max": 1502,
+      "width": 541,
+      "height": 750,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "ppe_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2474,
+        "y": 380
+      },
+      "polygon": [
+        {
+          "x": 2206,
+          "y": 9
+        },
+        {
+          "x": 2744,
+          "y": 5
+        },
+        {
+          "x": 2744,
+          "y": 755
+        },
+        {
+          "x": 2203,
+          "y": 750
+        }
+      ],
+      "x_min": 2203,
+      "x_max": 2744,
+      "y_min": 5,
+      "y_max": 755,
+      "width": 541,
+      "height": 750,
+      "distance": "mid"
+    }
+  ]
+}

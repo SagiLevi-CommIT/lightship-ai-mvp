@@ -1,0 +1,602 @@
+{
+  "filename": "samsara_test_5.mp4",
+  "fps": 30.12261261183086,
+  "camera": "samsara",
+  "description": "Vehicle moving through an active construction site with multiple buildings under construction, portable toilets, construction equipment, and workers present on the sandy/dirt terrain.",
+  "traffic": "light",
+  "lighting": "daylight",
+  "weather": "clear",
+  "collision": "none",
+  "speed": "<=40mph",
+  "video_duration_ms": 7502.669270833333,
+  "objects": [
+    {
+      "description": "truck",
+      "start_time_ms": 2000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "far left side",
+      "center": {
+        "x": 21,
+        "y": 615
+      },
+      "polygon": [],
+      "x_min": 0.12200164794921875,
+      "y_min": 582.705322265625,
+      "x_max": 43.159141540527344,
+      "y_max": 647.818603515625,
+      "width": 43.037139892578125,
+      "height": 65.11328125
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 2000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center area ahead",
+      "center": {
+        "x": 809,
+        "y": 610
+      },
+      "polygon": [],
+      "x_min": 741.58935546875,
+      "y_min": 572.2578125,
+      "x_max": 877.6290283203125,
+      "y_max": 647.9854736328125,
+      "width": 136.0396728515625,
+      "height": 75.7276611328125
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 2000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "left center area",
+      "center": {
+        "x": 264,
+        "y": 596
+      },
+      "polygon": [],
+      "x_min": 256.78082275390625,
+      "y_min": 575.056884765625,
+      "x_max": 271.79010009765625,
+      "y_max": 618.70068359375,
+      "width": 15.00927734375,
+      "height": 43.643798828125
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 2000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "far right side",
+      "center": {
+        "x": 1266,
+        "y": 633
+      },
+      "polygon": [],
+      "x_min": 1253.23388671875,
+      "y_min": 552.1166381835938,
+      "x_max": 1279.40625,
+      "y_max": 715.7354125976562,
+      "width": 26.17236328125,
+      "height": 163.6187744140625
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 2500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center area, construction equipment",
+      "center": {
+        "x": 840,
+        "y": 600
+      },
+      "polygon": [],
+      "x_min": 764.3037109375,
+      "y_min": 546.310302734375,
+      "x_max": 915.894775390625,
+      "y_max": 654.82080078125,
+      "width": 151.591064453125,
+      "height": 108.510498046875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 2500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "far left side, parked",
+      "center": {
+        "x": 19,
+        "y": 609
+      },
+      "polygon": [],
+      "x_min": 0.116180419921875,
+      "y_min": 579.9722900390625,
+      "x_max": 39.2279052734375,
+      "y_max": 639.7191162109375,
+      "width": 39.111724853515625,
+      "height": 59.746826171875
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 2500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "left side of construction area",
+      "center": {
+        "x": 268,
+        "y": 589
+      },
+      "polygon": [],
+      "x_min": 261.0718994140625,
+      "y_min": 566.514404296875,
+      "x_max": 276.3431396484375,
+      "y_max": 611.847900390625,
+      "width": 15.271240234375,
+      "height": 45.33349609375
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 2500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center area of construction site",
+      "center": {
+        "x": 395,
+        "y": 590
+      },
+      "polygon": [],
+      "x_min": 389.81231689453125,
+      "y_min": 577.430908203125,
+      "x_max": 400.37530517578125,
+      "y_max": 603.22265625,
+      "width": 10.56298828125,
+      "height": 25.791748046875
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 3000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center area, stationary construction vehicle",
+      "center": {
+        "x": 864,
+        "y": 604
+      },
+      "polygon": [],
+      "x_min": 781.1348876953125,
+      "y_min": 545.5574340820312,
+      "x_max": 948.1512451171875,
+      "y_max": 662.8444213867188,
+      "width": 167.016357421875,
+      "height": 117.2869873046875
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 3000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center distance, near buildings",
+      "center": {
+        "x": 393,
+        "y": 592
+      },
+      "polygon": [],
+      "x_min": 388.22442626953125,
+      "y_min": 578.8575439453125,
+      "x_max": 398.95428466796875,
+      "y_max": 606.0999755859375,
+      "width": 10.7298583984375,
+      "height": 27.242431640625
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 3500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center area, yellow forklift on construction site",
+      "center": {
+        "x": 888,
+        "y": 611
+      },
+      "polygon": [],
+      "x_min": 794.0618896484375,
+      "y_min": 545.30615234375,
+      "x_max": 982.1187744140625,
+      "y_max": 677.5166015625,
+      "width": 188.056884765625,
+      "height": 132.21044921875
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 4000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side near building",
+      "center": {
+        "x": 238,
+        "y": 591
+      },
+      "polygon": [],
+      "x_min": 229.5367431640625,
+      "y_min": 564.512939453125,
+      "x_max": 247.12100219726562,
+      "y_max": 617.6619873046875,
+      "width": 17.584259033203125,
+      "height": 53.1490478515625
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 4500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side of construction site",
+      "center": {
+        "x": 225,
+        "y": 592
+      },
+      "polygon": [],
+      "x_min": 215.78854370117188,
+      "y_min": 565.73291015625,
+      "x_max": 235.18936157226562,
+      "y_max": 619.81689453125,
+      "width": 19.40081787109375,
+      "height": 54.083984375
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 4500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "far left side near building",
+      "center": {
+        "x": 117,
+        "y": 585
+      },
+      "polygon": [],
+      "x_min": 107.33206176757812,
+      "y_min": 561.2652587890625,
+      "x_max": 126.76576232910156,
+      "y_max": 609.861328125,
+      "width": 19.433700561523438,
+      "height": 48.5960693359375
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 4500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center area near building entrance",
+      "center": {
+        "x": 375,
+        "y": 594
+      },
+      "polygon": [],
+      "x_min": 369.37908935546875,
+      "y_min": 580.2938232421875,
+      "x_max": 381.15093994140625,
+      "y_max": 608.8304443359375,
+      "width": 11.7718505859375,
+      "height": 28.53662109375
+    },
+    {
+      "description": "object_62",
+      "start_time_ms": 5000.0,
+      "distance": "very_close",
+      "priority": "none",
+      "location_description": "left side mirror view",
+      "center": {
+        "x": 91,
+        "y": 100
+      },
+      "polygon": [],
+      "x_min": 0.2124786376953125,
+      "y_min": 14.473876953125,
+      "x_max": 182.0901641845703,
+      "y_max": 186.2047119140625,
+      "width": 181.877685546875,
+      "height": 171.7308349609375
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 5000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right side of construction area",
+      "center": {
+        "x": 1077,
+        "y": 630
+      },
+      "polygon": [],
+      "x_min": 901.7413330078125,
+      "y_min": 544.108642578125,
+      "x_max": 1253.7943115234375,
+      "y_max": 717.4599609375,
+      "width": 352.052978515625,
+      "height": 173.351318359375
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 5000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center distance on building",
+      "center": {
+        "x": 363,
+        "y": 597
+      },
+      "polygon": [],
+      "x_min": 357.10205078125,
+      "y_min": 582.4864501953125,
+      "x_max": 369.4947509765625,
+      "y_max": 613.2283935546875,
+      "width": 12.3927001953125,
+      "height": 30.741943359375
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 5000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side near building",
+      "center": {
+        "x": 213,
+        "y": 594
+      },
+      "polygon": [],
+      "x_min": 203.27963256835938,
+      "y_min": 566.8104248046875,
+      "x_max": 223.62387084960938,
+      "y_max": 622.3636474609375,
+      "width": 20.34423828125,
+      "height": 55.55322265625
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 5500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side of construction area",
+      "center": {
+        "x": 191,
+        "y": 604
+      },
+      "polygon": [],
+      "x_min": 181.1663818359375,
+      "y_min": 575.44873046875,
+      "x_max": 201.38934326171875,
+      "y_max": 633.837646484375,
+      "width": 20.22296142578125,
+      "height": 58.388916015625
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 5500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right side, parked forklift",
+      "center": {
+        "x": 1068,
+        "y": 629
+      },
+      "polygon": [],
+      "x_min": 860.1015625,
+      "y_min": 542.3052368164062,
+      "x_max": 1277.755615234375,
+      "y_max": 717.1543579101562,
+      "width": 417.654052734375,
+      "height": 174.84912109375
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 5500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "far left side of construction area",
+      "center": {
+        "x": 77,
+        "y": 598
+      },
+      "polygon": [],
+      "x_min": 67.49067687988281,
+      "y_min": 572.348388671875,
+      "x_max": 87.64164733886719,
+      "y_max": 624.391357421875,
+      "width": 20.150970458984375,
+      "height": 52.04296875
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 6000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side near building",
+      "center": {
+        "x": 169,
+        "y": 607
+      },
+      "polygon": [],
+      "x_min": 157.38330078125,
+      "y_min": 579.4364013671875,
+      "x_max": 180.62762451171875,
+      "y_max": 636.352294921875,
+      "width": 23.24432373046875,
+      "height": 56.9158935546875
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 6000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right side parked",
+      "center": {
+        "x": 1079,
+        "y": 631
+      },
+      "polygon": [],
+      "x_min": 880.12158203125,
+      "y_min": 545.36474609375,
+      "x_max": 1279.1123046875,
+      "y_max": 718.086669921875,
+      "width": 398.99072265625,
+      "height": 172.721923828125
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 6000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center area near building",
+      "center": {
+        "x": 334,
+        "y": 609
+      },
+      "polygon": [],
+      "x_min": 328.52398681640625,
+      "y_min": 591.5036010742188,
+      "x_max": 339.47991943359375,
+      "y_max": 627.0084838867188,
+      "width": 10.9559326171875,
+      "height": 35.5048828125
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 6500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side of construction area",
+      "center": {
+        "x": 53,
+        "y": 608
+      },
+      "polygon": [],
+      "x_min": 41.29032897949219,
+      "y_min": 578.0648803710938,
+      "x_max": 65.48239135742188,
+      "y_max": 638.4824829101562,
+      "width": 24.192062377929688,
+      "height": 60.4176025390625
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 6500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side near building",
+      "center": {
+        "x": 145,
+        "y": 621
+      },
+      "polygon": [],
+      "x_min": 129.2477264404297,
+      "y_min": 595.5045166015625,
+      "x_max": 161.2836456298828,
+      "y_max": 647.0673828125,
+      "width": 32.035919189453125,
+      "height": 51.5628662109375
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 6500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right side parked near building",
+      "center": {
+        "x": 1091,
+        "y": 633
+      },
+      "polygon": [],
+      "x_min": 903.5475463867188,
+      "y_min": 549.8494873046875,
+      "x_max": 1279.354248046875,
+      "y_max": 717.205078125,
+      "width": 375.80670166015625,
+      "height": 167.3555908203125
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 6500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center area near buildings",
+      "center": {
+        "x": 314,
+        "y": 617
+      },
+      "polygon": [],
+      "x_min": 308.06536865234375,
+      "y_min": 598.4073486328125,
+      "x_max": 321.07330322265625,
+      "y_max": 637.415771484375,
+      "width": 13.0079345703125,
+      "height": 39.0084228515625
+    }
+  ],
+  "hazard_events": [
+    {
+      "start_time_ms": 2000.0,
+      "hazard_type": "pedestrian_in_construction_zone",
+      "hazard_description": "Multiple pedestrians (construction workers) detected in active construction zone at moderate distance. Workers are present near building structures and in the vehicle's path of travel. One pedestrian remains consistently visible across frames at moderate distance, with another appearing closer to the vehicle path by frame 2500ms.",
+      "hazard_severity": "Medium",
+      "road_conditions": "unpaved construction site, sandy/dirt surface, active work zone",
+      "duration_ms": 1000.0
+    },
+    {
+      "start_time_ms": 2000.0,
+      "hazard_type": "construction_equipment_proximity",
+      "hazard_description": "Yellow construction equipment (appears to be a roller or compactor) positioned in the vehicle's forward path at moderate distance. Equipment remains stationary but represents an obstacle requiring navigation around it in the confined construction site environment.",
+      "hazard_severity": "Medium",
+      "road_conditions": "active construction zone, limited maneuvering space, multiple obstacles",
+      "duration_ms": 1000.0
+    },
+    {
+      "start_time_ms": 3000.0,
+      "hazard_type": "construction_zone_hazard",
+      "hazard_description": "Vehicle navigating through active construction site with pedestrian worker visible at far distance and stationary forklift at moderate distance. Construction zones present multiple hazards including workers, equipment, and unpredictable movement patterns.",
+      "hazard_severity": "Medium",
+      "road_conditions": "unpaved construction site, loose dirt surface",
+      "duration_ms": 1000.0
+    },
+    {
+      "start_time_ms": 4000.0,
+      "hazard_type": "pedestrian_in_construction_zone",
+      "hazard_description": "Pedestrian worker visible in construction area at far distance on left side. Worker appears to be moving in the construction zone where vehicle traffic is present, requiring heightened awareness.",
+      "hazard_severity": "Medium",
+      "road_conditions": "active construction site, unpaved surface",
+      "duration_ms": 500.0
+    },
+    {
+      "start_time_ms": 4000.0,
+      "hazard_type": "construction_zone_workers",
+      "hazard_description": "Multiple pedestrians/construction workers present in active construction zone. Workers are positioned near buildings and moving within the work area as vehicle passes through. At least 3 workers visible at various distances from the vehicle path.",
+      "hazard_severity": "Medium",
+      "road_conditions": "construction zone, unpaved surface, clear visibility",
+      "duration_ms": 1000.0
+    },
+    {
+      "start_time_ms": 5000.0,
+      "hazard_type": "stationary_vehicle_obstacle",
+      "hazard_description": "Yellow truck with construction materials (appears to be a forklift or similar equipment) stationary on the right side of the path with stacked materials nearby. Vehicle must navigate around this obstacle while maintaining awareness of nearby workers.",
+      "hazard_severity": "Medium",
+      "road_conditions": "construction zone, limited maneuvering space, clear visibility",
+      "duration_ms": 500.0
+    },
+    {
+      "start_time_ms": 5000.0,
+      "hazard_type": "construction_zone_pedestrians",
+      "hazard_description": "Multiple pedestrians working in active construction zone on both sides of the vehicle path. Workers are positioned near the roadway without clear barriers, creating potential for unexpected movement into the vehicle's path.",
+      "hazard_severity": "Medium",
+      "road_conditions": "unpaved construction site, uneven dirt surface",
+      "duration_ms": 1000.0
+    },
+    {
+      "start_time_ms": 5000.0,
+      "hazard_type": "stationary_equipment",
+      "hazard_description": "Yellow forklift truck with materials positioned on the right side of the narrow construction path, reducing available clearance and requiring careful navigation to maintain safe distance.",
+      "hazard_severity": "Medium",
+      "road_conditions": "narrow construction path with limited maneuvering space",
+      "duration_ms": 1000.0
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "filename": "hazard_still_2-1.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 537,
+        "y": 486
+      },
+      "polygon": [
+        {
+          "x": 254,
+          "y": 77
+        },
+        {
+          "x": 794,
+          "y": 77
+        },
+        {
+          "x": 785,
+          "y": 882
+        },
+        {
+          "x": 313,
+          "y": 907
+        }
+      ],
+      "x_min": 254,
+      "x_max": 794,
+      "y_min": 77,
+      "y_max": 907,
+      "width": 540,
+      "height": 830,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 963,
+        "y": 603
+      },
+      "polygon": [
+        {
+          "x": 680,
+          "y": 194
+        },
+        {
+          "x": 1220,
+          "y": 194
+        },
+        {
+          "x": 1211,
+          "y": 999
+        },
+        {
+          "x": 739,
+          "y": 1024
+        }
+      ],
+      "x_min": 680,
+      "x_max": 1220,
+      "y_min": 194,
+      "y_max": 1024,
+      "width": 540,
+      "height": 830,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 720,
+        "y": 633
+      },
+      "polygon": [
+        {
+          "x": 35,
+          "y": 142
+        },
+        {
+          "x": 1416,
+          "y": 349
+        },
+        {
+          "x": 1420,
+          "y": 1030
+        },
+        {
+          "x": 8,
+          "y": 1009
+        }
+      ],
+      "x_min": 8,
+      "x_max": 1420,
+      "y_min": 142,
+      "y_max": 1030,
+      "width": 1412,
+      "height": 888,
+      "distance": "near"
+    }
+  ]
+}

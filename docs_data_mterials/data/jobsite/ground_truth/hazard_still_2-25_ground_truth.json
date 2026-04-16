@@ -1,0 +1,230 @@
+{
+  "filename": "hazard_still_2-25.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "trench",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 337,
+        "y": 489
+      },
+      "polygon": [
+        {
+          "x": 5,
+          "y": 209
+        },
+        {
+          "x": 651,
+          "y": 286
+        },
+        {
+          "x": 675,
+          "y": 731
+        },
+        {
+          "x": 15,
+          "y": 728
+        }
+      ],
+      "x_min": 5,
+      "x_max": 675,
+      "y_min": 209,
+      "y_max": 731,
+      "width": 670,
+      "height": 522,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "heavy_equipment",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 410,
+        "y": 197
+      },
+      "polygon": [
+        {
+          "x": 148,
+          "y": 58
+        },
+        {
+          "x": 432,
+          "y": 27
+        },
+        {
+          "x": 646,
+          "y": 184
+        },
+        {
+          "x": 651,
+          "y": 350
+        },
+        {
+          "x": 459,
+          "y": 339
+        },
+        {
+          "x": 371,
+          "y": 160
+        },
+        {
+          "x": 163,
+          "y": 260
+        }
+      ],
+      "x_min": 148,
+      "x_max": 651,
+      "y_min": 27,
+      "y_max": 350,
+      "width": 503,
+      "height": 323,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 617,
+        "y": 366
+      },
+      "polygon": [
+        {
+          "x": 555,
+          "y": 304
+        },
+        {
+          "x": 678,
+          "y": 304
+        },
+        {
+          "x": 678,
+          "y": 427
+        },
+        {
+          "x": 555,
+          "y": 427
+        }
+      ],
+      "x_min": 555,
+      "x_max": 678,
+      "y_min": 304,
+      "y_max": 427,
+      "width": 123,
+      "height": 123,
+      "distance": "far"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 235,
+        "y": 587
+      },
+      "polygon": [
+        {
+          "x": 168,
+          "y": 450
+        },
+        {
+          "x": 291,
+          "y": 450
+        },
+        {
+          "x": 301,
+          "y": 736
+        },
+        {
+          "x": 181,
+          "y": 712
+        }
+      ],
+      "x_min": 168,
+      "x_max": 301,
+      "y_min": 450,
+      "y_max": 736,
+      "width": 133,
+      "height": 286,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 334,
+        "y": 537
+      },
+      "polygon": [
+        {
+          "x": 273,
+          "y": 455
+        },
+        {
+          "x": 361,
+          "y": 456
+        },
+        {
+          "x": 394,
+          "y": 607
+        },
+        {
+          "x": 309,
+          "y": 629
+        }
+      ],
+      "x_min": 273,
+      "x_max": 394,
+      "y_min": 455,
+      "y_max": 629,
+      "width": 121,
+      "height": 174,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "trenching_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 348,
+        "y": 371
+      },
+      "polygon": [
+        {
+          "x": 22,
+          "y": 183
+        },
+        {
+          "x": 694,
+          "y": 200
+        },
+        {
+          "x": 659,
+          "y": 564
+        },
+        {
+          "x": 17,
+          "y": 536
+        }
+      ],
+      "x_min": 17,
+      "x_max": 694,
+      "y_min": 183,
+      "y_max": 564,
+      "width": 677,
+      "height": 381,
+      "distance": "near"
+    }
+  ]
+}

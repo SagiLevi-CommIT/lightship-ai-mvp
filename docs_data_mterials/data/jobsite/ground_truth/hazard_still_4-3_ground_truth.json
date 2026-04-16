@@ -1,0 +1,253 @@
+{
+  "filename": "hazard_still_4-3.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 284,
+        "y": 381
+      },
+      "polygon": [
+        {
+          "x": 16,
+          "y": 10
+        },
+        {
+          "x": 553,
+          "y": 6
+        },
+        {
+          "x": 553,
+          "y": 757
+        },
+        {
+          "x": 12,
+          "y": 752
+        }
+      ],
+      "x_min": 12,
+      "x_max": 553,
+      "y_min": 6,
+      "y_max": 757,
+      "width": 541,
+      "height": 751,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1373,
+        "y": 1158
+      },
+      "polygon": [
+        {
+          "x": 1105,
+          "y": 787
+        },
+        {
+          "x": 1642,
+          "y": 783
+        },
+        {
+          "x": 1642,
+          "y": 1533
+        },
+        {
+          "x": 1101,
+          "y": 1528
+        }
+      ],
+      "x_min": 1101,
+      "x_max": 1642,
+      "y_min": 783,
+      "y_max": 1533,
+      "width": 541,
+      "height": 750,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2476,
+        "y": 1136
+      },
+      "polygon": [
+        {
+          "x": 2208,
+          "y": 765
+        },
+        {
+          "x": 2746,
+          "y": 761
+        },
+        {
+          "x": 2746,
+          "y": 1511
+        },
+        {
+          "x": 2205,
+          "y": 1506
+        }
+      ],
+      "x_min": 2205,
+      "x_max": 2746,
+      "y_min": 761,
+      "y_max": 1511,
+      "width": 541,
+      "height": 750,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1929,
+        "y": 378
+      },
+      "polygon": [
+        {
+          "x": 1661,
+          "y": 7
+        },
+        {
+          "x": 2199,
+          "y": 3
+        },
+        {
+          "x": 2199,
+          "y": 753
+        },
+        {
+          "x": 1657,
+          "y": 748
+        }
+      ],
+      "x_min": 1657,
+      "x_max": 2199,
+      "y_min": 3,
+      "y_max": 753,
+      "width": 542,
+      "height": 750,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "blindspot_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1929,
+        "y": 378
+      },
+      "polygon": [
+        {
+          "x": 1661,
+          "y": 7
+        },
+        {
+          "x": 2199,
+          "y": 3
+        },
+        {
+          "x": 2199,
+          "y": 753
+        },
+        {
+          "x": 1657,
+          "y": 748
+        }
+      ],
+      "x_min": 1657,
+      "x_max": 2199,
+      "y_min": 3,
+      "y_max": 753,
+      "width": 542,
+      "height": 750,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "ppe_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2465,
+        "y": 376
+      },
+      "polygon": [
+        {
+          "x": 2197,
+          "y": 5
+        },
+        {
+          "x": 2735,
+          "y": 1
+        },
+        {
+          "x": 2735,
+          "y": 752
+        },
+        {
+          "x": 2194,
+          "y": 747
+        }
+      ],
+      "x_min": 2194,
+      "x_max": 2735,
+      "y_min": 1,
+      "y_max": 752,
+      "width": 541,
+      "height": 751,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 820,
+        "y": 376
+      },
+      "polygon": [
+        {
+          "x": 552,
+          "y": 5
+        },
+        {
+          "x": 1090,
+          "y": 1
+        },
+        {
+          "x": 1090,
+          "y": 752
+        },
+        {
+          "x": 549,
+          "y": 747
+        }
+      ],
+      "x_min": 549,
+      "x_max": 1090,
+      "y_min": 1,
+      "y_max": 752,
+      "width": 541,
+      "height": 751,
+      "distance": "mid"
+    }
+  ]
+}

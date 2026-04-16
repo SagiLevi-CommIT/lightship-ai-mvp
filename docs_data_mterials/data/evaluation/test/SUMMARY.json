@@ -1,0 +1,206 @@
+{
+  "generated_at": "2026-01-12T21:13:55.776086",
+  "configuration": {
+    "max_snapshots_per_video": 10,
+    "snapshot_strategy": "naive",
+    "pipeline_version": "V3",
+    "models": {
+      "yolo": "yolo11x.pt",
+      "depth": "Depth-Anything-V2-Small",
+      "llm": "Claude Sonnet 4.5"
+    }
+  },
+  "statistics": {
+    "total_videos": 15,
+    "successful": 15,
+    "failed": 0,
+    "success_rate_percent": 100.0,
+    "total_objects_detected": 1315,
+    "total_hazard_events": 118,
+    "total_annotated_frames": 150,
+    "total_processing_time_seconds": 2281.99,
+    "average_time_per_video_seconds": 152.13
+  },
+  "videos": [
+    {
+      "video_name": "lytx_test_1",
+      "video_path": "data/test/lytx_test_1.mp4",
+      "status": "success",
+      "processing_time_seconds": 172.08,
+      "object_count": 81,
+      "hazard_event_count": 10,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/lytx_test_1/lytx_test_1.json",
+      "output_frames_dir": "evaluation/test/lytx_test_1/frames"
+    },
+    {
+      "video_name": "lytx_test_2",
+      "video_path": "data/test/lytx_test_2.mp4",
+      "status": "success",
+      "processing_time_seconds": 147.45,
+      "object_count": 88,
+      "hazard_event_count": 9,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/lytx_test_2/lytx_test_2.json",
+      "output_frames_dir": "evaluation/test/lytx_test_2/frames"
+    },
+    {
+      "video_name": "lytx_test_3",
+      "video_path": "data/test/lytx_test_3.mp4",
+      "status": "success",
+      "processing_time_seconds": 211.94,
+      "object_count": 158,
+      "hazard_event_count": 14,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/lytx_test_3/lytx_test_3.json",
+      "output_frames_dir": "evaluation/test/lytx_test_3/frames"
+    },
+    {
+      "video_name": "lytx_test_4",
+      "video_path": "data/test/lytx_test_4.mp4",
+      "status": "success",
+      "processing_time_seconds": 129.79,
+      "object_count": 60,
+      "hazard_event_count": 7,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/lytx_test_4/lytx_test_4.json",
+      "output_frames_dir": "evaluation/test/lytx_test_4/frames"
+    },
+    {
+      "video_name": "netradyne_test_1",
+      "video_path": "data/test/netradyne_test_1.mp4",
+      "status": "success",
+      "processing_time_seconds": 138.23,
+      "object_count": 66,
+      "hazard_event_count": 6,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/netradyne_test_1/netradyne_test_1.json",
+      "output_frames_dir": "evaluation/test/netradyne_test_1/frames"
+    },
+    {
+      "video_name": "netradyne_test_2",
+      "video_path": "data/test/netradyne_test_2.mp4",
+      "status": "success",
+      "processing_time_seconds": 133.96,
+      "object_count": 63,
+      "hazard_event_count": 6,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/netradyne_test_2/netradyne_test_2.json",
+      "output_frames_dir": "evaluation/test/netradyne_test_2/frames"
+    },
+    {
+      "video_name": "netradyne_test_3",
+      "video_path": "data/test/netradyne_test_3.mp4",
+      "status": "success",
+      "processing_time_seconds": 129.95,
+      "object_count": 65,
+      "hazard_event_count": 1,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/netradyne_test_3/netradyne_test_3.json",
+      "output_frames_dir": "evaluation/test/netradyne_test_3/frames"
+    },
+    {
+      "video_name": "samsara_test_1",
+      "video_path": "data/test/samsara_test_1.mp4",
+      "status": "success",
+      "processing_time_seconds": 174.66,
+      "object_count": 119,
+      "hazard_event_count": 8,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/samsara_test_1/samsara_test_1.json",
+      "output_frames_dir": "evaluation/test/samsara_test_1/frames"
+    },
+    {
+      "video_name": "samsara_test_2",
+      "video_path": "data/test/samsara_test_2.mp4",
+      "status": "success",
+      "processing_time_seconds": 164.34,
+      "object_count": 104,
+      "hazard_event_count": 7,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/samsara_test_2/samsara_test_2.json",
+      "output_frames_dir": "evaluation/test/samsara_test_2/frames"
+    },
+    {
+      "video_name": "samsara_test_3",
+      "video_path": "data/test/samsara_test_3.mp4",
+      "status": "success",
+      "processing_time_seconds": 157.89,
+      "object_count": 122,
+      "hazard_event_count": 5,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/samsara_test_3/samsara_test_3.json",
+      "output_frames_dir": "evaluation/test/samsara_test_3/frames"
+    },
+    {
+      "video_name": "samsara_test_4",
+      "video_path": "data/test/samsara_test_4.mp4",
+      "status": "success",
+      "processing_time_seconds": 152.86,
+      "object_count": 116,
+      "hazard_event_count": 8,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/samsara_test_4/samsara_test_4.json",
+      "output_frames_dir": "evaluation/test/samsara_test_4/frames"
+    },
+    {
+      "video_name": "samsara_test_5",
+      "video_path": "data/test/samsara_test_5.mp4",
+      "status": "success",
+      "processing_time_seconds": 148.38,
+      "object_count": 29,
+      "hazard_event_count": 8,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/samsara_test_5/samsara_test_5.json",
+      "output_frames_dir": "evaluation/test/samsara_test_5/frames"
+    },
+    {
+      "video_name": "samsara_test_6",
+      "video_path": "data/test/samsara_test_6.mp4",
+      "status": "success",
+      "processing_time_seconds": 163.16,
+      "object_count": 115,
+      "hazard_event_count": 10,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/samsara_test_6/samsara_test_6.json",
+      "output_frames_dir": "evaluation/test/samsara_test_6/frames"
+    },
+    {
+      "video_name": "verizon_1",
+      "video_path": "data/test/verizon_1.mp4",
+      "status": "success",
+      "processing_time_seconds": 116.01,
+      "object_count": 39,
+      "hazard_event_count": 7,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/verizon_1/verizon_1.json",
+      "output_frames_dir": "evaluation/test/verizon_1/frames"
+    },
+    {
+      "video_name": "verizon_2",
+      "video_path": "data/test/verizon_2.mp4",
+      "status": "success",
+      "processing_time_seconds": 141.29,
+      "object_count": 90,
+      "hazard_event_count": 12,
+      "frame_count": 10,
+      "error": null,
+      "output_json": "evaluation/test/verizon_2/verizon_2.json",
+      "output_frames_dir": "evaluation/test/verizon_2/frames"
+    }
+  ]
+}

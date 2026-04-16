@@ -1,0 +1,118 @@
+{
+  "filename": "hazard_still_3-1_panel_2-0.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "objects": [
+        {
+          "class": "large_tool",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 204,
+            "y": 507
+          },
+          "bbox": {
+            "x_min": 49,
+            "x_max": 359,
+            "y_min": 351,
+            "y_max": 662,
+            "width": 310,
+            "height": 311
+          }
+        }
+      ],
+      "jobsite_objects": [
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 400,
+            "y": 133
+          },
+          "bbox": {
+            "x_min": 347,
+            "x_max": 453,
+            "y_min": 80,
+            "y_max": 186,
+            "width": 106,
+            "height": 106
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 344,
+            "y": 328
+          },
+          "bbox": {
+            "x_min": 306,
+            "x_max": 382,
+            "y_min": 289,
+            "y_max": 366,
+            "width": 76,
+            "height": 77
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 453,
+            "y": 335
+          },
+          "bbox": {
+            "x_min": 414,
+            "x_max": 491,
+            "y_min": 296,
+            "y_max": 373,
+            "width": 77,
+            "height": 77
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 390,
+            "y": 504
+          },
+          "bbox": {
+            "x_min": 331,
+            "x_max": 448,
+            "y_min": 445,
+            "y_max": 562,
+            "width": 117,
+            "height": 117
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 473,
+            "y": 499
+          },
+          "bbox": {
+            "x_min": 414,
+            "x_max": 531,
+            "y_min": 440,
+            "y_max": 557,
+            "width": 117,
+            "height": 117
+          }
+        }
+      ]
+    }
+  ]
+}

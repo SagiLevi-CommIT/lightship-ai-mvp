@@ -1,0 +1,84 @@
+{
+  "filename": "hazard_still_3-5_panel_2-0.mp4",
+  "video_description": "worker painting wall on a ladder.",
+  "video_class": "job_site_detection",
+  "weather": "clear, good visibility",
+  "hazards": [],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0,
+      "objects": [],
+      "jobsite_objects": [
+        {
+          "class": "ladder",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 290,
+            "y": 535
+          },
+          "bbox": {
+            "x_min": 111,
+            "x_max": 464,
+            "y_min": 322,
+            "y_max": 747,
+            "width": 353,
+            "height": 425
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 258,
+            "y": 123
+          },
+          "bbox": {
+            "x_min": 205,
+            "x_max": 311,
+            "y_min": 70,
+            "y_max": 176,
+            "width": 106,
+            "height": 106
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 227,
+            "y": 560
+          },
+          "bbox": {
+            "x_min": 174,
+            "x_max": 280,
+            "y_min": 507,
+            "y_max": 613,
+            "width": 106,
+            "height": 106
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 406,
+            "y": 88
+          },
+          "bbox": {
+            "x_min": 353,
+            "x_max": 459,
+            "y_min": 34,
+            "y_max": 141,
+            "width": 106,
+            "height": 107
+          }
+        }
+      ]
+    }
+  ]
+}

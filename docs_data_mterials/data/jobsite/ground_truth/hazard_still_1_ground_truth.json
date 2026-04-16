@@ -1,0 +1,148 @@
+{
+  "filename": "hazard_still_1.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "overhead_obstruction_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 900,
+        "y": 191
+      },
+      "polygon": [
+        {
+          "x": 16,
+          "y": 22
+        },
+        {
+          "x": 1790,
+          "y": 9
+        },
+        {
+          "x": 1790,
+          "y": 366
+        },
+        {
+          "x": 4,
+          "y": 368
+        }
+      ],
+      "x_min": 4,
+      "x_max": 1790,
+      "y_min": 9,
+      "y_max": 368,
+      "width": 1786,
+      "height": 359,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "forklift",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 869,
+        "y": 893
+      },
+      "polygon": [
+        {
+          "x": 384,
+          "y": 408
+        },
+        {
+          "x": 1354,
+          "y": 408
+        },
+        {
+          "x": 1354,
+          "y": 1378
+        },
+        {
+          "x": 384,
+          "y": 1378
+        }
+      ],
+      "x_min": 384,
+      "x_max": 1354,
+      "y_min": 408,
+      "y_max": 1378,
+      "width": 970,
+      "height": 970,
+      "distance": "danger_close"
+    },
+    {
+      "category": "object",
+      "description": "ppe",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 840,
+        "y": 614
+      },
+      "polygon": [
+        {
+          "x": 758,
+          "y": 532
+        },
+        {
+          "x": 921,
+          "y": 532
+        },
+        {
+          "x": 921,
+          "y": 695
+        },
+        {
+          "x": 758,
+          "y": 695
+        }
+      ],
+      "x_min": 758,
+      "x_max": 921,
+      "y_min": 532,
+      "y_max": 695,
+      "width": 163,
+      "height": 163,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "wires/cables",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1477,
+        "y": 439
+      },
+      "polygon": [
+        {
+          "x": 1219,
+          "y": 251
+        },
+        {
+          "x": 1644,
+          "y": 252
+        },
+        {
+          "x": 1706,
+          "y": 632
+        },
+        {
+          "x": 1337,
+          "y": 619
+        }
+      ],
+      "x_min": 1219,
+      "x_max": 1706,
+      "y_min": 251,
+      "y_max": 632,
+      "width": 487,
+      "height": 381,
+      "distance": "near"
+    }
+  ]
+}

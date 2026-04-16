@@ -1,0 +1,116 @@
+{
+  "filename": "hazard_still_3-4_panel_2-0.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "jobsite_objects": [
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 332,
+            "y": 290
+          },
+          "bbox": {
+            "x_min": 174,
+            "x_max": 456,
+            "y_min": 52,
+            "y_max": 532,
+            "width": 282,
+            "height": 480
+          }
+        },
+        {
+          "class": "ladder",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 315,
+            "y": 495
+          },
+          "bbox": {
+            "x_min": 129,
+            "x_max": 507,
+            "y_min": 239,
+            "y_max": 731,
+            "width": 378,
+            "height": 492
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 386,
+            "y": 491
+          },
+          "bbox": {
+            "x_min": 323,
+            "x_max": 448,
+            "y_min": 428,
+            "y_max": 553,
+            "width": 125,
+            "height": 125
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 210,
+            "y": 85
+          },
+          "bbox": {
+            "x_min": 171,
+            "x_max": 248,
+            "y_min": 46,
+            "y_max": 123,
+            "width": 77,
+            "height": 77
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 366,
+            "y": 78
+          },
+          "bbox": {
+            "x_min": 328,
+            "x_max": 404,
+            "y_min": 39,
+            "y_max": 116,
+            "width": 76,
+            "height": 77
+          }
+        },
+        {
+          "class": "glasses",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 346,
+            "y": 99
+          },
+          "bbox": {
+            "x_min": 312,
+            "x_max": 379,
+            "y_min": 81,
+            "y_max": 119,
+            "width": 67,
+            "height": 38
+          }
+        }
+      ]
+    }
+  ]
+}

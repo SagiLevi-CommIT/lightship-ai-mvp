@@ -1,0 +1,932 @@
+{
+  "filename": "netradyne_test_2.mp4",
+  "video_description": "Driving through intersection",
+  "video_class": "hazard_detection",
+  "road_type": "urban/city",
+  "weather": "clear, good visibility",
+  "traffic": "little/none",
+  "speed": "15-40_mph",
+  "collision": "intersection",
+  "hazards": [],
+  "frames": [
+    {
+      "frame_number": 95,
+      "timestamp_sec": 3.167,
+      "objects": [
+        {
+          "class": "car",
+          "description": "lane 3",
+          "distance": "near",
+          "center": {
+            "x": 643,
+            "y": 370
+          },
+          "bbox": {
+            "x_min": 609,
+            "x_max": 678,
+            "y_min": 334,
+            "y_max": 406,
+            "width": 69,
+            "height": 72
+          }
+        },
+        {
+          "class": "car",
+          "description": "lane 2",
+          "distance": "mid",
+          "center": {
+            "x": 563,
+            "y": 368
+          },
+          "bbox": {
+            "x_min": 535,
+            "x_max": 591,
+            "y_min": 350,
+            "y_max": 385,
+            "width": 56,
+            "height": 35
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 365,
+            "y": 366
+          },
+          "bbox": {
+            "x_min": 335,
+            "x_max": 397,
+            "y_min": 352,
+            "y_max": 379,
+            "width": 62,
+            "height": 27
+          }
+        },
+        {
+          "class": "construction_sign",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 719,
+            "y": 353
+          },
+          "bbox": {
+            "x_min": 701,
+            "x_max": 736,
+            "y_min": 337,
+            "y_max": 369,
+            "width": 35,
+            "height": 32
+          }
+        },
+        {
+          "class": "car",
+          "description": "lane 2",
+          "distance": "far",
+          "center": {
+            "x": 601,
+            "y": 359
+          },
+          "bbox": {
+            "x_min": 587,
+            "x_max": 614,
+            "y_min": 346,
+            "y_max": 371,
+            "width": 27,
+            "height": 25
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 697,
+            "y": 356
+          },
+          "bbox": {
+            "x_min": 683,
+            "x_max": 711,
+            "y_min": 344,
+            "y_max": 368,
+            "width": 28,
+            "height": 24
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 774,
+            "y": 358
+          },
+          "bbox": {
+            "x_min": 753,
+            "x_max": 794,
+            "y_min": 347,
+            "y_max": 368,
+            "width": 41,
+            "height": 21
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 537,
+            "y": 359
+          },
+          "bbox": {
+            "x_min": 526,
+            "x_max": 547,
+            "y_min": 352,
+            "y_max": 367,
+            "width": 21,
+            "height": 15
+          }
+        },
+        {
+          "class": "car",
+          "description": "lane 1",
+          "distance": "far",
+          "center": {
+            "x": 565,
+            "y": 350
+          },
+          "bbox": {
+            "x_min": 549,
+            "x_max": 580,
+            "y_min": 346,
+            "y_max": 353,
+            "width": 31,
+            "height": 7
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 3,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              609,
+              375
+            ],
+            [
+              664,
+              375
+            ],
+            [
+              1066,
+              719
+            ],
+            [
+              201,
+              717
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [
+            [
+              540,
+              380
+            ],
+            [
+              608,
+              376
+            ],
+            [
+              200,
+              719
+            ],
+            [
+              0,
+              535
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              505,
+              377
+            ],
+            [
+              539,
+              379
+            ],
+            [
+              0,
+              535
+            ],
+            [
+              0,
+              472
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              455,
+              375
+            ],
+            [
+              503,
+              376
+            ],
+            [
+              0,
+              472
+            ],
+            [
+              0,
+              453
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [
+            [
+              386,
+              381
+            ],
+            [
+              456,
+              375
+            ],
+            [
+              0,
+              453
+            ],
+            [
+              0,
+              434
+            ]
+          ]
+        }
+      ],
+      "traffic_signals": [
+        {
+          "label": "green",
+          "bbox": {
+            "x_min": 586,
+            "x_max": 605,
+            "y_min": 297,
+            "y_max": 317,
+            "width": 19,
+            "height": 20
+          }
+        },
+        {
+          "label": "green",
+          "bbox": {
+            "x_min": 674,
+            "x_max": 693,
+            "y_min": 319,
+            "y_max": 338,
+            "width": 19,
+            "height": 19
+          }
+        },
+        {
+          "label": "green",
+          "bbox": {
+            "x_min": 445,
+            "x_max": 464,
+            "y_min": 325,
+            "y_max": 345,
+            "width": 19,
+            "height": 20
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 386,
+            "x_max": 405,
+            "y_min": 297,
+            "y_max": 316,
+            "width": 19,
+            "height": 19
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 409,
+            "x_max": 427,
+            "y_min": 325,
+            "y_max": 345,
+            "width": 18,
+            "height": 20
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 453,
+            "x_max": 471,
+            "y_min": 270,
+            "y_max": 297,
+            "width": 18,
+            "height": 27
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 681,
+            "x_max": 700,
+            "y_min": 305,
+            "y_max": 333,
+            "width": 19,
+            "height": 28
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 340,
+            "x_max": 359,
+            "y_min": 317,
+            "y_max": 345,
+            "width": 19,
+            "height": 28
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 731,
+            "x_max": 749,
+            "y_min": 275,
+            "y_max": 298,
+            "width": 18,
+            "height": 23
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 745,
+            "x_max": 763,
+            "y_min": 306,
+            "y_max": 329,
+            "width": 18,
+            "height": 23
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 195,
+      "timestamp_sec": 6.501,
+      "objects": [
+        {
+          "class": "car",
+          "description": "lane 2",
+          "distance": "mid",
+          "center": {
+            "x": 644,
+            "y": 367
+          },
+          "bbox": {
+            "x_min": 608,
+            "x_max": 679,
+            "y_min": 331,
+            "y_max": 402,
+            "width": 71,
+            "height": 71
+          }
+        },
+        {
+          "class": "car",
+          "description": "lane 1",
+          "distance": "far",
+          "center": {
+            "x": 577,
+            "y": 361
+          },
+          "bbox": {
+            "x_min": 555,
+            "x_max": 599,
+            "y_min": 345,
+            "y_max": 377,
+            "width": 44,
+            "height": 32
+          }
+        },
+        {
+          "class": "car",
+          "description": "lane 1",
+          "distance": "mid",
+          "center": {
+            "x": 463,
+            "y": 361
+          },
+          "bbox": {
+            "x_min": 421,
+            "x_max": 503,
+            "y_min": 332,
+            "y_max": 388,
+            "width": 82,
+            "height": 56
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 858,
+            "y": 365
+          },
+          "bbox": {
+            "x_min": 778,
+            "x_max": 938,
+            "y_min": 332,
+            "y_max": 395,
+            "width": 160,
+            "height": 63
+          }
+        },
+        {
+          "class": "car",
+          "description": "lane 1",
+          "distance": "mid",
+          "center": {
+            "x": 858,
+            "y": 365
+          },
+          "bbox": {
+            "x_min": 778,
+            "x_max": 938,
+            "y_min": 332,
+            "y_max": 395,
+            "width": 160,
+            "height": 63
+          }
+        },
+        {
+          "class": "car",
+          "description": "lane 1",
+          "distance": "mid",
+          "center": {
+            "x": 1059,
+            "y": 376
+          },
+          "bbox": {
+            "x_min": 974,
+            "x_max": 1145,
+            "y_min": 343,
+            "y_max": 406,
+            "width": 171,
+            "height": 63
+          }
+        },
+        {
+          "class": "crosswalk",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 470,
+            "y": 495
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 1012,
+            "y_min": 455,
+            "y_max": 536,
+            "width": 1012,
+            "height": 81
+          }
+        },
+        {
+          "class": "crosswalk",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 915,
+            "y": 429
+          },
+          "bbox": {
+            "x_min": 728,
+            "x_max": 1127,
+            "y_min": 379,
+            "y_max": 491,
+            "width": 399,
+            "height": 112
+          }
+        },
+        {
+          "class": "crosswalk",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 91,
+            "y": 400
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 241,
+            "y_min": 387,
+            "y_max": 423,
+            "width": 241,
+            "height": 36
+          }
+        },
+        {
+          "class": "crosswalk",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 481,
+            "y": 382
+          },
+          "bbox": {
+            "x_min": 214,
+            "x_max": 733,
+            "y_min": 374,
+            "y_max": 391,
+            "width": 519,
+            "height": 17
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 2,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              613,
+              364
+            ],
+            [
+              672,
+              364
+            ],
+            [
+              1252,
+              719
+            ],
+            [
+              496,
+              719
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              554,
+              364
+            ],
+            [
+              617,
+              363
+            ],
+            [
+              494,
+              719
+            ],
+            [
+              2,
+              674
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              415,
+              385
+            ],
+            [
+              514,
+              386
+            ],
+            [
+              0,
+              674
+            ],
+            [
+              0,
+              565
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [
+            [
+              334,
+              382
+            ],
+            [
+              413,
+              385
+            ],
+            [
+              0,
+              566
+            ],
+            [
+              0,
+              488
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              0,
+              396
+            ],
+            [
+              1280,
+              378
+            ],
+            [
+              1279,
+              433
+            ],
+            [
+              0,
+              446
+            ]
+          ]
+        }
+      ],
+      "traffic_signals": [
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 541,
+            "x_max": 569,
+            "y_min": 222,
+            "y_max": 263,
+            "width": 28,
+            "height": 41
+          }
+        },
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 749,
+            "x_max": 777,
+            "y_min": 275,
+            "y_max": 315,
+            "width": 28,
+            "height": 40
+          }
+        },
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 197,
+            "x_max": 224,
+            "y_min": 274,
+            "y_max": 314,
+            "width": 27,
+            "height": 40
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 801,
+            "x_max": 829,
+            "y_min": 269,
+            "y_max": 309,
+            "width": 28,
+            "height": 40
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 99,
+            "x_max": 127,
+            "y_min": 277,
+            "y_max": 318,
+            "width": 28,
+            "height": 41
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 1034,
+            "x_max": 1076,
+            "y_min": 58,
+            "y_max": 148,
+            "width": 42,
+            "height": 90
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 1141,
+            "x_max": 1245,
+            "y_min": 0,
+            "y_max": 127,
+            "width": 104,
+            "height": 127
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 295,
+      "timestamp_sec": 9.836,
+      "objects": [
+        {
+          "class": "car",
+          "description": "lane 2",
+          "distance": "near",
+          "center": {
+            "x": 638,
+            "y": 374
+          },
+          "bbox": {
+            "x_min": 589,
+            "x_max": 686,
+            "y_min": 327,
+            "y_max": 420,
+            "width": 97,
+            "height": 93
+          }
+        },
+        {
+          "class": "car",
+          "description": "lane 1",
+          "distance": "far",
+          "center": {
+            "x": 569,
+            "y": 363
+          },
+          "bbox": {
+            "x_min": 544,
+            "x_max": 594,
+            "y_min": 346,
+            "y_max": 381,
+            "width": 50,
+            "height": 35
+          }
+        },
+        {
+          "class": "car",
+          "description": "lane 1",
+          "distance": "far",
+          "center": {
+            "x": 596,
+            "y": 356
+          },
+          "bbox": {
+            "x_min": 585,
+            "x_max": 609,
+            "y_min": 344,
+            "y_max": 367,
+            "width": 24,
+            "height": 23
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 2,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              616,
+              361
+            ],
+            [
+              654,
+              363
+            ],
+            [
+              1061,
+              719
+            ],
+            [
+              215,
+              719
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              563,
+              374
+            ],
+            [
+              617,
+              361
+            ],
+            [
+              214,
+              719
+            ],
+            [
+              0,
+              537
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              514,
+              372
+            ],
+            [
+              552,
+              371
+            ],
+            [
+              0,
+              522
+            ],
+            [
+              0,
+              464
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [
+            [
+              492,
+              368
+            ],
+            [
+              514,
+              373
+            ],
+            [
+              0,
+              464
+            ],
+            [
+              0,
+              428
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "double_yellow",
+          "polygon": [
+            [
+              551,
+              370
+            ],
+            [
+              562,
+              375
+            ],
+            [
+              0,
+              537
+            ],
+            [
+              0,
+              521
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

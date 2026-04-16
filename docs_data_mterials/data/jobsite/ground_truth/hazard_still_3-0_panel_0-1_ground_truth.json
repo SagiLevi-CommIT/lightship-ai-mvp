@@ -1,0 +1,123 @@
+{
+  "filename": "hazard_still_3-0_panel_0-1.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "caught-in",
+      "severity": "high"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "jobsite_objects": [
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 214,
+            "y": 366
+          },
+          "bbox": {
+            "x_min": 151,
+            "x_max": 276,
+            "y_min": 303,
+            "y_max": 428,
+            "width": 125,
+            "height": 125
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 171,
+            "y": 107
+          },
+          "bbox": {
+            "x_min": 108,
+            "x_max": 233,
+            "y_min": 44,
+            "y_max": 169,
+            "width": 125,
+            "height": 125
+          }
+        },
+        {
+          "class": "glasses",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 173,
+            "y": 150
+          },
+          "bbox": {
+            "x_min": 148,
+            "x_max": 197,
+            "y_min": 112,
+            "y_max": 175,
+            "width": 49,
+            "height": 63
+          }
+        },
+        {
+          "class": "machinery",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 261,
+            "y": 490
+          },
+          "bbox": {
+            "x_min": 47,
+            "x_max": 474,
+            "y_min": 276,
+            "y_max": 704,
+            "width": 427,
+            "height": 428
+          }
+        },
+        {
+          "class": "wires_cables",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 468,
+            "y": 655
+          },
+          "bbox": {
+            "x_min": 373,
+            "x_max": 563,
+            "y_min": 560,
+            "y_max": 750,
+            "width": 190,
+            "height": 190
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 123,
+            "y": 375
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 284,
+            "y_min": 56,
+            "y_max": 740,
+            "width": 284,
+            "height": 684
+          }
+        }
+      ]
+    }
+  ]
+}

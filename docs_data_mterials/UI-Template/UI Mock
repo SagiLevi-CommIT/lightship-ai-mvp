@@ -1,0 +1,306 @@
+import { useState } from "react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Cell } from "recharts";
+
+const METRICS = [
+  { key: "lane_iou", label: "Lane Detection IOU", score: 0.71, threshold: 0.65, pool: 312, description: "Polygon IOU across annotated frames" },
+  { key: "moto_recall", label: "Motorcycle Recall", score: 0.74, threshold: 0.75, pool: 58, description: "Recall on frames with ≥1 motorcycle in GT" },
+  { key: "sign_precision", label: "Road Sign Precision", score: 0.82, threshold: 0.75, pool: 134, description: "Precision on frames with road signs in GT" },
+  { key: "jobsite_precision", label: "Job Site Obj. Precision", score: 0.79, threshold: 0.75, pool: 41, description: "Precision on job_site_detection videos" },
+  { key: "video_class_acc", label: "Video Class Accuracy", score: 0.88, threshold: 0.80, pool: 147, description: "Per-video classification accuracy" },
+  { key: "road_type_acc", label: "Road Type Accuracy", score: 0.91, threshold: 0.85, pool: 147, description: "Per-video road type accuracy" },
+];
+
+const VIDEOS = [
+  { id: "dashcam_highway_rain_001", cls: "hazard_detection", road: "highway", weather: "rain", lane: 0.73, moto: 1, sign: 0.85, jobsite: null, vc: "✓", rt: "✓", issues: [] },
+  { id: "dashcam_city_morning_012", cls: "reactivity_braking", road: "city", weather: "clear", lane: 0.68, moto: null, sign: 0.91, jobsite: null, vc: "✓", rt: "✓", issues: [] },
+  { id: "dashcam_highway_eve_007", cls: "qa_educational", road: "highway", weather: "dusk", lane: 0.55, moto: 0.5, sign: 0.72, jobsite: null, vc: "✓", rt: "✗", issues: ["low lane IOU", "missed motorcycle"] },
+  { id: "construction_site_003", cls: "job_site_detection", road: null, weather: "clear", lane: null, moto: null, sign: null, jobsite: 0.81, vc: "✓", rt: "N/A", issues: [] },
+  { id: "dashcam_city_rain_019", cls: "hazard_detection", road: "city", weather: "rain", lane: 0.62, moto: 0.67, sign: 0.78, jobsite: null, vc: "✗", rt: "✓", issues: ["class misclassified as reactivity_braking"] },
+  { id: "construction_site_011", cls: "job_site_detection", road: null, weather: "overcast", lane: null, moto: null, sign: null, jobsite: 0.76, vc: "✓", rt: "N/A", issues: [] },
+  { id: "dashcam_highway_clear_033", cls: "reactivity_braking", road: "highway", weather: "clear", lane: 0.79, moto: null, sign: 0.88, jobsite: null, vc: "✓", rt: "✓", issues: [] },
+];
+
+const CLASS_DIST = [
+  { name: "hazard_detection", count: 48, color: "#f97316" },
+  { name: "reactivity_braking", count: 39, color: "#3b82f6" },
+  { name: "qa_educational", count: 27, color: "#8b5cf6" },
+  { name: "job_site_detection", count: 33, color: "#10b981" },
+];
+
+const pass = (score, thresh) => score >= thresh;
+
+export default function EvalReport() {
+  const [tab, setTab] = useState("overview");
+  const [filterCls, setFilterCls] = useState("all");
+  const [filterIssues, setFilterIssues] = useState(false);
+
+  const passing = METRICS.filter(m => pass(m.score, m.threshold)).length;
+  const overallPct = Math.round((METRICS.reduce((a, m) => a + m.score, 0) / METRICS.length) * 100);
+  const filteredVideos = VIDEOS.filter(v => {
+    if (filterCls !== "all" && v.cls !== filterCls) return false;
+    if (filterIssues && v.issues.length === 0) return false;
+    return true;
+  });
+  const allOk = passing === METRICS.length;
+
+  return (
+    <div style={{ fontFamily: "'IBM Plex Mono', 'Courier New', monospace", background: "#0a0e14", minHeight: "100vh", color: "#c9d1d9" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        .card { background: #0d1117; border: 1px solid #21262d; border-radius: 4px; padding: 16px; }
+        .tab { background: none; border: none; color: #8b949e; font-family: inherit; font-size: 11px; letter-spacing: 0.1em; padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; }
+        .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+        .tab:hover:not(.active) { color: #c9d1d9; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th { text-align: left; padding: 8px 12px; color: #8b949e; font-weight: 500; border-bottom: 1px solid #21262d; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; }
+        td { padding: 8px 12px; border-bottom: 1px solid #161b22; }
+        tr:hover td { background: #0d1117; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 2px; font-size: 10px; letter-spacing: 0.05em; font-weight: 600; }
+        .chip { display: inline-block; padding: 2px 7px; border-radius: 2px; font-size: 10px; background: #21262d; color: #8b949e; margin: 1px; }
+        select { background: #161b22; border: 1px solid #30363d; color: #c9d1d9; font-family: inherit; padding: 5px 10px; font-size: 11px; border-radius: 3px; outline: none; }
+        input[type=checkbox] { accent-color: #58a6ff; }
+        .run-btn { background: #238636; border: 1px solid #2ea043; color: #fff; font-family: inherit; font-size: 11px; letter-spacing: 0.12em; padding: 9px 22px; border-radius: 3px; cursor: pointer; text-transform: uppercase; font-weight: 600; }
+        .run-btn:hover { background: #2ea043; }
+      `}</style>
+
+      <div style={{ borderBottom: "1px solid #21262d", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#58a6ff", boxShadow: "0 0 8px #58a6ff" }} />
+          <div>
+            <div style={{ fontSize: 10, color: "#484f58", letterSpacing: "0.15em", textTransform: "uppercase" }}>LightShip Video Annotation MVP</div>
+            <div style={{ fontSize: 16, color: "#e6edf3", fontWeight: 600, fontFamily: "'IBM Plex Sans', sans-serif" }}>Evaluation Report</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 28, alignItems: "center" }}>
+          {[["Run ID", "eval_20250311_0934", "#58a6ff"], ["GT Version", "v1.2.0", "#c9d1d9"], ["Videos", "147", "#c9d1d9"], ["Frames", "1,840", "#c9d1d9"]].map(([k, v, c]) => (
+            <div key={k} style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 9, color: "#484f58", textTransform: "uppercase", letterSpacing: "0.1em" }}>{k}</div>
+              <div style={{ fontSize: 12, color: c, marginTop: 1 }}>{v}</div>
+            </div>
+          ))}
+          <button className="run-btn">▶ Run Evaluation</button>
+        </div>
+      </div>
+
+      <div style={{ background: allOk ? "#091d11" : "#1c1508", borderBottom: `1px solid ${allOk ? "#1a4428" : "#3d2e08"}`, padding: "9px 28px", display: "flex", alignItems: "center", gap: 20 }}>
+        <div style={{ fontSize: 12, color: allOk ? "#3fb950" : "#d29922", fontWeight: 600, letterSpacing: "0.08em" }}>
+          {allOk ? "✓ ALL SUCCESS CRITERIA MET" : `⚠ ${METRICS.length - passing} METRIC${METRICS.length - passing > 1 ? "S" : ""} BELOW THRESHOLD`}
+        </div>
+        <div style={{ fontSize: 11, color: "#8b949e" }}>{passing}/{METRICS.length} passing · {overallPct}% aggregate score</div>
+        <div style={{ marginLeft: "auto", fontSize: 10, color: "#484f58" }}>Completed in 4m 22s · 2026-03-11 09:34 UTC</div>
+      </div>
+
+      <div style={{ borderBottom: "1px solid #21262d", padding: "0 28px", display: "flex" }}>
+        {[["overview","Overview"],["metrics","Metrics Detail"],["per-video","Per-Video"],["failures","Failures & Issues"]].map(([k,l]) => (
+          <button key={k} className={`tab ${tab===k?"active":""}`} onClick={() => setTab(k)}>{l}</button>
+        ))}
+      </div>
+
+      <div style={{ padding: "22px 28px" }}>
+        {tab === "overview" && <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 10, marginBottom: 20 }}>
+            {METRICS.map(m => {
+              const ok = pass(m.score, m.threshold);
+              const pct = Math.round(m.score * 100);
+              return (
+                <div key={m.key} className="card" style={{ borderColor: ok ? "#1a4428" : "#3d2e08" }}>
+                  <div style={{ fontSize: 9, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10, lineHeight: 1.4 }}>{m.label}</div>
+                  <div style={{ fontSize: 30, fontWeight: 600, color: ok ? "#3fb950" : "#f85149", lineHeight: 1, fontFamily: "'IBM Plex Sans',sans-serif" }}>
+                    {pct}<span style={{ fontSize: 13, fontWeight: 400 }}>%</span>
+                  </div>
+                  <div style={{ marginTop: 8, position: "relative", background: "#161b22", borderRadius: 2, height: 4 }}>
+                    <div style={{ height: 4, borderRadius: 2, background: ok ? "#3fb950" : "#f85149", width: `${pct}%` }} />
+                    <div style={{ position: "absolute", top: -3, left: `${Math.round(m.threshold*100)}%`, width: 2, height: 10, background: "#d29922", borderRadius: 1 }} />
+                  </div>
+                  <div style={{ marginTop: 7, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 9, color: "#484f58" }}>thr: {Math.round(m.threshold*100)}%</span>
+                    <span className="badge" style={{ background: ok?"#091d11":"#1c1508", color: ok?"#3fb950":"#f85149", border: `1px solid ${ok?"#1a4428":"#3d2e08"}` }}>{ok?"PASS":"FAIL"}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 14, marginBottom: 20 }}>
+            <div className="card">
+              <div style={{ fontSize: 10, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Score vs Threshold — Radar View</div>
+              <ResponsiveContainer width="100%" height={230}>
+                <RadarChart data={METRICS.map(m => ({ m: m.label.split(" ").slice(-2).join(" "), score: Math.round(m.score*100), threshold: Math.round(m.threshold*100) }))}>
+                  <PolarGrid stroke="#21262d" />
+                  <PolarAngleAxis dataKey="m" tick={{ fill: "#8b949e", fontSize: 9 }} />
+                  <PolarRadiusAxis angle={30} domain={[0,100]} tick={{ fill:"#484f58", fontSize:8 }} />
+                  <Radar name="Score" dataKey="score" stroke="#58a6ff" fill="#58a6ff" fillOpacity={0.12} strokeWidth={2} />
+                  <Radar name="Threshold" dataKey="threshold" stroke="#d29922" fill="none" strokeDasharray="4 3" strokeWidth={1.5} />
+                  <Tooltip contentStyle={{ background:"#0d1117", border:"1px solid #30363d", fontSize:11, fontFamily:"IBM Plex Mono" }} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="card">
+              <div style={{ fontSize: 10, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>Video Class Distribution</div>
+              <ResponsiveContainer width="100%" height={230}>
+                <BarChart data={CLASS_DIST} layout="vertical" barSize={20}>
+                  <CartesianGrid strokeDasharray="2 4" stroke="#21262d" horizontal={false} />
+                  <XAxis type="number" tick={{ fill:"#8b949e", fontSize:9 }} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="name" type="category" tick={{ fill:"#8b949e", fontSize:9 }} width={130} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background:"#0d1117", border:"1px solid #30363d", fontSize:11 }} />
+                  <Bar dataKey="count" radius={[0,3,3,0]}>
+                    {CLASS_DIST.map((d,i) => <Cell key={i} fill={d.color} fillOpacity={0.85} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{ fontSize: 10, color: "#8b949e", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>GT Coverage Summary</div>
+            <table>
+              <thead><tr>
+                <th>Metric</th><th>Granularity</th><th>Videos in Pool</th><th>Frames in Pool</th><th>Threshold</th><th>Score</th><th>Delta</th><th>Status</th>
+              </tr></thead>
+              <tbody>
+                {[
+                  { label:"Lane Detection IOU", type:"frame", videos:89, frames:312, ...METRICS[0] },
+                  { label:"Motorcycle Recall", type:"frame", videos:31, frames:58, ...METRICS[1] },
+                  { label:"Road Sign Precision", type:"frame", videos:67, frames:134, ...METRICS[2] },
+                  { label:"Job Site Obj. Precision", type:"video", videos:33, frames:41, ...METRICS[3] },
+                  { label:"Video Class Accuracy", type:"video", videos:147, frames:147, ...METRICS[4] },
+                  { label:"Road Type Accuracy", type:"video", videos:114, frames:114, ...METRICS[5] },
+                ].map((r,i) => {
+                  const ok = pass(r.score, r.threshold);
+                  const delta = Math.round((r.score - r.threshold)*100);
+                  return (
+                    <tr key={i}>
+                      <td style={{ color:"#e6edf3", fontWeight:500 }}>{r.label}</td>
+                      <td><span className="chip">{r.type}-level</span></td>
+                      <td style={{ color:"#c9d1d9" }}>{r.videos}</td>
+                      <td style={{ color:"#c9d1d9" }}>{r.frames}</td>
+                      <td style={{ color:"#8b949e" }}>{Math.round(r.threshold*100)}%</td>
+                      <td style={{ fontWeight:600, color: ok?"#3fb950":"#f85149" }}>{Math.round(r.score*100)}%</td>
+                      <td style={{ color: ok?"#3fb950":"#f85149", fontWeight:500 }}>{delta>=0?"+":""}{delta}pp</td>
+                      <td><span className="badge" style={{ background:ok?"#091d11":"#1c1508", color:ok?"#3fb950":"#f85149", border:`1px solid ${ok?"#1a4428":"#3d2e08"}` }}>{ok?"PASS":"FAIL"}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>}
+
+        {tab === "metrics" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            {METRICS.map(m => {
+              const ok = pass(m.score, m.threshold);
+              const pct = Math.round(m.score*100);
+              const thr = Math.round(m.threshold*100);
+              return (
+                <div key={m.key} className="card" style={{ borderColor: ok?"#1a4428":"#3d2e08" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:14 }}>
+                    <div>
+                      <div style={{ fontSize:13, color:"#e6edf3", fontWeight:600, fontFamily:"'IBM Plex Sans',sans-serif" }}>{m.label}</div>
+                      <div style={{ fontSize:10, color:"#8b949e", marginTop:3 }}>{m.description} · n={m.pool}</div>
+                    </div>
+                    <span className="badge" style={{ background:ok?"#091d11":"#1c1508", color:ok?"#3fb950":"#f85149", border:`1px solid ${ok?"#1a4428":"#3d2e08"}`, alignSelf:"flex-start" }}>{ok?"PASS":"FAIL"}</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:10, marginBottom:14 }}>
+                    <span style={{ fontSize:42, fontWeight:700, color:ok?"#3fb950":"#f85149", lineHeight:1, fontFamily:"'IBM Plex Sans',sans-serif" }}>{pct}<span style={{ fontSize:18, fontWeight:400 }}>%</span></span>
+                    <div>
+                      <div style={{ fontSize:10, color:"#8b949e" }}>threshold {thr}%</div>
+                      <div style={{ fontSize:12, color:ok?"#3fb950":"#f85149", fontWeight:600 }}>{pct-thr>=0?"+":""}{pct-thr}pp</div>
+                    </div>
+                  </div>
+                  <div style={{ position:"relative", background:"#161b22", borderRadius:3, height:8, marginBottom:10 }}>
+                    <div style={{ height:8, borderRadius:3, background:ok?"#3fb950":"#f85149", width:`${pct}%` }} />
+                    <div style={{ position:"absolute", top:-3, left:`${thr}%`, width:2, height:14, background:"#d29922", borderRadius:1 }} />
+                  </div>
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#484f58" }}>
+                    <span>0%</span><span style={{ color:"#d29922" }}>▲ {thr}% threshold</span><span>100%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {tab === "per-video" && <>
+          <div style={{ display:"flex", gap:14, marginBottom:16, alignItems:"center" }}>
+            <select value={filterCls} onChange={e => setFilterCls(e.target.value)}>
+              <option value="all">All Classes</option>
+              {["hazard_detection","reactivity_braking","qa_educational","job_site_detection"].map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <label style={{ fontSize:11, color:"#8b949e", display:"flex", gap:7, alignItems:"center", cursor:"pointer" }}>
+              <input type="checkbox" checked={filterIssues} onChange={e => setFilterIssues(e.target.checked)} />
+              Issues only
+            </label>
+            <div style={{ marginLeft:"auto", fontSize:10, color:"#484f58" }}>{filteredVideos.length} video{filteredVideos.length!==1?"s":""}</div>
+          </div>
+          <div className="card" style={{ padding:0 }}>
+            <table>
+              <thead><tr>
+                <th style={{ paddingLeft:16 }}>Video</th><th>Class</th><th>Road</th><th>Weather</th>
+                <th>Lane IOU</th><th>Moto Recall</th><th>Sign Prec.</th><th>Jobsite</th>
+                <th>Vid Class</th><th>Road Type</th><th style={{ paddingRight:16 }}>Issues</th>
+              </tr></thead>
+              <tbody>
+                {filteredVideos.map((v,i) => {
+                  const sc = (val, thr) => val==null?"#484f58":val>=thr?"#3fb950":"#f85149";
+                  return (
+                    <tr key={i}>
+                      <td style={{ color:"#58a6ff", fontFamily:"monospace", fontSize:10, paddingLeft:16 }}>{v.id}</td>
+                      <td><span className="chip">{v.cls}</span></td>
+                      <td style={{ color:"#8b949e", fontSize:10 }}>{v.road||"—"}</td>
+                      <td style={{ color:"#8b949e", fontSize:10 }}>{v.weather}</td>
+                      <td style={{ color:sc(v.lane,0.65), fontWeight:v.lane?600:400 }}>{v.lane?(v.lane*100).toFixed(0)+"%":"—"}</td>
+                      <td style={{ color:sc(v.moto,0.75), fontWeight:v.moto!=null?600:400 }}>{v.moto!=null?(v.moto*100).toFixed(0)+"%":"—"}</td>
+                      <td style={{ color:sc(v.sign,0.75), fontWeight:v.sign?600:400 }}>{v.sign?(v.sign*100).toFixed(0)+"%":"—"}</td>
+                      <td style={{ color:sc(v.jobsite,0.75), fontWeight:v.jobsite?600:400 }}>{v.jobsite?(v.jobsite*100).toFixed(0)+"%":"—"}</td>
+                      <td style={{ fontSize:14, color:v.vc==="✓"?"#3fb950":v.vc==="N/A"?"#484f58":"#f85149" }}>{v.vc}</td>
+                      <td style={{ fontSize:14, color:v.rt==="✓"?"#3fb950":v.rt==="N/A"?"#484f58":"#f85149" }}>{v.rt}</td>
+                      <td style={{ paddingRight:16 }}>
+                        {v.issues.length>0
+                          ? v.issues.map((iss,j) => <span key={j} className="chip" style={{ background:"#1c1508", color:"#d29922", border:"1px solid #3d2e08" }}>⚠ {iss}</span>)
+                          : <span style={{ color:"#21262d" }}>—</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>}
+
+        {tab === "failures" && <>
+          <div style={{ fontSize:10, color:"#8b949e", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:16 }}>
+            {VIDEOS.filter(v=>v.issues.length>0).length} Videos with Issues
+          </div>
+          {VIDEOS.filter(v=>v.issues.length>0).map((v,i) => (
+            <div key={i} className="card" style={{ borderColor:"#3d2e08", marginBottom:12 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
+                <div style={{ fontSize:12, color:"#58a6ff", fontFamily:"monospace" }}>{v.id}</div>
+                <div style={{ display:"flex", gap:6 }}>
+                  <span className="chip">{v.cls}</span>
+                  {v.road && <span className="chip">{v.road}</span>}
+                  <span className="chip">{v.weather}</span>
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:28, marginBottom:12 }}>
+                {[v.lane!=null&&{label:"LANE IOU",val:v.lane,thr:0.65}, v.moto!=null&&{label:"MOTO RECALL",val:v.moto,thr:0.75}, v.sign!=null&&{label:"SIGN PREC.",val:v.sign,thr:0.75}].filter(Boolean).map((s,j) => (
+                  <div key={j}>
+                    <div style={{ fontSize:9, color:"#484f58", textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</div>
+                    <div style={{ fontSize:22, fontWeight:700, color:s.val>=s.thr?"#3fb950":"#f85149", fontFamily:"'IBM Plex Sans',sans-serif" }}>{(s.val*100).toFixed(0)}%</div>
+                    <div style={{ fontSize:9, color:"#484f58" }}>thr {Math.round(s.thr*100)}%</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {v.issues.map((iss,j) => (
+                  <span key={j} className="badge" style={{ background:"#1c1508", color:"#d29922", border:"1px solid #3d2e08", fontSize:11 }}>⚠ {iss}</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </>}
+      </div>
+    </div>
+  );
+}

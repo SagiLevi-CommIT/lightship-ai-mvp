@@ -1,0 +1,99 @@
+{
+  "filename": "hazard_still_3-0_panel_0-0.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "trip",
+      "severity": "high"
+    },
+    {
+      "timestamp_sec": 0,
+      "description": "fall",
+      "severity": "high"
+    },
+    {
+      "timestamp_sec": 0,
+      "description": "ppe",
+      "severity": "high"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "objects": [
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 298,
+            "y": 284
+          },
+          "bbox": {
+            "x_min": 157,
+            "x_max": 439,
+            "y_min": 143,
+            "y_max": 425,
+            "width": 282,
+            "height": 282
+          }
+        },
+        {
+          "class": "wires_cables",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 120,
+            "y": 356
+          },
+          "bbox": {
+            "x_min": 33,
+            "x_max": 206,
+            "y_min": 269,
+            "y_max": 442,
+            "width": 173,
+            "height": 173
+          }
+        },
+        {
+          "class": "debris",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 475,
+            "y": 620
+          },
+          "bbox": {
+            "x_min": 388,
+            "x_max": 561,
+            "y_min": 533,
+            "y_max": 706,
+            "width": 173,
+            "height": 173
+          }
+        },
+        {
+          "class": "debris",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 138,
+            "y": 511
+          },
+          "bbox": {
+            "x_min": 51,
+            "x_max": 224,
+            "y_min": 424,
+            "y_max": 597,
+            "width": 173,
+            "height": 173
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,358 @@
+{
+  "filename": "hazard_still_22.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 321,
+        "y": 405
+      },
+      "polygon": [
+        {
+          "x": 63,
+          "y": 58
+        },
+        {
+          "x": 580,
+          "y": 55
+        },
+        {
+          "x": 582,
+          "y": 755
+        },
+        {
+          "x": 59,
+          "y": 753
+        }
+      ],
+      "x_min": 59,
+      "x_max": 582,
+      "y_min": 55,
+      "y_max": 755,
+      "width": 523,
+      "height": 700,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 861,
+        "y": 398
+      },
+      "polygon": [
+        {
+          "x": 602,
+          "y": 51
+        },
+        {
+          "x": 1120,
+          "y": 47
+        },
+        {
+          "x": 1122,
+          "y": 747
+        },
+        {
+          "x": 599,
+          "y": 745
+        }
+      ],
+      "x_min": 599,
+      "x_max": 1122,
+      "y_min": 47,
+      "y_max": 747,
+      "width": 523,
+      "height": 700,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1400,
+        "y": 409
+      },
+      "polygon": [
+        {
+          "x": 1142,
+          "y": 62
+        },
+        {
+          "x": 1659,
+          "y": 58
+        },
+        {
+          "x": 1661,
+          "y": 759
+        },
+        {
+          "x": 1138,
+          "y": 757
+        }
+      ],
+      "x_min": 1138,
+      "x_max": 1661,
+      "y_min": 58,
+      "y_max": 759,
+      "width": 523,
+      "height": 701,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1961,
+        "y": 405
+      },
+      "polygon": [
+        {
+          "x": 1702,
+          "y": 58
+        },
+        {
+          "x": 2220,
+          "y": 55
+        },
+        {
+          "x": 2222,
+          "y": 755
+        },
+        {
+          "x": 1699,
+          "y": 753
+        }
+      ],
+      "x_min": 1699,
+      "x_max": 2222,
+      "y_min": 55,
+      "y_max": 755,
+      "width": 523,
+      "height": 700,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "trenching_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2510,
+        "y": 409
+      },
+      "polygon": [
+        {
+          "x": 2251,
+          "y": 62
+        },
+        {
+          "x": 2769,
+          "y": 58
+        },
+        {
+          "x": 2771,
+          "y": 759
+        },
+        {
+          "x": 2248,
+          "y": 757
+        }
+      ],
+      "x_min": 2248,
+      "x_max": 2771,
+      "y_min": 58,
+      "y_max": 759,
+      "width": 523,
+      "height": 701,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "caught_in_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 321,
+        "y": 1139
+      },
+      "polygon": [
+        {
+          "x": 63,
+          "y": 792
+        },
+        {
+          "x": 580,
+          "y": 788
+        },
+        {
+          "x": 582,
+          "y": 1488
+        },
+        {
+          "x": 59,
+          "y": 1486
+        }
+      ],
+      "x_min": 59,
+      "x_max": 582,
+      "y_min": 788,
+      "y_max": 1488,
+      "width": 523,
+      "height": 700,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "electrocution_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 868,
+        "y": 1130
+      },
+      "polygon": [
+        {
+          "x": 610,
+          "y": 783
+        },
+        {
+          "x": 1127,
+          "y": 779
+        },
+        {
+          "x": 1129,
+          "y": 1479
+        },
+        {
+          "x": 606,
+          "y": 1477
+        }
+      ],
+      "x_min": 606,
+      "x_max": 1129,
+      "y_min": 779,
+      "y_max": 1479,
+      "width": 523,
+      "height": 700,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "electrocution_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1412,
+        "y": 1132
+      },
+      "polygon": [
+        {
+          "x": 1154,
+          "y": 785
+        },
+        {
+          "x": 1671,
+          "y": 782
+        },
+        {
+          "x": 1673,
+          "y": 1481
+        },
+        {
+          "x": 1151,
+          "y": 1479
+        }
+      ],
+      "x_min": 1151,
+      "x_max": 1673,
+      "y_min": 782,
+      "y_max": 1481,
+      "width": 522,
+      "height": 699,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "scaffolding_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1954,
+        "y": 1143
+      },
+      "polygon": [
+        {
+          "x": 1696,
+          "y": 797
+        },
+        {
+          "x": 2213,
+          "y": 793
+        },
+        {
+          "x": 2214,
+          "y": 1492
+        },
+        {
+          "x": 1692,
+          "y": 1490
+        }
+      ],
+      "x_min": 1692,
+      "x_max": 2214,
+      "y_min": 793,
+      "y_max": 1492,
+      "width": 522,
+      "height": 699,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "scaffolding_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2500,
+        "y": 1138
+      },
+      "polygon": [
+        {
+          "x": 2242,
+          "y": 791
+        },
+        {
+          "x": 2759,
+          "y": 787
+        },
+        {
+          "x": 2761,
+          "y": 1487
+        },
+        {
+          "x": 2239,
+          "y": 1485
+        }
+      ],
+      "x_min": 2239,
+      "x_max": 2761,
+      "y_min": 787,
+      "y_max": 1487,
+      "width": 522,
+      "height": 700,
+      "distance": "mid"
+    }
+  ]
+}

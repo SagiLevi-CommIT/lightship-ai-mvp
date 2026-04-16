@@ -1,0 +1,57 @@
+{
+  "filename": "hazard_still_3-0_panel_4-1.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "poor_maintenance",
+      "severity": "medium"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "objects": [
+        {
+          "class": "debris",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 272,
+            "y": 481
+          },
+          "bbox": {
+            "x_min": 73,
+            "x_max": 524,
+            "y_min": 338,
+            "y_max": 626,
+            "width": 451,
+            "height": 288
+          }
+        }
+      ],
+      "jobsite_objects": [
+        {
+          "class": "scaffolding",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 259,
+            "y": 460
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 518,
+            "y_min": 183,
+            "y_max": 737,
+            "width": 518,
+            "height": 554
+          }
+        }
+      ]
+    }
+  ]
+}

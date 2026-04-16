@@ -1,0 +1,106 @@
+{
+  "filename": "hazard_still_3-4_panel_3-1.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "electrocution",
+      "severity": "medium"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "jobsite_objects": [
+        {
+          "class": "wires_cables",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 393,
+            "y": 378
+          },
+          "bbox": {
+            "x_min": 253,
+            "x_max": 535,
+            "y_min": 60,
+            "y_max": 741,
+            "width": 282,
+            "height": 681
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 382,
+            "y": 403
+          },
+          "bbox": {
+            "x_min": 320,
+            "x_max": 444,
+            "y_min": 341,
+            "y_max": 465,
+            "width": 124,
+            "height": 124
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 391,
+            "y": 332
+          },
+          "bbox": {
+            "x_min": 346,
+            "x_max": 436,
+            "y_min": 287,
+            "y_max": 377,
+            "width": 90,
+            "height": 90
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 145,
+            "y": 208
+          },
+          "bbox": {
+            "x_min": 33,
+            "x_max": 270,
+            "y_min": 142,
+            "y_max": 284,
+            "width": 237,
+            "height": 142
+          }
+        },
+        {
+          "class": "glasses",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 171,
+            "y": 274
+          },
+          "bbox": {
+            "x_min": 74,
+            "x_max": 258,
+            "y_min": 258,
+            "y_max": 288,
+            "width": 184,
+            "height": 30
+          }
+        }
+      ]
+    }
+  ]
+}

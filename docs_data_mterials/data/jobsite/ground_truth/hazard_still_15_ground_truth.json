@@ -1,0 +1,113 @@
+{
+  "filename": "hazard_still_15.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 525,
+        "y": 494
+      },
+      "polygon": [
+        {
+          "x": 310,
+          "y": 74
+        },
+        {
+          "x": 762,
+          "y": 95
+        },
+        {
+          "x": 686,
+          "y": 897
+        },
+        {
+          "x": 342,
+          "y": 908
+        }
+      ],
+      "x_min": 310,
+      "x_max": 762,
+      "y_min": 74,
+      "y_max": 908,
+      "width": 452,
+      "height": 834,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "ladder",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 525,
+        "y": 1185
+      },
+      "polygon": [
+        {
+          "x": 310,
+          "y": 882
+        },
+        {
+          "x": 759,
+          "y": 878
+        },
+        {
+          "x": 772,
+          "y": 1490
+        },
+        {
+          "x": 260,
+          "y": 1490
+        }
+      ],
+      "x_min": 260,
+      "x_max": 772,
+      "y_min": 878,
+      "y_max": 1490,
+      "width": 512,
+      "height": 612,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "ladder_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 501,
+        "y": 747
+      },
+      "polygon": [
+        {
+          "x": 229,
+          "y": 4
+        },
+        {
+          "x": 715,
+          "y": 44
+        },
+        {
+          "x": 808,
+          "y": 1465
+        },
+        {
+          "x": 253,
+          "y": 1474
+        }
+      ],
+      "x_min": 229,
+      "x_max": 808,
+      "y_min": 4,
+      "y_max": 1474,
+      "width": 579,
+      "height": 1470,
+      "distance": "near"
+    }
+  ]
+}

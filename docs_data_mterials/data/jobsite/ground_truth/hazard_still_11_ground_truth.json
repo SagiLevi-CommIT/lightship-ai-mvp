@@ -1,0 +1,160 @@
+{
+  "filename": "hazard_still_11.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "forklift",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 669,
+        "y": 453
+      },
+      "polygon": [
+        {
+          "x": 0,
+          "y": 9
+        },
+        {
+          "x": 851,
+          "y": 16
+        },
+        {
+          "x": 905,
+          "y": 506
+        },
+        {
+          "x": 1330,
+          "y": 740
+        },
+        {
+          "x": 928,
+          "y": 904
+        },
+        {
+          "x": 0,
+          "y": 542
+        }
+      ],
+      "x_min": 0,
+      "x_max": 1330,
+      "y_min": 9,
+      "y_max": 904,
+      "width": 1330,
+      "height": 895,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "spill",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 874,
+        "y": 741
+      },
+      "polygon": [
+        {
+          "x": 134,
+          "y": 776
+        },
+        {
+          "x": 1120,
+          "y": 414
+        },
+        {
+          "x": 1671,
+          "y": 696
+        },
+        {
+          "x": 569,
+          "y": 1077
+        }
+      ],
+      "x_min": 134,
+      "x_max": 1671,
+      "y_min": 414,
+      "y_max": 1077,
+      "width": 1537,
+      "height": 663,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "floor_conditions_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 874,
+        "y": 741
+      },
+      "polygon": [
+        {
+          "x": 134,
+          "y": 776
+        },
+        {
+          "x": 1120,
+          "y": 414
+        },
+        {
+          "x": 1671,
+          "y": 696
+        },
+        {
+          "x": 569,
+          "y": 1077
+        }
+      ],
+      "x_min": 134,
+      "x_max": 1671,
+      "y_min": 414,
+      "y_max": 1077,
+      "width": 1537,
+      "height": 663,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "debris",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1589,
+        "y": 343
+      },
+      "polygon": [
+        {
+          "x": 1152,
+          "y": 306
+        },
+        {
+          "x": 1591,
+          "y": 127
+        },
+        {
+          "x": 1794,
+          "y": 155
+        },
+        {
+          "x": 1799,
+          "y": 536
+        },
+        {
+          "x": 1611,
+          "y": 593
+        }
+      ],
+      "x_min": 1152,
+      "x_max": 1799,
+      "y_min": 127,
+      "y_max": 593,
+      "width": 647,
+      "height": 466,
+      "distance": "near"
+    }
+  ]
+}

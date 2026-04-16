@@ -1,0 +1,113 @@
+{
+  "filename": "hazard_still_32.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "blind_spot_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1698,
+        "y": 776
+      },
+      "polygon": [
+        {
+          "x": 653,
+          "y": 115
+        },
+        {
+          "x": 2721,
+          "y": 163
+        },
+        {
+          "x": 2765,
+          "y": 1403
+        },
+        {
+          "x": 653,
+          "y": 1421
+        }
+      ],
+      "x_min": 653,
+      "x_max": 2765,
+      "y_min": 115,
+      "y_max": 1421,
+      "width": 2112,
+      "height": 1306,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "forklift",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1695,
+        "y": 845
+      },
+      "polygon": [
+        {
+          "x": 1198,
+          "y": 348
+        },
+        {
+          "x": 2191,
+          "y": 348
+        },
+        {
+          "x": 2191,
+          "y": 1341
+        },
+        {
+          "x": 1198,
+          "y": 1341
+        }
+      ],
+      "x_min": 1198,
+      "x_max": 2191,
+      "y_min": 348,
+      "y_max": 1341,
+      "width": 993,
+      "height": 993,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1795,
+        "y": 720
+      },
+      "polygon": [
+        {
+          "x": 1490,
+          "y": 415
+        },
+        {
+          "x": 2100,
+          "y": 415
+        },
+        {
+          "x": 2100,
+          "y": 1025
+        },
+        {
+          "x": 1490,
+          "y": 1025
+        }
+      ],
+      "x_min": 1490,
+      "x_max": 2100,
+      "y_min": 415,
+      "y_max": 1025,
+      "width": 610,
+      "height": 610,
+      "distance": "mid"
+    }
+  ]
+}

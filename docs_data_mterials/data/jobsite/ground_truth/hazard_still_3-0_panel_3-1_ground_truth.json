@@ -1,0 +1,65 @@
+{
+  "filename": "hazard_still_3-0_panel_3-1.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "jobsite_objects": [
+        {
+          "class": "scaffolding",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 282,
+            "y": 390
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 563,
+            "y_min": 106,
+            "y_max": 673,
+            "width": 563,
+            "height": 567
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 206,
+            "y": 239
+          },
+          "bbox": {
+            "x_min": 120,
+            "x_max": 292,
+            "y_min": 153,
+            "y_max": 325,
+            "width": 172,
+            "height": 172
+          }
+        },
+        {
+          "class": "ladder",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 323,
+            "y": 203
+          },
+          "bbox": {
+            "x_min": 223,
+            "x_max": 424,
+            "y_min": 90,
+            "y_max": 329,
+            "width": 201,
+            "height": 239
+          }
+        }
+      ]
+    }
+  ]
+}

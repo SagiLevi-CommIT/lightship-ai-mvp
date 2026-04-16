@@ -1,0 +1,253 @@
+{
+  "filename": "hazard_still_20.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 488,
+        "y": 458
+      },
+      "polygon": [
+        {
+          "x": 336,
+          "y": 400
+        },
+        {
+          "x": 551,
+          "y": 391
+        },
+        {
+          "x": 698,
+          "y": 477
+        },
+        {
+          "x": 366,
+          "y": 564
+        }
+      ],
+      "x_min": 336,
+      "x_max": 698,
+      "y_min": 391,
+      "y_max": 564,
+      "width": 362,
+      "height": 173,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "electrocution_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 609,
+        "y": 593
+      },
+      "polygon": [
+        {
+          "x": 262,
+          "y": 556
+        },
+        {
+          "x": 963,
+          "y": 407
+        },
+        {
+          "x": 920,
+          "y": 688
+        },
+        {
+          "x": 292,
+          "y": 720
+        }
+      ],
+      "x_min": 262,
+      "x_max": 963,
+      "y_min": 407,
+      "y_max": 720,
+      "width": 701,
+      "height": 313,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "wires/cables",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 754,
+        "y": 569
+      },
+      "polygon": [
+        {
+          "x": 558,
+          "y": 523
+        },
+        {
+          "x": 963,
+          "y": 407
+        },
+        {
+          "x": 920,
+          "y": 688
+        },
+        {
+          "x": 576,
+          "y": 656
+        }
+      ],
+      "x_min": 558,
+      "x_max": 963,
+      "y_min": 407,
+      "y_max": 688,
+      "width": 405,
+      "height": 281,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "ladder",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 677,
+        "y": 283
+      },
+      "polygon": [
+        {
+          "x": 561,
+          "y": 92
+        },
+        {
+          "x": 776,
+          "y": 124
+        },
+        {
+          "x": 808,
+          "y": 462
+        },
+        {
+          "x": 561,
+          "y": 452
+        }
+      ],
+      "x_min": 561,
+      "x_max": 808,
+      "y_min": 92,
+      "y_max": 462,
+      "width": 247,
+      "height": 370,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 693,
+        "y": 137
+      },
+      "polygon": [
+        {
+          "x": 591,
+          "y": 1
+        },
+        {
+          "x": 807,
+          "y": 33
+        },
+        {
+          "x": 764,
+          "y": 294
+        },
+        {
+          "x": 610,
+          "y": 219
+        }
+      ],
+      "x_min": 591,
+      "x_max": 807,
+      "y_min": 1,
+      "y_max": 294,
+      "width": 216,
+      "height": 293,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "debris",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 900,
+        "y": 387
+      },
+      "polygon": [
+        {
+          "x": 832,
+          "y": 319
+        },
+        {
+          "x": 968,
+          "y": 319
+        },
+        {
+          "x": 968,
+          "y": 455
+        },
+        {
+          "x": 832,
+          "y": 455
+        }
+      ],
+      "x_min": 832,
+      "x_max": 968,
+      "y_min": 319,
+      "y_max": 455,
+      "width": 136,
+      "height": 136,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "debris",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 454,
+        "y": 366
+      },
+      "polygon": [
+        {
+          "x": 350,
+          "y": 298
+        },
+        {
+          "x": 519,
+          "y": 331
+        },
+        {
+          "x": 595,
+          "y": 402
+        },
+        {
+          "x": 350,
+          "y": 434
+        }
+      ],
+      "x_min": 350,
+      "x_max": 595,
+      "y_min": 298,
+      "y_max": 434,
+      "width": 245,
+      "height": 136,
+      "distance": "mid"
+    }
+  ]
+}

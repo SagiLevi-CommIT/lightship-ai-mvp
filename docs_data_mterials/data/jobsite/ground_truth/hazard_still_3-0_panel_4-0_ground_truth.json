@@ -1,0 +1,215 @@
+{
+  "filename": "hazard_still_3-0_panel_4-0.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "trenching",
+      "severity": "high"
+    },
+    {
+      "timestamp_sec": 0,
+      "description": "caught-in",
+      "severity": "high"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "objects": [
+        {
+          "class": "shovel",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 187,
+            "y": 519
+          },
+          "bbox": {
+            "x_min": 142,
+            "x_max": 241,
+            "y_min": 407,
+            "y_max": 634,
+            "width": 99,
+            "height": 227
+          }
+        },
+        {
+          "class": "shovel",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 267,
+            "y": 591
+          },
+          "bbox": {
+            "x_min": 223,
+            "x_max": 312,
+            "y_min": 504,
+            "y_max": 678,
+            "width": 89,
+            "height": 174
+          }
+        },
+        {
+          "class": "shovel",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 239,
+            "y": 362
+          },
+          "bbox": {
+            "x_min": 194,
+            "x_max": 294,
+            "y_min": 285,
+            "y_max": 439,
+            "width": 100,
+            "height": 154
+          }
+        }
+      ],
+      "jobsite_objects": [
+        {
+          "class": "trench",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 274,
+            "y": 402
+          },
+          "bbox": {
+            "x_min": 46,
+            "x_max": 544,
+            "y_min": 81,
+            "y_max": 729,
+            "width": 498,
+            "height": 648
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 271,
+            "y": 462
+          },
+          "bbox": {
+            "x_min": 226,
+            "x_max": 316,
+            "y_min": 417,
+            "y_max": 507,
+            "width": 90,
+            "height": 90
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 262,
+            "y": 268
+          },
+          "bbox": {
+            "x_min": 217,
+            "x_max": 307,
+            "y_min": 223,
+            "y_max": 313,
+            "width": 90,
+            "height": 90
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 213,
+            "y": 307
+          },
+          "bbox": {
+            "x_min": 189,
+            "x_max": 236,
+            "y_min": 283,
+            "y_max": 330,
+            "width": 47,
+            "height": 47
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 241,
+            "y": 359
+          },
+          "bbox": {
+            "x_min": 217,
+            "x_max": 264,
+            "y_min": 335,
+            "y_max": 382,
+            "width": 47,
+            "height": 47
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 278,
+            "y": 570
+          },
+          "bbox": {
+            "x_min": 254,
+            "x_max": 302,
+            "y_min": 546,
+            "y_max": 593,
+            "width": 48,
+            "height": 47
+          }
+        },
+        {
+          "class": "harness",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 302,
+            "y": 548
+          },
+          "bbox": {
+            "x_min": 198,
+            "x_max": 401,
+            "y_min": 408,
+            "y_max": 690,
+            "width": 203,
+            "height": 282
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 243,
+            "y": 318
+          },
+          "bbox": {
+            "x_min": 178,
+            "x_max": 316,
+            "y_min": 210,
+            "y_max": 424,
+            "width": 138,
+            "height": 214
+          }
+        }
+      ]
+    }
+  ]
+}

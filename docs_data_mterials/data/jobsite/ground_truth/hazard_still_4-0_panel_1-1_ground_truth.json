@@ -1,0 +1,142 @@
+{
+  "filename": "hazard_still_4-0_panel_1-1.mp4",
+  "video_description": "worker is guiding suspended load",
+  "video_class": "job_site_detection",
+  "weather": "clear, good visibility",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "struckby",
+      "severity": "high"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0,
+      "objects": [
+        {
+          "class": "suspended_load",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 270,
+            "y": 207
+          },
+          "bbox": {
+            "x_min": 6,
+            "x_max": 531,
+            "y_min": 6,
+            "y_max": 505,
+            "width": 525,
+            "height": 499
+          }
+        }
+      ],
+      "jobsite_objects": [
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 275,
+            "y": 538
+          },
+          "bbox": {
+            "x_min": 145,
+            "x_max": 399,
+            "y_min": 358,
+            "y_max": 725,
+            "width": 254,
+            "height": 367
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 277,
+            "y": 402
+          },
+          "bbox": {
+            "x_min": 253,
+            "x_max": 306,
+            "y_min": 387,
+            "y_max": 418,
+            "width": 53,
+            "height": 31
+          }
+        },
+        {
+          "class": "glasses",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 275,
+            "y": 413
+          },
+          "bbox": {
+            "x_min": 250,
+            "x_max": 299,
+            "y_min": 402,
+            "y_max": 428,
+            "width": 49,
+            "height": 26
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 322,
+            "y": 557
+          },
+          "bbox": {
+            "x_min": 298,
+            "x_max": 340,
+            "y_min": 537,
+            "y_max": 576,
+            "width": 42,
+            "height": 39
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 239,
+            "y": 698
+          },
+          "bbox": {
+            "x_min": 215,
+            "x_max": 258,
+            "y_min": 678,
+            "y_max": 717,
+            "width": 43,
+            "height": 39
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 311,
+            "y": 701
+          },
+          "bbox": {
+            "x_min": 287,
+            "x_max": 329,
+            "y_min": 681,
+            "y_max": 720,
+            "width": 42,
+            "height": 39
+          }
+        }
+      ]
+    }
+  ]
+}

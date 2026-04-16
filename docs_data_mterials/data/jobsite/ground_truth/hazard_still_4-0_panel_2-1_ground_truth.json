@@ -1,0 +1,107 @@
+{
+  "filename": "hazard_still_4-0_panel_2-1.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "clear, good visibility",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "mechanical",
+      "severity": "high"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0,
+      "objects": [],
+      "jobsite_objects": [
+        {
+          "class": "saw",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 342,
+            "y": 442
+          },
+          "bbox": {
+            "x_min": 204,
+            "x_max": 479,
+            "y_min": 304,
+            "y_max": 579,
+            "width": 275,
+            "height": 275
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 231,
+            "y": 104
+          },
+          "bbox": {
+            "x_min": 146,
+            "x_max": 301,
+            "y_min": 52,
+            "y_max": 192,
+            "width": 155,
+            "height": 140
+          }
+        },
+        {
+          "class": "glasses",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 223,
+            "y": 145
+          },
+          "bbox": {
+            "x_min": 163,
+            "x_max": 292,
+            "y_min": 87,
+            "y_max": 199,
+            "width": 129,
+            "height": 112
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 265,
+            "y": 337
+          },
+          "bbox": {
+            "x_min": 212,
+            "x_max": 323,
+            "y_min": 278,
+            "y_max": 390,
+            "width": 111,
+            "height": 112
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 152,
+            "y": 369
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 368,
+            "y_min": 15,
+            "y_max": 724,
+            "width": 368,
+            "height": 709
+          }
+        }
+      ]
+    }
+  ]
+}

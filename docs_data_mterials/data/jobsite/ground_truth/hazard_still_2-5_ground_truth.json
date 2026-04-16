@@ -1,0 +1,183 @@
+{
+  "filename": "hazard_still_2-5.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 594,
+        "y": 368
+      },
+      "polygon": [
+        {
+          "x": 401,
+          "y": 188
+        },
+        {
+          "x": 792,
+          "y": 211
+        },
+        {
+          "x": 801,
+          "y": 585
+        },
+        {
+          "x": 380,
+          "y": 486
+        }
+      ],
+      "x_min": 380,
+      "x_max": 801,
+      "y_min": 188,
+      "y_max": 585,
+      "width": 421,
+      "height": 397,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 546,
+        "y": 309
+      },
+      "polygon": [
+        {
+          "x": 495,
+          "y": 145
+        },
+        {
+          "x": 606,
+          "y": 154
+        },
+        {
+          "x": 595,
+          "y": 497
+        },
+        {
+          "x": 489,
+          "y": 439
+        }
+      ],
+      "x_min": 489,
+      "x_max": 606,
+      "y_min": 145,
+      "y_max": 497,
+      "width": 117,
+      "height": 352,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 619,
+        "y": 340
+      },
+      "polygon": [
+        {
+          "x": 588,
+          "y": 205
+        },
+        {
+          "x": 672,
+          "y": 175
+        },
+        {
+          "x": 661,
+          "y": 519
+        },
+        {
+          "x": 556,
+          "y": 461
+        }
+      ],
+      "x_min": 556,
+      "x_max": 672,
+      "y_min": 175,
+      "y_max": 519,
+      "width": 116,
+      "height": 344,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 458,
+        "y": 603
+      },
+      "polygon": [
+        {
+          "x": 388,
+          "y": 471
+        },
+        {
+          "x": 527,
+          "y": 507
+        },
+        {
+          "x": 514,
+          "y": 716
+        },
+        {
+          "x": 401,
+          "y": 719
+        }
+      ],
+      "x_min": 388,
+      "x_max": 527,
+      "y_min": 471,
+      "y_max": 719,
+      "width": 139,
+      "height": 248,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 599,
+        "y": 595
+      },
+      "polygon": [
+        {
+          "x": 529,
+          "y": 463
+        },
+        {
+          "x": 668,
+          "y": 499
+        },
+        {
+          "x": 655,
+          "y": 708
+        },
+        {
+          "x": 542,
+          "y": 711
+        }
+      ],
+      "x_min": 529,
+      "x_max": 668,
+      "y_min": 463,
+      "y_max": 711,
+      "width": 139,
+      "height": 248,
+      "distance": "mid"
+    }
+  ]
+}

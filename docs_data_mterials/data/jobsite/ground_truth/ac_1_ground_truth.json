@@ -1,0 +1,245 @@
+{
+  "filename": "ac_1.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "frames": [
+    {
+      "frame_number": 37,
+      "timestamp_sec": 1.217,
+      "objects": [
+        {
+          "class": "strap",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 198,
+            "y": 490
+          },
+          "bbox": {
+            "x_min": 94,
+            "x_max": 337,
+            "y_min": 173,
+            "y_max": 823,
+            "width": 243,
+            "height": 650
+          }
+        },
+        {
+          "class": "strap",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 591,
+            "y": 476
+          },
+          "bbox": {
+            "x_min": 497,
+            "x_max": 718,
+            "y_min": 235,
+            "y_max": 718,
+            "width": 221,
+            "height": 483
+          }
+        },
+        {
+          "class": "strap",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 820,
+            "y": 481
+          },
+          "bbox": {
+            "x_min": 745,
+            "x_max": 913,
+            "y_min": 301,
+            "y_max": 659,
+            "width": 168,
+            "height": 358
+          }
+        },
+        {
+          "class": "strap",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 983,
+            "y": 469
+          },
+          "bbox": {
+            "x_min": 917,
+            "x_max": 1051,
+            "y_min": 313,
+            "y_max": 616,
+            "width": 134,
+            "height": 303
+          }
+        },
+        {
+          "class": "truck",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 1264,
+            "y": 473
+          },
+          "bbox": {
+            "x_min": 1132,
+            "x_max": 1380,
+            "y_min": 319,
+            "y_max": 631,
+            "width": 248,
+            "height": 312
+          }
+        }
+      ],
+      "jobsite_objects": [
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 1382,
+            "y": 516
+          },
+          "bbox": {
+            "x_min": 1295,
+            "x_max": 1468,
+            "y_min": 429,
+            "y_max": 602,
+            "width": 173,
+            "height": 173
+          }
+        },
+        {
+          "class": "forklift",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 1093,
+            "y": 468
+          },
+          "bbox": {
+            "x_min": 965,
+            "x_max": 1206,
+            "y_min": 287,
+            "y_max": 669,
+            "width": 241,
+            "height": 382
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 73,
+      "timestamp_sec": 2.433,
+      "objects": [
+        {
+          "class": "truck",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 1761,
+            "y": 428
+          },
+          "bbox": {
+            "x_min": 1609,
+            "x_max": 1918,
+            "y_min": 221,
+            "y_max": 634,
+            "width": 309,
+            "height": 413
+          }
+        },
+        {
+          "class": "strap",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 238,
+            "y": 538
+          },
+          "bbox": {
+            "x_min": 95,
+            "x_max": 392,
+            "y_min": 220,
+            "y_max": 855,
+            "width": 297,
+            "height": 635
+          }
+        },
+        {
+          "class": "strap",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 650,
+            "y": 535
+          },
+          "bbox": {
+            "x_min": 503,
+            "x_max": 772,
+            "y_min": 274,
+            "y_max": 804,
+            "width": 269,
+            "height": 530
+          }
+        },
+        {
+          "class": "strap",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 985,
+            "y": 495
+          },
+          "bbox": {
+            "x_min": 838,
+            "x_max": 1107,
+            "y_min": 234,
+            "y_max": 765,
+            "width": 269,
+            "height": 531
+          }
+        },
+        {
+          "class": "strap",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 1286,
+            "y": 464
+          },
+          "bbox": {
+            "x_min": 1198,
+            "x_max": 1371,
+            "y_min": 291,
+            "y_max": 653,
+            "width": 173,
+            "height": 362
+          }
+        }
+      ],
+      "jobsite_objects": [
+        {
+          "class": "forklift",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 1505,
+            "y": 492
+          },
+          "bbox": {
+            "x_min": 1315,
+            "x_max": 1691,
+            "y_min": 224,
+            "y_max": 763,
+            "width": 376,
+            "height": 539
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,982 @@
+{
+  "filename": "samsara_test_2.mp4",
+  "video_description": "Driving through business parking",
+  "video_class": "qa_educational",
+  "road_type": "residential",
+  "weather": "clear, good visibility",
+  "traffic": "little/none",
+  "speed": ">30_mph",
+  "collision": "-",
+  "hazards": [],
+  "frames": [
+    {
+      "frame_number": 95,
+      "timestamp_sec": 3.178,
+      "objects": [
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 382,
+            "y": 217
+          },
+          "bbox": {
+            "x_min": 294,
+            "x_max": 465,
+            "y_min": 181,
+            "y_max": 245,
+            "width": 171,
+            "height": 64
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 454,
+            "y": 186
+          },
+          "bbox": {
+            "x_min": 400,
+            "x_max": 507,
+            "y_min": 150,
+            "y_max": 210,
+            "width": 107,
+            "height": 60
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 718,
+            "y": 193
+          },
+          "bbox": {
+            "x_min": 663,
+            "x_max": 776,
+            "y_min": 166,
+            "y_max": 215,
+            "width": 113,
+            "height": 49
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 813,
+            "y": 208
+          },
+          "bbox": {
+            "x_min": 784,
+            "x_max": 839,
+            "y_min": 183,
+            "y_max": 233,
+            "width": 55,
+            "height": 50
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 946,
+            "y": 229
+          },
+          "bbox": {
+            "x_min": 923,
+            "x_max": 968,
+            "y_min": 207,
+            "y_max": 254,
+            "width": 45,
+            "height": 47
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 986,
+            "y": 223
+          },
+          "bbox": {
+            "x_min": 963,
+            "x_max": 1009,
+            "y_min": 203,
+            "y_max": 245,
+            "width": 46,
+            "height": 42
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 1124,
+            "y": 262
+          },
+          "bbox": {
+            "x_min": 1105,
+            "x_max": 1145,
+            "y_min": 245,
+            "y_max": 278,
+            "width": 40,
+            "height": 33
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 306,
+            "y": 168
+          },
+          "bbox": {
+            "x_min": 279,
+            "x_max": 338,
+            "y_min": 155,
+            "y_max": 183,
+            "width": 59,
+            "height": 28
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 221,
+            "y": 195
+          },
+          "bbox": {
+            "x_min": 187,
+            "x_max": 263,
+            "y_min": 173,
+            "y_max": 216,
+            "width": 76,
+            "height": 43
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 181,
+            "y": 193
+          },
+          "bbox": {
+            "x_min": 164,
+            "x_max": 211,
+            "y_min": 174,
+            "y_max": 207,
+            "width": 47,
+            "height": 33
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 155,
+            "y": 177
+          },
+          "bbox": {
+            "x_min": 125,
+            "x_max": 187,
+            "y_min": 166,
+            "y_max": 186,
+            "width": 62,
+            "height": 20
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 119,
+            "y": 198
+          },
+          "bbox": {
+            "x_min": 79,
+            "x_max": 163,
+            "y_min": 177,
+            "y_max": 221,
+            "width": 84,
+            "height": 44
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 18,
+            "y": 188
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 39,
+            "y_min": 177,
+            "y_max": 202,
+            "width": 39,
+            "height": 25
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 54,
+            "y": 191
+          },
+          "bbox": {
+            "x_min": 37,
+            "x_max": 69,
+            "y_min": 181,
+            "y_max": 200,
+            "width": 32,
+            "height": 19
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 363,
+            "y": 157
+          },
+          "bbox": {
+            "x_min": 306,
+            "x_max": 414,
+            "y_min": 121,
+            "y_max": 200,
+            "width": 108,
+            "height": 79
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 1,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              283,
+              275
+            ],
+            [
+              651,
+              277
+            ],
+            [
+              874,
+              719
+            ],
+            [
+              0,
+              489
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              0,
+              227
+            ],
+            [
+              810,
+              239
+            ],
+            [
+              808,
+              276
+            ],
+            [
+              0,
+              253
+            ]
+          ]
+        }
+      ],
+      "road_signs": [
+        {
+          "label": "stop_sign",
+          "bbox": {
+            "x_min": 779,
+            "x_max": 853,
+            "y_min": 96,
+            "y_max": 175,
+            "width": 74,
+            "height": 79
+          }
+        },
+        {
+          "label": "stop_sign",
+          "bbox": {
+            "x_min": 85,
+            "x_max": 142,
+            "y_min": 99,
+            "y_max": 187,
+            "width": 57,
+            "height": 88
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 196,
+      "timestamp_sec": 6.533,
+      "objects": [
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 636,
+            "y": 237
+          },
+          "bbox": {
+            "x_min": 536,
+            "x_max": 736,
+            "y_min": 180,
+            "y_max": 292,
+            "width": 200,
+            "height": 112
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 1039,
+            "y": 255
+          },
+          "bbox": {
+            "x_min": 972,
+            "x_max": 1108,
+            "y_min": 215,
+            "y_max": 294,
+            "width": 136,
+            "height": 79
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 1164,
+            "y": 282
+          },
+          "bbox": {
+            "x_min": 1124,
+            "x_max": 1203,
+            "y_min": 250,
+            "y_max": 319,
+            "width": 79,
+            "height": 69
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 502,
+            "y": 179
+          },
+          "bbox": {
+            "x_min": 419,
+            "x_max": 594,
+            "y_min": 120,
+            "y_max": 253,
+            "width": 175,
+            "height": 133
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 1265,
+            "y": 296
+          },
+          "bbox": {
+            "x_min": 1248,
+            "x_max": 1280,
+            "y_min": 256,
+            "y_max": 335,
+            "width": 32,
+            "height": 79
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 424,
+            "y": 194
+          },
+          "bbox": {
+            "x_min": 377,
+            "x_max": 474,
+            "y_min": 171,
+            "y_max": 220,
+            "width": 97,
+            "height": 49
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 274,
+            "y": 232
+          },
+          "bbox": {
+            "x_min": 209,
+            "x_max": 345,
+            "y_min": 198,
+            "y_max": 272,
+            "width": 136,
+            "height": 74
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 138,
+            "y": 230
+          },
+          "bbox": {
+            "x_min": 66,
+            "x_max": 210,
+            "y_min": 201,
+            "y_max": 267,
+            "width": 144,
+            "height": 66
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 261,
+            "y": 206
+          },
+          "bbox": {
+            "x_min": 211,
+            "x_max": 321,
+            "y_min": 190,
+            "y_max": 227,
+            "width": 110,
+            "height": 37
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 197,
+            "y": 208
+          },
+          "bbox": {
+            "x_min": 169,
+            "x_max": 229,
+            "y_min": 196,
+            "y_max": 220,
+            "width": 60,
+            "height": 24
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 129,
+            "y": 202
+          },
+          "bbox": {
+            "x_min": 99,
+            "x_max": 159,
+            "y_min": 191,
+            "y_max": 216,
+            "width": 60,
+            "height": 25
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 28,
+            "y": 241
+          },
+          "bbox": {
+            "x_min": 2,
+            "x_max": 52,
+            "y_min": 220,
+            "y_max": 263,
+            "width": 50,
+            "height": 43
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 75,
+            "y": 211
+          },
+          "bbox": {
+            "x_min": 46,
+            "x_max": 105,
+            "y_min": 193,
+            "y_max": 232,
+            "width": 59,
+            "height": 39
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 23,
+            "y": 219
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 49,
+            "y_min": 206,
+            "y_max": 232,
+            "width": 49,
+            "height": 26
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              0,
+              284
+            ],
+            [
+              1280,
+              363
+            ],
+            [
+              1280,
+              592
+            ],
+            [
+              0,
+              510
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "frame_number": 297,
+      "timestamp_sec": 9.889,
+      "objects": [
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 992,
+            "y": 322
+          },
+          "bbox": {
+            "x_min": 842,
+            "x_max": 1144,
+            "y_min": 261,
+            "y_max": 385,
+            "width": 302,
+            "height": 124
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 1218,
+            "y": 344
+          },
+          "bbox": {
+            "x_min": 1154,
+            "x_max": 1276,
+            "y_min": 283,
+            "y_max": 399,
+            "width": 122,
+            "height": 116
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 910,
+            "y": 254
+          },
+          "bbox": {
+            "x_min": 839,
+            "x_max": 991,
+            "y_min": 231,
+            "y_max": 284,
+            "width": 152,
+            "height": 53
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 855,
+            "y": 241
+          },
+          "bbox": {
+            "x_min": 823,
+            "x_max": 887,
+            "y_min": 226,
+            "y_max": 261,
+            "width": 64,
+            "height": 35
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 722,
+            "y": 263
+          },
+          "bbox": {
+            "x_min": 672,
+            "x_max": 777,
+            "y_min": 229,
+            "y_max": 298,
+            "width": 105,
+            "height": 69
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 1062,
+            "y": 281
+          },
+          "bbox": {
+            "x_min": 995,
+            "x_max": 1106,
+            "y_min": 254,
+            "y_max": 306,
+            "width": 111,
+            "height": 52
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 577,
+            "y": 249
+          },
+          "bbox": {
+            "x_min": 550,
+            "x_max": 613,
+            "y_min": 219,
+            "y_max": 288,
+            "width": 63,
+            "height": 69
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 1118,
+            "y": 283
+          },
+          "bbox": {
+            "x_min": 1081,
+            "x_max": 1143,
+            "y_min": 249,
+            "y_max": 314,
+            "width": 62,
+            "height": 65
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 1176,
+            "y": 292
+          },
+          "bbox": {
+            "x_min": 1130,
+            "x_max": 1234,
+            "y_min": 266,
+            "y_max": 317,
+            "width": 104,
+            "height": 51
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 798,
+            "y": 232
+          },
+          "bbox": {
+            "x_min": 751,
+            "x_max": 869,
+            "y_min": 208,
+            "y_max": 250,
+            "width": 118,
+            "height": 42
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 710,
+            "y": 224
+          },
+          "bbox": {
+            "x_min": 665,
+            "x_max": 756,
+            "y_min": 205,
+            "y_max": 243,
+            "width": 91,
+            "height": 38
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 657,
+            "y": 216
+          },
+          "bbox": {
+            "x_min": 622,
+            "x_max": 706,
+            "y_min": 201,
+            "y_max": 229,
+            "width": 84,
+            "height": 28
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 546,
+            "y": 230
+          },
+          "bbox": {
+            "x_min": 512,
+            "x_max": 598,
+            "y_min": 208,
+            "y_max": 251,
+            "width": 86,
+            "height": 43
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 619,
+            "y": 216
+          },
+          "bbox": {
+            "x_min": 602,
+            "x_max": 643,
+            "y_min": 207,
+            "y_max": 224,
+            "width": 41,
+            "height": 17
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 444,
+            "y": 201
+          },
+          "bbox": {
+            "x_min": 433,
+            "x_max": 455,
+            "y_min": 192,
+            "y_max": 209,
+            "width": 22,
+            "height": 17
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 485,
+            "y": 202
+          },
+          "bbox": {
+            "x_min": 475,
+            "x_max": 495,
+            "y_min": 194,
+            "y_max": 210,
+            "width": 20,
+            "height": 16
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 409,
+            "y": 200
+          },
+          "bbox": {
+            "x_min": 399,
+            "x_max": 419,
+            "y_min": 191,
+            "y_max": 208,
+            "width": 20,
+            "height": 17
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 377,
+            "y": 201
+          },
+          "bbox": {
+            "x_min": 359,
+            "x_max": 393,
+            "y_min": 192,
+            "y_max": 210,
+            "width": 34,
+            "height": 18
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 465,
+            "y": 199
+          },
+          "bbox": {
+            "x_min": 447,
+            "x_max": 481,
+            "y_min": 190,
+            "y_max": 208,
+            "width": 34,
+            "height": 18
+          }
+        },
+        {
+          "class": "vehicle(parked)",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 358,
+            "y": 197
+          },
+          "bbox": {
+            "x_min": 345,
+            "x_max": 372,
+            "y_min": 189,
+            "y_max": 205,
+            "width": 27,
+            "height": 16
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 1,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              334,
+              241
+            ],
+            [
+              470,
+              270
+            ],
+            [
+              1094,
+              719
+            ],
+            [
+              0,
+              411
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

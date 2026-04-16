@@ -1,0 +1,269 @@
+{
+  "filename": "hazard_still_34.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 995,
+        "y": 597
+      },
+      "polygon": [
+        {
+          "x": 30,
+          "y": 355
+        },
+        {
+          "x": 1986,
+          "y": 378
+        },
+        {
+          "x": 1934,
+          "y": 691
+        },
+        {
+          "x": 30,
+          "y": 965
+        }
+      ],
+      "x_min": 30,
+      "x_max": 1986,
+      "y_min": 355,
+      "y_max": 965,
+      "width": 1956,
+      "height": 610,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1058,
+        "y": 495
+      },
+      "polygon": [
+        {
+          "x": 822,
+          "y": 259
+        },
+        {
+          "x": 1294,
+          "y": 259
+        },
+        {
+          "x": 1294,
+          "y": 730
+        },
+        {
+          "x": 822,
+          "y": 730
+        }
+      ],
+      "x_min": 822,
+      "x_max": 1294,
+      "y_min": 259,
+      "y_max": 730,
+      "width": 472,
+      "height": 471,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 998,
+        "y": 491
+      },
+      "polygon": [
+        {
+          "x": 850,
+          "y": 420
+        },
+        {
+          "x": 1106,
+          "y": 423
+        },
+        {
+          "x": 1144,
+          "y": 544
+        },
+        {
+          "x": 891,
+          "y": 577
+        }
+      ],
+      "x_min": 850,
+      "x_max": 1144,
+      "y_min": 420,
+      "y_max": 577,
+      "width": 294,
+      "height": 157,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "wires/cables",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 691,
+        "y": 528
+      },
+      "polygon": [
+        {
+          "x": 510,
+          "y": 460
+        },
+        {
+          "x": 825,
+          "y": 438
+        },
+        {
+          "x": 961,
+          "y": 583
+        },
+        {
+          "x": 468,
+          "y": 631
+        }
+      ],
+      "x_min": 468,
+      "x_max": 961,
+      "y_min": 438,
+      "y_max": 631,
+      "width": 493,
+      "height": 193,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "ladder",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1753,
+        "y": 787
+      },
+      "polygon": [
+        {
+          "x": 1330,
+          "y": 1291
+        },
+        {
+          "x": 2003,
+          "y": 181
+        },
+        {
+          "x": 2180,
+          "y": 207
+        },
+        {
+          "x": 1497,
+          "y": 1468
+        }
+      ],
+      "x_min": 1330,
+      "x_max": 2180,
+      "y_min": 181,
+      "y_max": 1468,
+      "width": 850,
+      "height": 1287,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "debris",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2098,
+        "y": 1236
+      },
+      "polygon": [
+        {
+          "x": 1577,
+          "y": 1102
+        },
+        {
+          "x": 1834,
+          "y": 921
+        },
+        {
+          "x": 2656,
+          "y": 974
+        },
+        {
+          "x": 2814,
+          "y": 1409
+        },
+        {
+          "x": 2174,
+          "y": 1472
+        },
+        {
+          "x": 1534,
+          "y": 1535
+        }
+      ],
+      "x_min": 1534,
+      "x_max": 2814,
+      "y_min": 921,
+      "y_max": 1535,
+      "width": 1280,
+      "height": 614,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "debris",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1052,
+        "y": 1316
+      },
+      "polygon": [
+        {
+          "x": 552,
+          "y": 1323
+        },
+        {
+          "x": 978,
+          "y": 1262
+        },
+        {
+          "x": 1506,
+          "y": 1126
+        },
+        {
+          "x": 1493,
+          "y": 1314
+        },
+        {
+          "x": 1227,
+          "y": 1371
+        },
+        {
+          "x": 557,
+          "y": 1502
+        }
+      ],
+      "x_min": 552,
+      "x_max": 1506,
+      "y_min": 1126,
+      "y_max": 1502,
+      "width": 954,
+      "height": 376,
+      "distance": "mid"
+    }
+  ]
+}

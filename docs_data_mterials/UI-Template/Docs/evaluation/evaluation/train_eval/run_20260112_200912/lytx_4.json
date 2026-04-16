@@ -1,0 +1,33 @@
+{
+  "filename": "lytx_4.mp4",
+  "fps": 10.0,
+  "camera": "lytx",
+  "description": "Training video evaluation - 3 frames analyzed",
+  "traffic": "unknown",
+  "lighting": "unknown",
+  "weather": "unknown",
+  "collision": "none",
+  "speed": "unknown",
+  "video_duration_ms": 14500.0,
+  "objects": [
+    {
+      "description": "vehicle",
+      "start_time_ms": 10062.405,
+      "distance": "close",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 823,
+        "y": 465
+      },
+      "polygon": [],
+      "x_min": 748.6943359375,
+      "y_min": 414.98577880859375,
+      "x_max": 898.039306640625,
+      "y_max": 516.5715942382812,
+      "width": 149.344970703125,
+      "height": 101.5858154296875
+    }
+  ],
+  "hazard_events": []
+}

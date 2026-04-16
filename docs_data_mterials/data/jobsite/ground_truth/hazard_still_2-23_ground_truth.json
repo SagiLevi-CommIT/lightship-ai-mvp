@@ -1,0 +1,312 @@
+{
+  "filename": "hazard_still_2-23.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 582,
+        "y": 417
+      },
+      "polygon": [
+        {
+          "x": 425,
+          "y": 207
+        },
+        {
+          "x": 743,
+          "y": 207
+        },
+        {
+          "x": 752,
+          "y": 626
+        },
+        {
+          "x": 406,
+          "y": 627
+        }
+      ],
+      "x_min": 406,
+      "x_max": 752,
+      "y_min": 207,
+      "y_max": 627,
+      "width": 346,
+      "height": 420,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 797,
+        "y": 529
+      },
+      "polygon": [
+        {
+          "x": 738,
+          "y": 450
+        },
+        {
+          "x": 858,
+          "y": 450
+        },
+        {
+          "x": 861,
+          "y": 608
+        },
+        {
+          "x": 731,
+          "y": 608
+        }
+      ],
+      "x_min": 731,
+      "x_max": 861,
+      "y_min": 450,
+      "y_max": 608,
+      "width": 130,
+      "height": 158,
+      "distance": "far"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 921,
+        "y": 536
+      },
+      "polygon": [
+        {
+          "x": 911,
+          "y": 458
+        },
+        {
+          "x": 947,
+          "y": 456
+        },
+        {
+          "x": 950,
+          "y": 614
+        },
+        {
+          "x": 876,
+          "y": 615
+        }
+      ],
+      "x_min": 876,
+      "x_max": 950,
+      "y_min": 456,
+      "y_max": 615,
+      "width": 74,
+      "height": 159,
+      "distance": "far"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 714,
+        "y": 516
+      },
+      "polygon": [
+        {
+          "x": 672,
+          "y": 437
+        },
+        {
+          "x": 767,
+          "y": 432
+        },
+        {
+          "x": 781,
+          "y": 600
+        },
+        {
+          "x": 637,
+          "y": 595
+        }
+      ],
+      "x_min": 637,
+      "x_max": 781,
+      "y_min": 432,
+      "y_max": 600,
+      "width": 144,
+      "height": 168,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 507,
+        "y": 511
+      },
+      "polygon": [
+        {
+          "x": 465,
+          "y": 432
+        },
+        {
+          "x": 559,
+          "y": 427
+        },
+        {
+          "x": 573,
+          "y": 595
+        },
+        {
+          "x": 430,
+          "y": 590
+        }
+      ],
+      "x_min": 430,
+      "x_max": 573,
+      "y_min": 427,
+      "y_max": 595,
+      "width": 143,
+      "height": 168,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 431,
+        "y": 582
+      },
+      "polygon": [
+        {
+          "x": 387,
+          "y": 510
+        },
+        {
+          "x": 474,
+          "y": 555
+        },
+        {
+          "x": 504,
+          "y": 634
+        },
+        {
+          "x": 360,
+          "y": 629
+        }
+      ],
+      "x_min": 360,
+      "x_max": 504,
+      "y_min": 510,
+      "y_max": 634,
+      "width": 144,
+      "height": 124,
+      "distance": "far"
+    },
+    {
+      "category": "object",
+      "description": "heavy_equipment",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 209,
+        "y": 282
+      },
+      "polygon": [
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 424,
+          "y": 6
+        },
+        {
+          "x": 625,
+          "y": 385
+        },
+        {
+          "x": 318,
+          "y": 259
+        },
+        {
+          "x": 233,
+          "y": 11
+        },
+        {
+          "x": 26,
+          "y": 206
+        },
+        {
+          "x": 211,
+          "y": 338
+        },
+        {
+          "x": 255,
+          "y": 615
+        },
+        {
+          "x": 0,
+          "y": 623
+        },
+        {
+          "x": 0,
+          "y": 377
+        }
+      ],
+      "x_min": 0,
+      "x_max": 625,
+      "y_min": 1,
+      "y_max": 623,
+      "width": 625,
+      "height": 622,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 410,
+        "y": 190
+      },
+      "polygon": [
+        {
+          "x": 239,
+          "y": 20
+        },
+        {
+          "x": 557,
+          "y": 20
+        },
+        {
+          "x": 606,
+          "y": 382
+        },
+        {
+          "x": 239,
+          "y": 337
+        }
+      ],
+      "x_min": 239,
+      "x_max": 606,
+      "y_min": 20,
+      "y_max": 382,
+      "width": 367,
+      "height": 362,
+      "distance": "mid"
+    }
+  ]
+}

@@ -1,0 +1,148 @@
+{
+  "filename": "hazard_still_3-4.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "fall_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1401,
+        "y": 1151
+      },
+      "polygon": [
+        {
+          "x": 1127,
+          "y": 771
+        },
+        {
+          "x": 1677,
+          "y": 767
+        },
+        {
+          "x": 1677,
+          "y": 1535
+        },
+        {
+          "x": 1123,
+          "y": 1530
+        }
+      ],
+      "x_min": 1123,
+      "x_max": 1677,
+      "y_min": 767,
+      "y_max": 1535,
+      "width": 554,
+      "height": 768,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "unsecure_load_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 833,
+        "y": 1151
+      },
+      "polygon": [
+        {
+          "x": 559,
+          "y": 771
+        },
+        {
+          "x": 1109,
+          "y": 767
+        },
+        {
+          "x": 1109,
+          "y": 1535
+        },
+        {
+          "x": 556,
+          "y": 1530
+        }
+      ],
+      "x_min": 556,
+      "x_max": 1109,
+      "y_min": 767,
+      "y_max": 1535,
+      "width": 553,
+      "height": 768,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 833,
+        "y": 1151
+      },
+      "polygon": [
+        {
+          "x": 559,
+          "y": 771
+        },
+        {
+          "x": 1109,
+          "y": 767
+        },
+        {
+          "x": 1109,
+          "y": 1535
+        },
+        {
+          "x": 556,
+          "y": 1530
+        }
+      ],
+      "x_min": 556,
+      "x_max": 1109,
+      "y_min": 767,
+      "y_max": 1535,
+      "width": 553,
+      "height": 768,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "caught_in_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2535,
+        "y": 398
+      },
+      "polygon": [
+        {
+          "x": 2261,
+          "y": 18
+        },
+        {
+          "x": 2811,
+          "y": 14
+        },
+        {
+          "x": 2811,
+          "y": 782
+        },
+        {
+          "x": 2258,
+          "y": 777
+        }
+      ],
+      "x_min": 2258,
+      "x_max": 2811,
+      "y_min": 14,
+      "y_max": 782,
+      "width": 553,
+      "height": 768,
+      "distance": "mid"
+    }
+  ]
+}

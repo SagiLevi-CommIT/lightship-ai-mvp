@@ -1,0 +1,283 @@
+Below is an updated version of the golden dataset. We increased the number of frames per driving video to 5, added 7 new driving videos, and reworked the jobsite tagging as discussed during our last meeting. Please let me know if you have any trouble accessing this shared link:
+
+https://drive.google.com/file/d/1Td7faYU44pmRDFNgdfa5uH8rObxxer20/view?usp=sharing
+
+Take care,
+
+ 
+Zechari Tempesta
+Co-founder
+Lightship Neuroscience
+zechari@lightshipneuroscience.com
+linkedin.com/in/zecharitempesta
+lightshipneuroscience.com
+
+
+ ᐧ
+
+On Mon, Mar 23, 2026 at 9:55 AM Zechari Tempesta <zechari@lightshipneuroscience.com> wrote:
+Hi Daniel, Asaf, and team,
+
+Here is the current version of the golden dataset, please let me know if this link gives you trouble. Thanks!
+
+https://drive.google.com/file/d/1sa4UiYVH8T83HnTKxfELyEPD-CRHcJ9X/view?usp=drive_link
+
+ 
+Zechari Tempesta
+Co-founder
+Lightship Neuroscience
+zechari@lightshipneuroscience.com
+linkedin.com/in/zecharitempesta
+lightshipneuroscience.com
+
+
+ ᐧ
+
+On Thu, Mar 19, 2026 at 8:19 AM Daniel Nahman <Daniel.Nahman@comm-it.com> wrote:
+Hey,
+
+The JSON looks good!
+
+Regarding your questions:
+1.	Why do we need so many frames per video? We are not training an algorithm, correct? It may be best to have more videos (more scenarios) with fewer frames rather than fewer videos with more frames. - the more you can give us is the better for and if the team will say that for the desired accuracy we must use a trained model. But its ok also to get 5 frames of interest for each video.
+1.	Our previous version had five categories of distance, here you requested three (near, mid, far). What is the reasoning behind this or was this just an example? Severity may capture whether something is dangerously near or just near. Curious about your thoughts on including dangerously close as a distance category or using it in combination with severity.  - the 3  distance categories are just examples we can keep the 5 definitions from the poc. Regarding Severity - agreed, lets add dangerously close (it should help the model better creating the hazards)
+1.	Vehicle speed is a video characteristic, not a frame characteristic. Do you feel it is best practice to use the video's maximum speed? (e.g. if they ever exceed 40 mph during the video, even if half the time is under 40mph, it is marked as >40 mph) - I think we should use speed as the max speed the vehicle should go, mainly for understanding the desired speed on the specific road
+1.	On highways, there are barriers and vehicles in the periphery that are not relevant to the driving scene (see annotation_example_1.png). Should these barriers and vehicles also be marked? - I don't think that we need them. Also for these the recognition ability would be much lower.
+
+Regarding the job site videos/ images - you can take your time, but its best if you send us at least couple of examples so we can start working on that ability.
+
+
+
+Daniel Nahman
+Product Manager  |  Commit Software
+ 
+ 
+ 
+Mobile: +972 544761241
+Address: 3 Tozeret Ha’aretz, Petach Tikva, Building I, Israel
+Web: http://www.comm-it.com | Mail: danielna@comm-it.com
+ 
+
+
+________________________________________
+From: Zechari Tempesta <zechari@lightshipneuroscience.com>
+Sent: Wednesday, March 18, 2026 21:00
+To: Daniel Nahman <Daniel.Nahman@comm-it.com>; Gage Agnew <gageagnew02@gmail.com>
+Cc: Niv Spector <Niv.Spector@comm-it.com>; Amanda Taylor <Amanda.Taylor@commit.us>; Asaf Lavi <Asaf.Lavi@comm-it.com>; Sagi Levi <Sagi.Levi@comm-it.com>
+Subject: Re: LightShip MVP — Golden Dataset Preparation Guide 
+
+@Daniel Nahman 
+
+We are building the golden dataset. I have attached an example JSON file for your review to confirm the formatting matches what you expect.
+
+Some questions:
+•	Why do we need so many frames per video? We are not training an algorithm, correct? It may be best to have more videos (more scenarios) with fewer frames rather than fewer videos with more frames.
+•	Our previous version had five categories of distance, here you requested three (near, mid, far). What is the reasoning behind this or was this just an example? Severity may capture whether something is dangerously near or just near. Curious about your thoughts on including dangerously close as a distance category or using it in combination with severity.
+•	Vehicle speed is a video characteristic, not a frame characteristic. Do you feel it is best practice to use the video's maximum speed? (e.g. if they ever exceed 40 mph during the video, even if half the time is under 40mph, it is marked as >40 mph)
+•	On highways, there are barriers and vehicles in the periphery that are not relevant to the driving scene (see annotation_example_1.png). Should these barriers and vehicles also be marked?
+Also, our job site portfolio is much smaller than our road scenario portfolio, however, we are supposed to get some new client videos soon. Building this portion of the golden dataset may take longer - let me know how this impacts our timeline,
+
+ 
+Zechari Tempesta
+Co-founder
+Lightship Neuroscience
+zechari@lightshipneuroscience.com
+linkedin.com/in/zecharitempesta
+lightshipneuroscience.com
+
+
+ ᐧ
+
+On Sun, Mar 8, 2026 at 9:35 AM Daniel Nahman <Daniel.Nahman@comm-it.com> wrote:
+Hi Zechari,
+
+Hope you're doing well.
+
+We're ready to start building the evaluation framework for the MVP, and we need your help creating the golden dataset — this is the ground truth we'll use to measure detection accuracy against the KPIs we defined in the SoW.
+
+Here's what we need from you:
+
+PER VIDEO (we need 20+ videos covering all 4 types):
+
+1. Choose the video and select frames of interest — these are the key frames where important objects, hazards, or scenarios appear. Could be 10 frames, could be 50, depending on the video.
+
+2. For each video, create ONE JSON file with the following structure. I've included a filled example below so it's clear exactly what we need:
+
+{
+  "filename": "dashcam_highway_rain_001.mp4",
+  "video_description": "Highway driving in moderate rain, ego vehicle in middle lane. Motorcycle overtakes on the left, construction zone ahead.",
+  "video_class": "hazard_detection",
+  "road_type": "highway",
+  "weather": "moderate rain, reduced visibility",
+  "traffic": "moderate",
+  "speed": ">60 mph",
+  "hazards": [
+    {
+      "timestamp_sec": 12.4,
+      "description": "Motorcycle cuts into ego lane from left without signaling",
+      "severity": "high"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 372,
+      "timestamp_sec": 12.4,
+      "objects": [
+        {
+          "class": "motorcycle",
+          "description": "Motorcycle merging into ego lane from left, no turn signal",
+          "distance": "near",
+          "center": { "x": 540, "y": 380 },
+          "bbox": { "x_min": 490, "x_max": 590, "y_min": 310, "y_max": 450, "width": 100, "height": 140 }
+        },
+        {
+          "class": "car",
+          "description": "Silver sedan ahead in ego lane, brake lights on",
+          "distance": "mid",
+          "center": { "x": 640, "y": 340 },
+          "bbox": { "x_min": 560, "x_max": 720, "y_min": 290, "y_max": 390, "width": 160, "height": 100 }
+        },
+        {
+          "class": "cone",
+          "description": "Orange traffic cone marking construction zone",
+          "distance": "far",
+          "center": { "x": 680, "y": 310 },
+          "bbox": { "x_min": 665, "x_max": 695, "y_min": 285, "y_max": 335, "width": 30, "height": 50 }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 1,
+          "type": "ego_lane",
+          "polygon": [[450, 720], [560, 400], [720, 400], [830, 720]]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [[180, 720], [480, 400], [560, 400], [450, 720]]
+        }
+      ],
+      "road_signs": [
+        {
+          "label": "speed limit",
+          "bbox": { "x_min": 1050, "x_max": 1090, "y_min": 150, "y_max": 200, "width": 40, "height": 50 }
+        },
+        {
+          "label": "construction",
+          "bbox": { "x_min": 780, "x_max": 830, "y_min": 130, "y_max": 195, "width": 50, "height": 65 }
+        }
+      ],
+      "traffic_signals": [
+        {
+          "label": "green",
+          "bbox": { "x_min": 610, "x_max": 640, "y_min": 90, "y_max": 150, "width": 30, "height": 60 }
+        }
+      ]
+    }
+  ]
+}
+
+A few notes on the labeling:
+
+• Object "class" must be one of: car, truck, bus, motorcycle, bicycle, pedestrian, construction_worker, cone, barrier, heavy_equipment, construction_sign, fencing, debris, animal, other
+• "distance" is a rough estimate: near / mid / far
+• "traffic" should be: low, moderate, or high
+• "speed" should be structured like: <10 mph, <40 mph, >60 mph, etc.
+• Lanes should be drawn as polygons (list of [x,y] points tracing the lane boundary). Type is either "ego_lane" or "other_lane"
+• Road signs — just a label (e.g., "speed limit", "stop", "yield", "warning", "construction") + bounding box
+• Traffic signal labels: red, yellow, green, flashing_red, flashing_yellow, off, other
+• "severity" on hazards: low, medium, high, critical
+• "video_class" must be one of: reactivity_braking, qa_educational, hazard_detection, job_site_detection
+
+
+This would be the JSON for the Job Site videos types for the GT:
+{
+  "filename": "construction_site_001.mp4",
+  "video_description": "Active construction site with heavy machinery, workers near excavation area, barriers along perimeter.",
+  "video_class": "job_site_detection",
+  "weather": "clear, good visibility",
+  "hazards": [
+    {
+      "timestamp_sec": 5.2,
+      "description": "Worker walking near active excavator swing radius",
+      "severity": "critical"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 156,
+      "timestamp_sec": 5.2,
+      "objects": [
+        {
+          "class": "heavy_equipment",
+          "description": "Excavator actively digging near trench",
+          "distance": "near",
+          "center": { "x": 600, "y": 350 },
+          "bbox": { "x_min": 420, "x_max": 780, "y_min": 200, "y_max": 500, "width": 360, "height": 300 }
+        },
+        {
+          "class": "construction_worker",
+          "description": "Worker in yellow vest walking toward excavation",
+          "distance": "near",
+          "center": { "x": 350, "y": 420 },
+          "bbox": { "x_min": 320, "x_max": 380, "y_min": 340, "y_max": 500, "width": 60, "height": 160 }
+        },
+        {
+          "class": "barrier",
+          "description": "Orange jersey barrier along site perimeter",
+          "distance": "mid",
+          "center": { "x": 900, "y": 400 },
+          "bbox": { "x_min": 820, "x_max": 980, "y_min": 370, "y_max": 430, "width": 160, "height": 60 }
+        },
+        {
+          "class": "cone",
+          "description": "Traffic cone marking restricted area",
+          "distance": "mid",
+          "center": { "x": 200, "y": 450 },
+          "bbox": { "x_min": 185, "x_max": 215, "y_min": 420, "y_max": 480, "width": 30, "height": 60 }
+        }
+      ]
+    }
+  ]
+}
+
+3. For each of the 4 video types, we need you to provide an example config JSON file in the format your application expects. This is the output our system will generate per video — we need to know your desired structure so our output matches it exactly.
+
+Please provide one example config file for each type:
+   - Reactivity/braking
+   - Q&A/educational
+   - Hazard detection
+   - Job site detection
+
+
+To summarize what we need:
+✓ 20+ videos across all 4 types (at least 5 per type)
+✓ 1 ground truth JSON per video (structure as above)
+✓ 10+ videos for Job site type + Corresponding JSON
+✓ 4 example config files — one per video type, in the format your application expects
+
+Happy to jump on a quick call if any of this needs clarification. The sooner we get the golden dataset, the sooner we can start measuring and iterating.
+
+
+Daniel Nahman
+Product Manager  |  Commit Software
+ 
+ 
+ 
+Mobile: +972 544761241
+Address: 3 Tozeret Ha’aretz, Petach Tikva, Building I, Israel
+Web: http://www.comm-it.com | Mail: danielna@comm-it.com
+ 
+Please note that the information contained in these mails/documents is confidential, privileged.
+As such it may only be used by the intended recipient and may not be used, published or redistributed without the prior written consent of Comm-IT.
+This email has been scanned for spam and viruses by Proofpoint Essentials.
+Â 
+Please note that the information contained in these mails/documents is confidential, privileged.
+As such it may only be used by the intended recipient and may not be used, published or redistributed without the prior written consent of Comm-IT.
+This email has been scanned for spam and viruses by Proofpoint Essentials.
+Â 
+
+ 
+________________________________________
+This email has been scanned for spam and viruses by Proofpoint Essentials. Click here to report this email as spam.
+

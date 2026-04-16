@@ -1,0 +1,113 @@
+{
+  "filename": "hazard_still_21.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 569,
+        "y": 132
+      },
+      "polygon": [
+        {
+          "x": 382,
+          "y": 0
+        },
+        {
+          "x": 749,
+          "y": 27
+        },
+        {
+          "x": 830,
+          "y": 251
+        },
+        {
+          "x": 314,
+          "y": 251
+        }
+      ],
+      "x_min": 314,
+      "x_max": 830,
+      "y_min": 0,
+      "y_max": 251,
+      "width": 516,
+      "height": 251,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "worker",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1033,
+        "y": 402
+      },
+      "polygon": [
+        {
+          "x": 848,
+          "y": 155
+        },
+        {
+          "x": 1208,
+          "y": 155
+        },
+        {
+          "x": 1209,
+          "y": 647
+        },
+        {
+          "x": 866,
+          "y": 652
+        }
+      ],
+      "x_min": 848,
+      "x_max": 1209,
+      "y_min": 155,
+      "y_max": 652,
+      "width": 361,
+      "height": 497,
+      "distance": "near"
+    },
+    {
+      "category": "object",
+      "description": "debris",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 270,
+        "y": 473
+      },
+      "polygon": [
+        {
+          "x": 185,
+          "y": 299
+        },
+        {
+          "x": 311,
+          "y": 358
+        },
+        {
+          "x": 392,
+          "y": 570
+        },
+        {
+          "x": 191,
+          "y": 663
+        }
+      ],
+      "x_min": 185,
+      "x_max": 392,
+      "y_min": 299,
+      "y_max": 663,
+      "width": 207,
+      "height": 364,
+      "distance": "near"
+    }
+  ]
+}

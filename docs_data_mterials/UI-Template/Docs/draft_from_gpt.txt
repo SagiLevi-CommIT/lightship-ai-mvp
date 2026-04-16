@@ -1,0 +1,349 @@
+# Lightship MVP – AWS-Based Video Processing Architecture
+
+## Overview
+
+The system processes uploaded dashcam videos or images and generates annotated frames and configuration files describing the detected events.
+
+The architecture is built entirely on **AWS managed services** and follows **production-ready best practices**, including asynchronous processing, multi-AZ deployment, decoupled services, and scalable compute layers.
+
+The pipeline processes video data using **frame sampling and event-based detection** instead of analyzing every frame, which significantly reduces compute cost and latency.
+
+---
+
+# High-Level Architecture Layers
+
+The architecture is divided into the following layers:
+
+1. Network & Security Layer
+2. User Interface & Routing Layer
+3. Processing & Orchestration Layer
+4. Video Frame Selection & Preprocessing Layer
+5. AI Detection & Classification Layer
+6. Storage Layer
+7. Monitoring & Infrastructure Layer
+
+---
+
+# 1. Network & Security Layer
+
+The entire application is deployed inside an **AWS Virtual Private Cloud (VPC)**.
+
+Components:
+
+* **VPC**
+* **Public Subnets** (for external access)
+* **Private Subnets** (for compute services)
+* **Internet Gateway**
+* **VPC Endpoints** (for secure access to S3)
+* **AWS IAM Identity Center**
+* **AWS Secrets Manager**
+* **AWS KMS** (for encryption)
+
+Best practices implemented:
+
+* Compute workloads run only in **private subnets**
+* Only the **Load Balancer is exposed to the internet**
+* Secrets and credentials are managed using **Secrets Manager**
+
+---
+
+# 2. User Interface & Routing Layer
+
+This layer handles user interaction and API routing.
+
+Components:
+
+* **Users**
+* **Amazon Route 53**
+* **AWS WAF**
+* **Application Load Balancer (ALB)**
+* **Amazon ECS Fargate (Frontend + API Service)**
+
+Flow:
+
+Users access the web interface through Route 53.
+
+Requests are filtered through AWS WAF and routed via the **Application Load Balancer** to the ECS service running the frontend and backend API.
+
+The UI allows users to:
+
+* Upload videos
+* Upload single images
+* Define output paths
+* Monitor processing status
+
+---
+
+# 3. Processing & Orchestration Layer
+
+To support batch uploads and scalable processing, the system uses asynchronous task orchestration.
+
+Components:
+
+* **Amazon SQS**
+* **AWS Lambda (Orchestrator)**
+* **ECS Fargate Worker Tasks**
+
+Workflow:
+
+1. The API receives a video upload request.
+2. The video is stored in **Amazon S3 (Input bucket)**.
+3. The API publishes a **processing job message to Amazon SQS**.
+4. A **Lambda orchestrator** consumes the message.
+5. The orchestrator launches a **video processing worker (Fargate task)**.
+
+This architecture ensures that large batches of uploads do not overwhelm the system.
+
+A **Dead Letter Queue (DLQ)** is configured for error handling.
+
+---
+
+# 4. Video Frame Selection Layer
+
+Processing every frame of a video is inefficient and unnecessary.
+
+Instead, the system implements a **Frame Selection Pipeline** to reduce computational load while preserving important visual events.
+
+## Frame Selection Strategy
+
+The system combines three techniques:
+
+### 1. Temporal Frame Sampling
+
+Extract frames at fixed intervals.
+
+Example:
+
+```
+1 frame every 0.5 seconds
+```
+
+For a 30 FPS video:
+
+```
+30 frames/sec → 2 frames/sec processed
+```
+
+This reduces processing by ~93%.
+
+---
+
+### 2. Motion-Based Frame Detection
+
+A lightweight motion detection algorithm identifies frames with significant changes.
+
+Technique:
+
+* frame difference
+* optical flow
+* histogram delta
+
+Only frames with **significant scene changes** are passed forward.
+
+---
+
+### 3. Event Window Expansion
+
+When an event is detected (object detection / anomaly):
+
+The system extracts a **short window around the event**.
+
+Example:
+
+```
+event frame ± 2 seconds
+```
+
+This preserves temporal context.
+
+---
+
+## Frame Selection Pipeline
+
+```
+Video
+   ↓
+Frame Extractor (FFmpeg)
+   ↓
+Temporal Sampling
+   ↓
+Motion Detection Filter
+   ↓
+Event Window Expansion
+   ↓
+Selected Frames
+```
+
+These frames are then passed to the AI inference layer.
+
+---
+
+# 5. AI Detection & Classification Layer
+
+Selected frames are analyzed using AWS AI services.
+
+## Object Detection
+
+Primary service:
+
+**Amazon Rekognition**
+
+Detects:
+
+* pedestrians
+* vehicles
+* motorcycles
+* road equipment
+
+Alternative / experimental models:
+
+* **Detectron2**
+* **YOLOv12 XL**
+
+These may run in containerized inference workers.
+
+---
+
+## Video Event Classification
+
+Metadata extracted from frames is passed to:
+
+**Amazon Bedrock**
+
+Bedrock LLM performs:
+
+* event classification
+* contextual interpretation
+* configuration generation
+
+Example categories:
+
+* Training scenario
+* Dangerous behavior
+* Normal driving
+* Edge case
+
+---
+
+## Output Generation
+
+Bedrock generates structured outputs:
+
+```
+JSON configuration
+event metadata
+annotation descriptions
+```
+
+---
+
+# 6. Storage Layer
+
+The system uses **Amazon S3** as the central storage service.
+
+Structure:
+
+### Input Storage
+
+```
+S3 /input
+    /videos
+    /images
+```
+
+### Processing Artifacts
+
+```
+S3 /processing
+    /frames
+    /selected_frames
+```
+
+### Output Storage
+
+```
+S3 /results
+    /annotated_frames
+    /config_json
+```
+
+Output includes:
+
+* annotated images
+* event metadata
+* configuration files
+
+---
+
+# 7. Monitoring & Observability
+
+System health and metrics are monitored using:
+
+* **Amazon CloudWatch Logs**
+* **CloudWatch Metrics**
+* **CloudWatch Alarms**
+
+Optional components:
+
+* **AWS X-Ray** (request tracing)
+* **Amazon SNS** (completion notifications)
+
+Users can optionally receive a notification when processing finishes.
+
+---
+
+# 8. Infrastructure & Deployment
+
+Infrastructure is provisioned using:
+
+**AWS CloudFormation**
+
+All system components are defined using **Infrastructure as Code**.
+
+Benefits:
+
+* repeatable deployments
+* environment consistency
+* version-controlled infrastructure
+
+---
+
+# End-to-End Data Flow
+
+```
+User uploads video
+        ↓
+API stores video in S3
+        ↓
+API sends processing job to SQS
+        ↓
+Lambda consumes job
+        ↓
+Worker container processes video
+        ↓
+Frame selection pipeline extracts frames
+        ↓
+Selected frames sent to Rekognition
+        ↓
+Metadata sent to Bedrock
+        ↓
+Results generated
+        ↓
+Annotated frames + JSON saved to S3
+        ↓
+Logs and metrics sent to CloudWatch
+```
+
+---
+
+# Key AWS Best Practices Implemented
+
+* Multi-AZ architecture
+* Private compute subnets
+* Asynchronous processing
+* Decoupled microservices
+* Managed AI services
+* Event-driven pipeline
+* Infrastructure as Code
+* Cost-optimized frame processing
+

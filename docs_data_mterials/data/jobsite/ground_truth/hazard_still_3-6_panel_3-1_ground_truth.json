@@ -1,0 +1,73 @@
+{
+  "filename": "hazard_still_3-6_panel_3-1.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "clear, good visibility",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "struckby",
+      "severity": "high"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0,
+      "objects": [],
+      "jobsite_objects": [
+        {
+          "class": "heavy_equipment_js",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 274,
+            "y": 330
+          },
+          "bbox": {
+            "x_min": 24,
+            "x_max": 509,
+            "y_min": 116,
+            "y_max": 523,
+            "width": 485,
+            "height": 407
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 446,
+            "y": 519
+          },
+          "bbox": {
+            "x_min": 373,
+            "x_max": 522,
+            "y_min": 352,
+            "y_max": 689,
+            "width": 149,
+            "height": 337
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 447,
+            "y": 384
+          },
+          "bbox": {
+            "x_min": 409,
+            "x_max": 485,
+            "y_min": 345,
+            "y_max": 422,
+            "width": 76,
+            "height": 77
+          }
+        }
+      ]
+    }
+  ]
+}

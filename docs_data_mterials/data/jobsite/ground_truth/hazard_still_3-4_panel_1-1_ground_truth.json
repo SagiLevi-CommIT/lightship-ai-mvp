@@ -1,0 +1,185 @@
+{
+  "filename": "hazard_still_3-4_panel_1-1.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "struckby",
+      "severity": "high"
+    },
+    {
+      "timestamp_sec": 0,
+      "description": "unsecure_load",
+      "severity": "high"
+    },
+    {
+      "timestamp_sec": 0,
+      "description": "blindspot"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "objects": [
+        {
+          "class": "unsecure_load",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 323,
+            "y": 378
+          },
+          "bbox": {
+            "x_min": 219,
+            "x_max": 431,
+            "y_min": 195,
+            "y_max": 565,
+            "width": 212,
+            "height": 370
+          }
+        }
+      ],
+      "jobsite_objects": [
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 77,
+            "y": 471
+          },
+          "bbox": {
+            "x_min": 1,
+            "x_max": 164,
+            "y_min": 319,
+            "y_max": 633,
+            "width": 163,
+            "height": 314
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 210,
+            "y": 399
+          },
+          "bbox": {
+            "x_min": 176,
+            "x_max": 251,
+            "y_min": 323,
+            "y_max": 480,
+            "width": 75,
+            "height": 157
+          }
+        },
+        {
+          "class": "forklift",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 265,
+            "y": 424
+          },
+          "bbox": {
+            "x_min": 124,
+            "x_max": 406,
+            "y_min": 283,
+            "y_max": 565,
+            "width": 282,
+            "height": 282
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 95,
+            "y": 354
+          },
+          "bbox": {
+            "x_min": 64,
+            "x_max": 126,
+            "y_min": 323,
+            "y_max": 385,
+            "width": 62,
+            "height": 62
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 38,
+            "y": 497
+          },
+          "bbox": {
+            "x_min": 7,
+            "x_max": 69,
+            "y_min": 465,
+            "y_max": 528,
+            "width": 62,
+            "height": 63
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 127,
+            "y": 480
+          },
+          "bbox": {
+            "x_min": 96,
+            "x_max": 158,
+            "y_min": 449,
+            "y_max": 511,
+            "width": 62,
+            "height": 62
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 117,
+            "y": 604
+          },
+          "bbox": {
+            "x_min": 86,
+            "x_max": 148,
+            "y_min": 573,
+            "y_max": 635,
+            "width": 62,
+            "height": 62
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 45,
+            "y": 588
+          },
+          "bbox": {
+            "x_min": 14,
+            "x_max": 76,
+            "y_min": 557,
+            "y_max": 619,
+            "width": 62,
+            "height": 62
+          }
+        }
+      ]
+    }
+  ]
+}

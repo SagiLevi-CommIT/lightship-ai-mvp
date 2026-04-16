@@ -1,0 +1,99 @@
+{
+  "filename": "hazard_still_3-1_panel_0-0.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "jobsite_objects": [
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 267,
+            "y": 432
+          },
+          "bbox": {
+            "x_min": 94,
+            "x_max": 412,
+            "y_min": 151,
+            "y_max": 725,
+            "width": 318,
+            "height": 574
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 246,
+            "y": 207
+          },
+          "bbox": {
+            "x_min": 197,
+            "x_max": 294,
+            "y_min": 158,
+            "y_max": 255,
+            "width": 97,
+            "height": 97
+          }
+        },
+        {
+          "class": "glasses",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 253,
+            "y": 212
+          },
+          "bbox": {
+            "x_min": 218,
+            "x_max": 281,
+            "y_min": 200,
+            "y_max": 226,
+            "width": 63,
+            "height": 26
+          }
+        },
+        {
+          "class": "boots",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 251,
+            "y": 675
+          },
+          "bbox": {
+            "x_min": 137,
+            "x_max": 366,
+            "y_min": 639,
+            "y_max": 707,
+            "width": 229,
+            "height": 68
+          }
+        },
+        {
+          "class": "harness",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 234,
+            "y": 395
+          },
+          "bbox": {
+            "x_min": 147,
+            "x_max": 320,
+            "y_min": 308,
+            "y_max": 481,
+            "width": 173,
+            "height": 173
+          }
+        }
+      ]
+    }
+  ]
+}

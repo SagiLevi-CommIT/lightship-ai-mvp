@@ -1,0 +1,148 @@
+{
+  "filename": "hazard_still_4-5.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "ppe_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 273,
+        "y": 1138
+      },
+      "polygon": [
+        {
+          "x": 5,
+          "y": 767
+        },
+        {
+          "x": 543,
+          "y": 763
+        },
+        {
+          "x": 543,
+          "y": 1513
+        },
+        {
+          "x": 1,
+          "y": 1508
+        }
+      ],
+      "x_min": 1,
+      "x_max": 543,
+      "y_min": 763,
+      "y_max": 1513,
+      "width": 542,
+      "height": 750,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "ladder_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 2482,
+        "y": 387
+      },
+      "polygon": [
+        {
+          "x": 2214,
+          "y": 16
+        },
+        {
+          "x": 2751,
+          "y": 12
+        },
+        {
+          "x": 2751,
+          "y": 763
+        },
+        {
+          "x": 2210,
+          "y": 757
+        }
+      ],
+      "x_min": 2210,
+      "x_max": 2751,
+      "y_min": 12,
+      "y_max": 763,
+      "width": 541,
+      "height": 751,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "struckby_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 827,
+        "y": 1141
+      },
+      "polygon": [
+        {
+          "x": 559,
+          "y": 770
+        },
+        {
+          "x": 1097,
+          "y": 766
+        },
+        {
+          "x": 1097,
+          "y": 1517
+        },
+        {
+          "x": 556,
+          "y": 1512
+        }
+      ],
+      "x_min": 556,
+      "x_max": 1097,
+      "y_min": 766,
+      "y_max": 1517,
+      "width": 541,
+      "height": 751,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "poor_maintenance_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1920,
+        "y": 1139
+      },
+      "polygon": [
+        {
+          "x": 1652,
+          "y": 768
+        },
+        {
+          "x": 2189,
+          "y": 764
+        },
+        {
+          "x": 2189,
+          "y": 1515
+        },
+        {
+          "x": 1648,
+          "y": 1510
+        }
+      ],
+      "x_min": 1648,
+      "x_max": 2189,
+      "y_min": 764,
+      "y_max": 1515,
+      "width": 541,
+      "height": 751,
+      "distance": "mid"
+    }
+  ]
+}

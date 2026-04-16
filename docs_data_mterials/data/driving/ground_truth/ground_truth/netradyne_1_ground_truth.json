@@ -1,0 +1,1357 @@
+{
+  "filename": "netradyne_1.mp4",
+  "video_description": "Driving through intersection, light changes from yellow to red. Car waits to pull out of parking lot.",
+  "video_class": "hazard_detection",
+  "road_type": "intersection",
+  "weather": "clear, good visibility",
+  "traffic": "light",
+  "speed": "15-40_mph",
+  "collision": "-",
+  "hazards": [],
+  "frames": [
+    {
+      "frame_number": 78,
+      "timestamp_sec": 2.591,
+      "objects": [
+        {
+          "class": "truck",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 122,
+            "y": 350
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 251,
+            "y_min": 264,
+            "y_max": 435,
+            "width": 251,
+            "height": 171
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 297,
+            "y": 368
+          },
+          "bbox": {
+            "x_min": 244,
+            "x_max": 363,
+            "y_min": 337,
+            "y_max": 397,
+            "width": 119,
+            "height": 60
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 379,
+            "y": 361
+          },
+          "bbox": {
+            "x_min": 345,
+            "x_max": 415,
+            "y_min": 337,
+            "y_max": 381,
+            "width": 70,
+            "height": 44
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 444,
+            "y": 362
+          },
+          "bbox": {
+            "x_min": 410,
+            "x_max": 480,
+            "y_min": 339,
+            "y_max": 383,
+            "width": 70,
+            "height": 44
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 515,
+            "y": 361
+          },
+          "bbox": {
+            "x_min": 481,
+            "x_max": 550,
+            "y_min": 337,
+            "y_max": 381,
+            "width": 69,
+            "height": 44
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 663,
+            "y": 360
+          },
+          "bbox": {
+            "x_min": 638,
+            "x_max": 688,
+            "y_min": 346,
+            "y_max": 373,
+            "width": 50,
+            "height": 27
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 619,
+            "y": 352
+          },
+          "bbox": {
+            "x_min": 597,
+            "x_max": 640,
+            "y_min": 340,
+            "y_max": 364,
+            "width": 43,
+            "height": 24
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 576,
+            "y": 352
+          },
+          "bbox": {
+            "x_min": 555,
+            "x_max": 598,
+            "y_min": 340,
+            "y_max": 364,
+            "width": 43,
+            "height": 24
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 6,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              686,
+              366
+            ],
+            [
+              716,
+              363
+            ],
+            [
+              1280,
+              573
+            ],
+            [
+              1074,
+              668
+            ]
+          ]
+        },
+        {
+          "lane_id": 4,
+          "type": "other_lane",
+          "polygon": [
+            [
+              589,
+              366
+            ],
+            [
+              627,
+              363
+            ],
+            [
+              252,
+              719
+            ],
+            [
+              0,
+              565
+            ]
+          ]
+        },
+        {
+          "lane_id": 3,
+          "type": "other_lane",
+          "polygon": [
+            [
+              530,
+              361
+            ],
+            [
+              571,
+              364
+            ],
+            [
+              63,
+              545
+            ],
+            [
+              1,
+              469
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [
+            [
+              454,
+              348
+            ],
+            [
+              484,
+              372
+            ],
+            [
+              4,
+              438
+            ],
+            [
+              0,
+              401
+            ]
+          ]
+        },
+        {
+          "lane_id": 4,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              634,
+              369
+            ],
+            [
+              672,
+              361
+            ],
+            [
+              1085,
+              718
+            ],
+            [
+              258,
+              718
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [
+            [
+              454,
+              348
+            ],
+            [
+              484,
+              372
+            ],
+            [
+              4,
+              438
+            ],
+            [
+              0,
+              401
+            ]
+          ]
+        }
+      ],
+      "traffic_signals": [
+        {
+          "label": "green",
+          "bbox": {
+            "x_min": 742,
+            "x_max": 771,
+            "y_min": 298,
+            "y_max": 328,
+            "width": 29,
+            "height": 30
+          }
+        },
+        {
+          "label": "green",
+          "bbox": {
+            "x_min": 621,
+            "x_max": 657,
+            "y_min": 306,
+            "y_max": 330,
+            "width": 36,
+            "height": 24
+          }
+        },
+        {
+          "label": "red",
+          "bbox": {
+            "x_min": 435,
+            "x_max": 460,
+            "y_min": 299,
+            "y_max": 332,
+            "width": 25,
+            "height": 33
+          }
+        },
+        {
+          "label": "red",
+          "bbox": {
+            "x_min": 583,
+            "x_max": 603,
+            "y_min": 325,
+            "y_max": 345,
+            "width": 20,
+            "height": 20
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 143,
+      "timestamp_sec": 4.773,
+      "objects": [
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 336,
+            "y": 359
+          },
+          "bbox": {
+            "x_min": 300,
+            "x_max": 371,
+            "y_min": 335,
+            "y_max": 384,
+            "width": 71,
+            "height": 49
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 151,
+            "y": 381
+          },
+          "bbox": {
+            "x_min": 54,
+            "x_max": 250,
+            "y_min": 337,
+            "y_max": 423,
+            "width": 196,
+            "height": 86
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 956,
+            "y": 356
+          },
+          "bbox": {
+            "x_min": 907,
+            "x_max": 1006,
+            "y_min": 332,
+            "y_max": 378,
+            "width": 99,
+            "height": 46
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 1055,
+            "y": 355
+          },
+          "bbox": {
+            "x_min": 1006,
+            "x_max": 1105,
+            "y_min": 331,
+            "y_max": 377,
+            "width": 99,
+            "height": 46
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 1173,
+            "y": 355
+          },
+          "bbox": {
+            "x_min": 1124,
+            "x_max": 1223,
+            "y_min": 331,
+            "y_max": 377,
+            "width": 99,
+            "height": 46
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 501,
+            "y": 367
+          },
+          "bbox": {
+            "x_min": 464,
+            "x_max": 537,
+            "y_min": 343,
+            "y_max": 391,
+            "width": 73,
+            "height": 48
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 657,
+            "y": 363
+          },
+          "bbox": {
+            "x_min": 630,
+            "x_max": 683,
+            "y_min": 345,
+            "y_max": 380,
+            "width": 53,
+            "height": 35
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 616,
+            "y": 364
+          },
+          "bbox": {
+            "x_min": 597,
+            "x_max": 635,
+            "y_min": 351,
+            "y_max": 376,
+            "width": 38,
+            "height": 25
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 447,
+            "y": 359
+          },
+          "bbox": {
+            "x_min": 428,
+            "x_max": 465,
+            "y_min": 347,
+            "y_max": 372,
+            "width": 37,
+            "height": 25
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 34,
+            "y": 384
+          },
+          "bbox": {
+            "x_min": 0,
+            "x_max": 74,
+            "y_min": 346,
+            "y_max": 416,
+            "width": 74,
+            "height": 70
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 6,
+          "type": "other_lane",
+          "polygon": [
+            [
+              740,
+              408
+            ],
+            [
+              841,
+              408
+            ],
+            [
+              1274,
+              558
+            ],
+            [
+              1110,
+              705
+            ]
+          ]
+        },
+        {
+          "lane_id": 5,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              628,
+              364
+            ],
+            [
+              658,
+              363
+            ],
+            [
+              1092,
+              716
+            ],
+            [
+              348,
+              703
+            ]
+          ]
+        },
+        {
+          "lane_id": 4,
+          "type": "other_lane",
+          "polygon": [
+            [
+              608,
+              364
+            ],
+            [
+              621,
+              367
+            ],
+            [
+              335,
+              709
+            ],
+            [
+              10,
+              543
+            ]
+          ]
+        },
+        {
+          "lane_id": 3,
+          "type": "other_lane",
+          "polygon": [
+            [
+              603,
+              359
+            ],
+            [
+              605,
+              360
+            ],
+            [
+              12,
+              540
+            ],
+            [
+              0,
+              466
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [
+            [
+              159,
+              398
+            ],
+            [
+              341,
+              404
+            ],
+            [
+              0,
+              464
+            ],
+            [
+              3,
+              426
+            ]
+          ]
+        }
+      ],
+      "road_signs": [
+        {
+          "label": "other_sign",
+          "bbox": {
+            "x_min": 945,
+            "x_max": 998,
+            "y_min": 281,
+            "y_max": 338,
+            "width": 53,
+            "height": 57
+          }
+        },
+        {
+          "label": "other_sign",
+          "bbox": {
+            "x_min": 6,
+            "x_max": 58,
+            "y_min": 311,
+            "y_max": 362,
+            "width": 52,
+            "height": 51
+          }
+        }
+      ],
+      "traffic_signals": [
+        {
+          "label": "red",
+          "bbox": {
+            "x_min": 10,
+            "x_max": 60,
+            "y_min": 221,
+            "y_max": 293,
+            "width": 50,
+            "height": 72
+          }
+        },
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 959,
+            "x_max": 1009,
+            "y_min": 210,
+            "y_max": 283,
+            "width": 50,
+            "height": 73
+          }
+        },
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 714,
+            "x_max": 741,
+            "y_min": 307,
+            "y_max": 345,
+            "width": 27,
+            "height": 38
+          }
+        },
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 637,
+            "x_max": 663,
+            "y_min": 289,
+            "y_max": 327,
+            "width": 26,
+            "height": 38
+          }
+        },
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 603,
+            "x_max": 625,
+            "y_min": 288,
+            "y_max": 321,
+            "width": 22,
+            "height": 33
+          }
+        },
+        {
+          "label": "other",
+          "bbox": {
+            "x_min": 549,
+            "x_max": 572,
+            "y_min": 314,
+            "y_max": 347,
+            "width": 23,
+            "height": 33
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 209,
+      "timestamp_sec": 6.956,
+      "objects": [
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 151,
+            "y": 370
+          },
+          "bbox": {
+            "x_min": 92,
+            "x_max": 211,
+            "y_min": 348,
+            "y_max": 393,
+            "width": 119,
+            "height": 45
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 278,
+            "y": 363
+          },
+          "bbox": {
+            "x_min": 236,
+            "x_max": 322,
+            "y_min": 346,
+            "y_max": 379,
+            "width": 86,
+            "height": 33
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 358,
+            "y": 373
+          },
+          "bbox": {
+            "x_min": 318,
+            "x_max": 390,
+            "y_min": 354,
+            "y_max": 393,
+            "width": 72,
+            "height": 39
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 425,
+            "y": 370
+          },
+          "bbox": {
+            "x_min": 382,
+            "x_max": 465,
+            "y_min": 348,
+            "y_max": 393,
+            "width": 83,
+            "height": 45
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 496,
+            "y": 375
+          },
+          "bbox": {
+            "x_min": 461,
+            "x_max": 530,
+            "y_min": 352,
+            "y_max": 398,
+            "width": 69,
+            "height": 46
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 650,
+            "y": 375
+          },
+          "bbox": {
+            "x_min": 626,
+            "x_max": 673,
+            "y_min": 359,
+            "y_max": 390,
+            "width": 47,
+            "height": 31
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 612,
+            "y": 372
+          },
+          "bbox": {
+            "x_min": 594,
+            "x_max": 628,
+            "y_min": 360,
+            "y_max": 383,
+            "width": 34,
+            "height": 23
+          }
+        },
+        {
+          "class": "motorcycle",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 1242,
+            "y": 391
+          },
+          "bbox": {
+            "x_min": 1184,
+            "x_max": 1279,
+            "y_min": 355,
+            "y_max": 420,
+            "width": 95,
+            "height": 65
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 1194,
+            "y": 383
+          },
+          "bbox": {
+            "x_min": 1146,
+            "x_max": 1244,
+            "y_min": 362,
+            "y_max": 413,
+            "width": 98,
+            "height": 51
+          }
+        }
+      ],
+      "traffic_signals": [
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 564,
+            "x_max": 586,
+            "y_min": 237,
+            "y_max": 281,
+            "width": 22,
+            "height": 44
+          }
+        },
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 637,
+            "x_max": 660,
+            "y_min": 238,
+            "y_max": 282,
+            "width": 23,
+            "height": 44
+          }
+        },
+        {
+          "label": "yellow",
+          "bbox": {
+            "x_min": 808,
+            "x_max": 830,
+            "y_min": 284,
+            "y_max": 328,
+            "width": 22,
+            "height": 44
+          }
+        },
+        {
+          "label": "red",
+          "bbox": {
+            "x_min": 449,
+            "x_max": 471,
+            "y_min": 288,
+            "y_max": 332,
+            "width": 22,
+            "height": 44
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 274,
+      "timestamp_sec": 9.138,
+      "objects": [
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 650,
+            "y": 366
+          },
+          "bbox": {
+            "x_min": 628,
+            "x_max": 671,
+            "y_min": 344,
+            "y_max": 387,
+            "width": 43,
+            "height": 43
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 493,
+            "y": 364
+          },
+          "bbox": {
+            "x_min": 457,
+            "x_max": 531,
+            "y_min": 339,
+            "y_max": 391,
+            "width": 74,
+            "height": 52
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 117,
+            "y": 368
+          },
+          "bbox": {
+            "x_min": 2,
+            "x_max": 233,
+            "y_min": 314,
+            "y_max": 426,
+            "width": 231,
+            "height": 112
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 281,
+            "y": 363
+          },
+          "bbox": {
+            "x_min": 229,
+            "x_max": 340,
+            "y_min": 333,
+            "y_max": 396,
+            "width": 111,
+            "height": 63
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 371,
+            "y": 362
+          },
+          "bbox": {
+            "x_min": 333,
+            "x_max": 411,
+            "y_min": 337,
+            "y_max": 385,
+            "width": 78,
+            "height": 48
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 434,
+            "y": 356
+          },
+          "bbox": {
+            "x_min": 404,
+            "x_max": 463,
+            "y_min": 339,
+            "y_max": 374,
+            "width": 59,
+            "height": 35
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 612,
+            "y": 358
+          },
+          "bbox": {
+            "x_min": 597,
+            "x_max": 628,
+            "y_min": 345,
+            "y_max": 371,
+            "width": 31,
+            "height": 26
+          }
+        },
+        {
+          "class": "visual_obstruction",
+          "description": "Bus stop",
+          "distance": "near",
+          "center": {
+            "x": 1078,
+            "y": 350
+          },
+          "bbox": {
+            "x_min": 961,
+            "x_max": 1205,
+            "y_min": 262,
+            "y_max": 445,
+            "width": 244,
+            "height": 183
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 3,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              629,
+              371
+            ],
+            [
+              679,
+              371
+            ],
+            [
+              1147,
+              719
+            ],
+            [
+              362,
+              704
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [
+            [
+              598,
+              361
+            ],
+            [
+              625,
+              366
+            ],
+            [
+              367,
+              719
+            ],
+            [
+              1,
+              556
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              585,
+              359
+            ],
+            [
+              602,
+              357
+            ],
+            [
+              4,
+              561
+            ],
+            [
+              2,
+              467
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "frame_number": 340,
+      "timestamp_sec": 11.32,
+      "objects": [
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 628,
+            "y": 366
+          },
+          "bbox": {
+            "x_min": 606,
+            "x_max": 650,
+            "y_min": 344,
+            "y_max": 387,
+            "width": 44,
+            "height": 43
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 492,
+            "y": 364
+          },
+          "bbox": {
+            "x_min": 460,
+            "x_max": 533,
+            "y_min": 340,
+            "y_max": 387,
+            "width": 73,
+            "height": 47
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 682,
+            "y": 357
+          },
+          "bbox": {
+            "x_min": 663,
+            "x_max": 701,
+            "y_min": 346,
+            "y_max": 369,
+            "width": 38,
+            "height": 23
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 150,
+            "y": 374
+          },
+          "bbox": {
+            "x_min": 51,
+            "x_max": 232,
+            "y_min": 345,
+            "y_max": 409,
+            "width": 181,
+            "height": 64
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 299,
+            "y": 366
+          },
+          "bbox": {
+            "x_min": 250,
+            "x_max": 349,
+            "y_min": 346,
+            "y_max": 387,
+            "width": 99,
+            "height": 41
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 370,
+            "y": 360
+          },
+          "bbox": {
+            "x_min": 334,
+            "x_max": 405,
+            "y_min": 340,
+            "y_max": 379,
+            "width": 71,
+            "height": 39
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 45,
+            "y": 371
+          },
+          "bbox": {
+            "x_min": 1,
+            "x_max": 105,
+            "y_min": 347,
+            "y_max": 402,
+            "width": 104,
+            "height": 55
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 539,
+            "y": 356
+          },
+          "bbox": {
+            "x_min": 528,
+            "x_max": 549,
+            "y_min": 346,
+            "y_max": 367,
+            "width": 21,
+            "height": 21
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 556,
+            "y": 354
+          },
+          "bbox": {
+            "x_min": 546,
+            "x_max": 566,
+            "y_min": 344,
+            "y_max": 365,
+            "width": 20,
+            "height": 21
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 3,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              629,
+              362
+            ],
+            [
+              654,
+              365
+            ],
+            [
+              1251,
+              661
+            ],
+            [
+              296,
+              691
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "other_lane",
+          "polygon": [
+            [
+              602,
+              365
+            ],
+            [
+              622,
+              366
+            ],
+            [
+              260,
+              719
+            ],
+            [
+              4,
+              544
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              592,
+              360
+            ],
+            [
+              601,
+              361
+            ],
+            [
+              0,
+              541
+            ],
+            [
+              0,
+              460
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

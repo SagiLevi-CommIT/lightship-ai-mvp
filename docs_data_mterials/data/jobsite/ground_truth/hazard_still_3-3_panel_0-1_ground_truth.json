@@ -1,0 +1,65 @@
+{
+  "filename": "hazard_still_3-3_panel_0-1.mp4",
+  "video_description": "",
+  "video_class": "job_site_detection",
+  "weather": "",
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0.0,
+      "jobsite_objects": [
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 307,
+            "y": 134
+          },
+          "bbox": {
+            "x_min": 247,
+            "x_max": 366,
+            "y_min": 74,
+            "y_max": 194,
+            "width": 119,
+            "height": 120
+          }
+        },
+        {
+          "class": "worker",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 295,
+            "y": 303
+          },
+          "bbox": {
+            "x_min": 154,
+            "x_max": 436,
+            "y_min": 85,
+            "y_max": 522,
+            "width": 282,
+            "height": 437
+          }
+        },
+        {
+          "class": "harness",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 324,
+            "y": 250
+          },
+          "bbox": {
+            "x_min": 250,
+            "x_max": 397,
+            "y_min": 136,
+            "y_max": 364,
+            "width": 147,
+            "height": 228
+          }
+        }
+      ]
+    }
+  ]
+}

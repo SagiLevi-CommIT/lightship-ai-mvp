@@ -1,0 +1,3630 @@
+{
+  "filename": "samsara_test_3.mp4",
+  "fps": 27.077364672703858,
+  "camera": "samsara",
+  "description": "Vehicle traveling at 29 mph on a multi-lane road in a residential area, passing a white truck on the left and approaching several distant vehicles ahead.",
+  "traffic": "light",
+  "lighting": "daylight",
+  "weather": "clear",
+  "collision": "none",
+  "speed": "<=40mph",
+  "video_duration_ms": 11633.333,
+  "objects": [
+    {
+      "description": "vehicle",
+      "start_time_ms": 1000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 748,
+        "y": 210
+      },
+      "polygon": [],
+      "x_min": 734.2379760742188,
+      "y_min": 200.82647705078125,
+      "x_max": 761.7776489257812,
+      "y_max": 220.28533935546875,
+      "width": 27.5396728515625,
+      "height": 19.4588623046875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 1000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left lane ahead",
+      "center": {
+        "x": 530,
+        "y": 207
+      },
+      "polygon": [],
+      "x_min": 502.35540771484375,
+      "y_min": 190.34320068359375,
+      "x_max": 557.9954223632812,
+      "y_max": 225.63818359375,
+      "width": 55.6400146484375,
+      "height": 35.29498291015625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 1000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 606,
+        "y": 203
+      },
+      "polygon": [],
+      "x_min": 592.5885009765625,
+      "y_min": 195.35598754882812,
+      "x_max": 620.1290283203125,
+      "y_max": 211.85769653320312,
+      "width": 27.54052734375,
+      "height": 16.501708984375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 1000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 694,
+        "y": 201
+      },
+      "polygon": [],
+      "x_min": 680.1226196289062,
+      "y_min": 193.2030029296875,
+      "x_max": 709.3828735351562,
+      "y_max": 210.46072387695312,
+      "width": 29.26025390625,
+      "height": 17.257720947265625
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 1000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 1060,
+        "y": 494
+      },
+      "polygon": [
+        {
+          "x": 853.0,
+          "y": 458.0
+        },
+        {
+          "x": 921.0,
+          "y": 557.0
+        },
+        {
+          "x": 859.0,
+          "y": 565.0
+        },
+        {
+          "x": 976.0,
+          "y": 610.0
+        },
+        {
+          "x": 1041.0,
+          "y": 592.0
+        },
+        {
+          "x": 968.0,
+          "y": 568.0
+        },
+        {
+          "x": 1164.0,
+          "y": 525.0
+        },
+        {
+          "x": 960.0,
+          "y": 556.0
+        },
+        {
+          "x": 1171.0,
+          "y": 513.0
+        },
+        {
+          "x": 1102.0,
+          "y": 570.0
+        },
+        {
+          "x": 1186.0,
+          "y": 558.0
+        },
+        {
+          "x": 1050.0,
+          "y": 602.0
+        },
+        {
+          "x": 1140.0,
+          "y": 628.0
+        },
+        {
+          "x": 1266.0,
+          "y": 536.0
+        },
+        {
+          "x": 961.0,
+          "y": 360.0
+        },
+        {
+          "x": 1169.0,
+          "y": 514.0
+        },
+        {
+          "x": 956.0,
+          "y": 554.0
+        }
+      ],
+      "x_min": 853.0,
+      "y_min": 360.0,
+      "x_max": 1267.0,
+      "y_max": 629.0,
+      "width": 414.0,
+      "height": 269.0
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 1000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 711,
+        "y": 479
+      },
+      "polygon": [
+        {
+          "x": 790.0,
+          "y": 467.0
+        },
+        {
+          "x": 747.0,
+          "y": 505.0
+        },
+        {
+          "x": 680.0,
+          "y": 502.0
+        },
+        {
+          "x": 650.0,
+          "y": 494.0
+        },
+        {
+          "x": 632.0,
+          "y": 482.0
+        },
+        {
+          "x": 646.0,
+          "y": 453.0
+        }
+      ],
+      "x_min": 632.0,
+      "y_min": 453.0,
+      "x_max": 791.0,
+      "y_max": 506.0,
+      "width": 159.0,
+      "height": 53.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 1000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 334,
+        "y": 641
+      },
+      "polygon": [
+        {
+          "x": 284.0,
+          "y": 630.0
+        },
+        {
+          "x": 284.0,
+          "y": 639.0
+        },
+        {
+          "x": 310.0,
+          "y": 640.0
+        },
+        {
+          "x": 383.0,
+          "y": 653.0
+        },
+        {
+          "x": 377.0,
+          "y": 649.0
+        },
+        {
+          "x": 383.0,
+          "y": 649.0
+        },
+        {
+          "x": 378.0,
+          "y": 646.0
+        },
+        {
+          "x": 382.0,
+          "y": 644.0
+        },
+        {
+          "x": 368.0,
+          "y": 639.0
+        },
+        {
+          "x": 306.0,
+          "y": 629.0
+        }
+      ],
+      "x_min": 284.0,
+      "y_min": 628.0,
+      "x_max": 384.0,
+      "y_max": 654.0,
+      "width": 100.0,
+      "height": 26.0
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 1000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 598,
+        "y": 647
+      },
+      "polygon": [
+        {
+          "x": 550.0,
+          "y": 638.0
+        },
+        {
+          "x": 552.0,
+          "y": 658.0
+        },
+        {
+          "x": 646.0,
+          "y": 658.0
+        },
+        {
+          "x": 646.0,
+          "y": 646.0
+        },
+        {
+          "x": 626.0,
+          "y": 645.0
+        },
+        {
+          "x": 625.0,
+          "y": 642.0
+        },
+        {
+          "x": 621.0,
+          "y": 646.0
+        },
+        {
+          "x": 569.0,
+          "y": 642.0
+        },
+        {
+          "x": 571.0,
+          "y": 639.0
+        }
+      ],
+      "x_min": 550.0,
+      "y_min": 636.0,
+      "x_max": 647.0,
+      "y_max": 659.0,
+      "width": 97.0,
+      "height": 23.0
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 1000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 583,
+        "y": 489
+      },
+      "polygon": [
+        {
+          "x": 623.0,
+          "y": 484.0
+        },
+        {
+          "x": 617.0,
+          "y": 497.0
+        },
+        {
+          "x": 542.0,
+          "y": 492.0
+        },
+        {
+          "x": 542.0,
+          "y": 483.0
+        },
+        {
+          "x": 546.0,
+          "y": 481.0
+        }
+      ],
+      "x_min": 542.0,
+      "y_min": 481.0,
+      "x_max": 624.0,
+      "y_max": 498.0,
+      "width": 82.0,
+      "height": 17.0
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 2000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 732,
+        "y": 212
+      },
+      "polygon": [],
+      "x_min": 718.4412231445312,
+      "y_min": 203.3211669921875,
+      "x_max": 745.6532592773438,
+      "y_max": 222.51611328125,
+      "width": 27.2120361328125,
+      "height": 19.1949462890625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 2000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 529,
+        "y": 212
+      },
+      "polygon": [],
+      "x_min": 506.68316650390625,
+      "y_min": 198.07717895507812,
+      "x_max": 552.4743041992188,
+      "y_max": 225.99209594726562,
+      "width": 45.7911376953125,
+      "height": 27.9149169921875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 2000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 663,
+        "y": 208
+      },
+      "polygon": [],
+      "x_min": 649.136474609375,
+      "y_min": 199.24221801757812,
+      "x_max": 678.0478515625,
+      "y_max": 217.56216430664062,
+      "width": 28.911376953125,
+      "height": 18.3199462890625
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 2000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "left side oncoming lane",
+      "center": {
+        "x": 296,
+        "y": 241
+      },
+      "polygon": [],
+      "x_min": 213.7408447265625,
+      "y_min": 194.9521942138672,
+      "x_max": 380.01318359375,
+      "y_max": 288.33441162109375,
+      "width": 166.2723388671875,
+      "height": 93.38221740722656
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 2000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 586,
+        "y": 207
+      },
+      "polygon": [],
+      "x_min": 574.4617919921875,
+      "y_min": 199.67794799804688,
+      "x_max": 598.3895263671875,
+      "y_max": 214.98141479492188,
+      "width": 23.927734375,
+      "height": 15.303466796875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 2000.0,
+      "distance": "very_far",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 631,
+        "y": 204
+      },
+      "polygon": [],
+      "x_min": 623.52587890625,
+      "y_min": 200.6920166015625,
+      "x_max": 639.366943359375,
+      "y_max": 209.2852783203125,
+      "width": 15.841064453125,
+      "height": 8.59326171875
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 2000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 704,
+        "y": 487
+      },
+      "polygon": [
+        {
+          "x": 753.0,
+          "y": 498.0
+        },
+        {
+          "x": 736.0,
+          "y": 521.0
+        },
+        {
+          "x": 672.0,
+          "y": 500.0
+        },
+        {
+          "x": 654.0,
+          "y": 485.0
+        },
+        {
+          "x": 657.0,
+          "y": 455.0
+        },
+        {
+          "x": 669.0,
+          "y": 453.0
+        }
+      ],
+      "x_min": 654.0,
+      "y_min": 453.0,
+      "x_max": 754.0,
+      "y_max": 522.0,
+      "width": 100.0,
+      "height": 69.0
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 3000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane far ahead",
+      "center": {
+        "x": 721,
+        "y": 213
+      },
+      "polygon": [],
+      "x_min": 707.5908203125,
+      "y_min": 204.00889587402344,
+      "x_max": 735.505615234375,
+      "y_max": 222.22764587402344,
+      "width": 27.914794921875,
+      "height": 18.21875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 3000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane far ahead",
+      "center": {
+        "x": 648,
+        "y": 209
+      },
+      "polygon": [],
+      "x_min": 631.886474609375,
+      "y_min": 198.1808319091797,
+      "x_max": 665.28515625,
+      "y_max": 221.58616638183594,
+      "width": 33.398681640625,
+      "height": 23.40533447265625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 3000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane far ahead",
+      "center": {
+        "x": 532,
+        "y": 211
+      },
+      "polygon": [],
+      "x_min": 512.428466796875,
+      "y_min": 199.3746795654297,
+      "x_max": 552.5611572265625,
+      "y_max": 222.9585418701172,
+      "width": 40.1326904296875,
+      "height": 23.5838623046875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 3000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "left lane oncoming traffic",
+      "center": {
+        "x": 376,
+        "y": 230
+      },
+      "polygon": [],
+      "x_min": 322.869873046875,
+      "y_min": 200.843017578125,
+      "x_max": 431.0196533203125,
+      "y_max": 259.6522521972656,
+      "width": 108.1497802734375,
+      "height": 58.809234619140625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 3000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane far ahead",
+      "center": {
+        "x": 568,
+        "y": 206
+      },
+      "polygon": [],
+      "x_min": 553.380859375,
+      "y_min": 195.58355712890625,
+      "x_max": 583.3291015625,
+      "y_max": 216.95440673828125,
+      "width": 29.9482421875,
+      "height": 21.370849609375
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 3000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "left lane oncoming traffic",
+      "center": {
+        "x": 376,
+        "y": 229
+      },
+      "polygon": [],
+      "x_min": 322.95245361328125,
+      "y_min": 199.84060668945312,
+      "x_max": 430.58758544921875,
+      "y_max": 259.2018737792969,
+      "width": 107.6351318359375,
+      "height": 59.36126708984375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 3000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane far ahead",
+      "center": {
+        "x": 609,
+        "y": 206
+      },
+      "polygon": [],
+      "x_min": 601.288818359375,
+      "y_min": 201.49835205078125,
+      "x_max": 617.982177734375,
+      "y_max": 210.6856689453125,
+      "width": 16.693359375,
+      "height": 9.18731689453125
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 3000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 611,
+        "y": 492
+      },
+      "polygon": [
+        {
+          "x": 641.0,
+          "y": 503.0
+        },
+        {
+          "x": 587.0,
+          "y": 494.0
+        },
+        {
+          "x": 580.0,
+          "y": 487.0
+        },
+        {
+          "x": 589.0,
+          "y": 480.0
+        },
+        {
+          "x": 631.0,
+          "y": 490.0
+        }
+      ],
+      "x_min": 580.0,
+      "y_min": 480.0,
+      "x_max": 642.0,
+      "y_max": 504.0,
+      "width": 62.0,
+      "height": 24.0
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 4000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "left lane ahead",
+      "center": {
+        "x": 432,
+        "y": 226
+      },
+      "polygon": [],
+      "x_min": 389.7103271484375,
+      "y_min": 203.10446166992188,
+      "x_max": 475.4735107421875,
+      "y_max": 250.28436279296875,
+      "width": 85.76318359375,
+      "height": 47.179901123046875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 4000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "right lane ahead",
+      "center": {
+        "x": 730,
+        "y": 213
+      },
+      "polygon": [],
+      "x_min": 716.8017578125,
+      "y_min": 203.79701232910156,
+      "x_max": 744.810546875,
+      "y_max": 223.1697235107422,
+      "width": 28.0087890625,
+      "height": 19.372711181640625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 4000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 658,
+        "y": 213
+      },
+      "polygon": [],
+      "x_min": 636.8094482421875,
+      "y_min": 197.65069580078125,
+      "x_max": 679.314208984375,
+      "y_max": 228.43017578125,
+      "width": 42.5047607421875,
+      "height": 30.77947998046875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 4000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center-left lane ahead",
+      "center": {
+        "x": 533,
+        "y": 212
+      },
+      "polygon": [],
+      "x_min": 511.87042236328125,
+      "y_min": 197.604736328125,
+      "x_max": 555.6998901367188,
+      "y_max": 227.51119995117188,
+      "width": 43.8294677734375,
+      "height": 29.906463623046875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 4000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 609,
+        "y": 208
+      },
+      "polygon": [],
+      "x_min": 600.7822875976562,
+      "y_min": 203.42440795898438,
+      "x_max": 617.4143676757812,
+      "y_max": 214.03610229492188,
+      "width": 16.632080078125,
+      "height": 10.6116943359375
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 4000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 472,
+        "y": 439
+      },
+      "polygon": [
+        {
+          "x": 589.0,
+          "y": 360.0
+        },
+        {
+          "x": 501.0,
+          "y": 360.0
+        },
+        {
+          "x": 356.0,
+          "y": 517.0
+        },
+        {
+          "x": 409.0,
+          "y": 474.0
+        },
+        {
+          "x": 430.0,
+          "y": 472.0
+        },
+        {
+          "x": 429.0,
+          "y": 492.0
+        },
+        {
+          "x": 453.0,
+          "y": 474.0
+        },
+        {
+          "x": 433.0,
+          "y": 467.0
+        },
+        {
+          "x": 442.0,
+          "y": 451.0
+        },
+        {
+          "x": 479.0,
+          "y": 452.0
+        },
+        {
+          "x": 469.0,
+          "y": 441.0
+        },
+        {
+          "x": 499.0,
+          "y": 399.0
+        },
+        {
+          "x": 526.0,
+          "y": 400.0
+        },
+        {
+          "x": 537.0,
+          "y": 374.0
+        },
+        {
+          "x": 557.0,
+          "y": 380.0
+        }
+      ],
+      "x_min": 355.0,
+      "y_min": 360.0,
+      "x_max": 590.0,
+      "y_max": 518.0,
+      "width": 235.0,
+      "height": 158.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 4000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 87,
+        "y": 389
+      },
+      "polygon": [
+        {
+          "x": 157.0,
+          "y": 360.0
+        },
+        {
+          "x": 94.0,
+          "y": 360.0
+        },
+        {
+          "x": 70.0,
+          "y": 389.0
+        },
+        {
+          "x": 52.0,
+          "y": 393.0
+        },
+        {
+          "x": 35.0,
+          "y": 403.0
+        },
+        {
+          "x": 32.0,
+          "y": 412.0
+        },
+        {
+          "x": 17.0,
+          "y": 416.0
+        },
+        {
+          "x": 110.0,
+          "y": 373.0
+        },
+        {
+          "x": 115.0,
+          "y": 376.0
+        }
+      ],
+      "x_min": 17.0,
+      "y_min": 360.0,
+      "x_max": 158.0,
+      "y_max": 418.0,
+      "width": 141.0,
+      "height": 58.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 4000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 1017,
+        "y": 614
+      },
+      "polygon": [
+        {
+          "x": 1060.0,
+          "y": 647.0
+        },
+        {
+          "x": 1032.0,
+          "y": 653.0
+        },
+        {
+          "x": 974.0,
+          "y": 648.0
+        },
+        {
+          "x": 970.0,
+          "y": 607.0
+        },
+        {
+          "x": 974.0,
+          "y": 583.0
+        },
+        {
+          "x": 1021.0,
+          "y": 575.0
+        },
+        {
+          "x": 1063.0,
+          "y": 630.0
+        }
+      ],
+      "x_min": 970.0,
+      "y_min": 575.0,
+      "x_max": 1064.0,
+      "y_max": 654.0,
+      "width": 94.0,
+      "height": 79.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 4000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 333,
+        "y": 641
+      },
+      "polygon": [
+        {
+          "x": 284.0,
+          "y": 638.0
+        },
+        {
+          "x": 383.0,
+          "y": 653.0
+        },
+        {
+          "x": 380.0,
+          "y": 650.0
+        },
+        {
+          "x": 383.0,
+          "y": 644.0
+        },
+        {
+          "x": 348.0,
+          "y": 635.0
+        },
+        {
+          "x": 285.0,
+          "y": 628.0
+        }
+      ],
+      "x_min": 283.0,
+      "y_min": 628.0,
+      "x_max": 384.0,
+      "y_max": 654.0,
+      "width": 101.0,
+      "height": 26.0
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 4000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 603,
+        "y": 648
+      },
+      "polygon": [
+        {
+          "x": 552.0,
+          "y": 658.0
+        },
+        {
+          "x": 646.0,
+          "y": 658.0
+        },
+        {
+          "x": 645.0,
+          "y": 642.0
+        },
+        {
+          "x": 653.0,
+          "y": 640.0
+        },
+        {
+          "x": 587.0,
+          "y": 642.0
+        },
+        {
+          "x": 586.0,
+          "y": 638.0
+        },
+        {
+          "x": 552.0,
+          "y": 638.0
+        }
+      ],
+      "x_min": 552.0,
+      "y_min": 638.0,
+      "x_max": 654.0,
+      "y_max": 659.0,
+      "width": 102.0,
+      "height": 21.0
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 5000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "left lane oncoming",
+      "center": {
+        "x": 461,
+        "y": 233
+      },
+      "polygon": [],
+      "x_min": 414.90887451171875,
+      "y_min": 207.3302001953125,
+      "x_max": 507.9881591796875,
+      "y_max": 259.4000244140625,
+      "width": 93.07928466796875,
+      "height": 52.06982421875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 5000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "right side distant",
+      "center": {
+        "x": 770,
+        "y": 220
+      },
+      "polygon": [],
+      "x_min": 756.8942260742188,
+      "y_min": 210.28041076660156,
+      "x_max": 783.1337280273438,
+      "y_max": 230.3788299560547,
+      "width": 26.239501953125,
+      "height": 20.098419189453125
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 5000.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 697,
+        "y": 222
+      },
+      "polygon": [],
+      "x_min": 672.0302734375,
+      "y_min": 203.78402709960938,
+      "x_max": 722.5408935546875,
+      "y_max": 241.04415893554688,
+      "width": 50.5106201171875,
+      "height": 37.2601318359375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 5000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center ahead at intersection",
+      "center": {
+        "x": 631,
+        "y": 213
+      },
+      "polygon": [],
+      "x_min": 621.3308715820312,
+      "y_min": 207.468505859375,
+      "x_max": 640.6978149414062,
+      "y_max": 220.454833984375,
+      "width": 19.366943359375,
+      "height": 12.986328125
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 5000.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "right side distant",
+      "center": {
+        "x": 898,
+        "y": 222
+      },
+      "polygon": [],
+      "x_min": 886.326416015625,
+      "y_min": 215.70875549316406,
+      "x_max": 911.1644287109375,
+      "y_max": 228.6921844482422,
+      "width": 24.8380126953125,
+      "height": 12.983428955078125
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 5000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 134,
+        "y": 402
+      },
+      "polygon": [
+        {
+          "x": 224.0,
+          "y": 360.0
+        },
+        {
+          "x": 176.0,
+          "y": 360.0
+        },
+        {
+          "x": 125.0,
+          "y": 390.0
+        },
+        {
+          "x": 110.0,
+          "y": 386.0
+        },
+        {
+          "x": 80.0,
+          "y": 407.0
+        },
+        {
+          "x": 86.0,
+          "y": 411.0
+        },
+        {
+          "x": 47.0,
+          "y": 430.0
+        },
+        {
+          "x": 43.0,
+          "y": 443.0
+        }
+      ],
+      "x_min": 43.0,
+      "y_min": 360.0,
+      "x_max": 225.0,
+      "y_max": 445.0,
+      "width": 182.0,
+      "height": 85.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 5000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 28,
+        "y": 421
+      },
+      "polygon": [
+        {
+          "x": 55.0,
+          "y": 376.0
+        },
+        {
+          "x": 33.0,
+          "y": 449.0
+        },
+        {
+          "x": 2.0,
+          "y": 465.0
+        },
+        {
+          "x": 21.0,
+          "y": 392.0
+        },
+        {
+          "x": 48.0,
+          "y": 376.0
+        }
+      ],
+      "x_min": 1.0,
+      "y_min": 376.0,
+      "x_max": 56.0,
+      "y_max": 466.0,
+      "width": 55.0,
+      "height": 90.0
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 5000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 609,
+        "y": 646
+      },
+      "polygon": [
+        {
+          "x": 667.0,
+          "y": 647.0
+        },
+        {
+          "x": 664.0,
+          "y": 658.0
+        },
+        {
+          "x": 552.0,
+          "y": 658.0
+        },
+        {
+          "x": 551.0,
+          "y": 639.0
+        },
+        {
+          "x": 570.0,
+          "y": 633.0
+        },
+        {
+          "x": 665.0,
+          "y": 642.0
+        }
+      ],
+      "x_min": 551.0,
+      "y_min": 633.0,
+      "x_max": 668.0,
+      "y_max": 659.0,
+      "width": 117.0,
+      "height": 26.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 5000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 1019,
+        "y": 637
+      },
+      "polygon": [
+        {
+          "x": 975.0,
+          "y": 646.0
+        },
+        {
+          "x": 994.0,
+          "y": 647.0
+        },
+        {
+          "x": 996.0,
+          "y": 638.0
+        },
+        {
+          "x": 998.0,
+          "y": 644.0
+        },
+        {
+          "x": 1006.0,
+          "y": 644.0
+        },
+        {
+          "x": 1006.0,
+          "y": 650.0
+        },
+        {
+          "x": 1032.0,
+          "y": 653.0
+        },
+        {
+          "x": 1027.0,
+          "y": 649.0
+        },
+        {
+          "x": 1040.0,
+          "y": 642.0
+        },
+        {
+          "x": 1040.0,
+          "y": 652.0
+        },
+        {
+          "x": 1056.0,
+          "y": 650.0
+        },
+        {
+          "x": 1063.0,
+          "y": 632.0
+        },
+        {
+          "x": 1059.0,
+          "y": 640.0
+        },
+        {
+          "x": 1016.0,
+          "y": 645.0
+        },
+        {
+          "x": 1012.0,
+          "y": 639.0
+        },
+        {
+          "x": 1015.0,
+          "y": 621.0
+        },
+        {
+          "x": 1007.0,
+          "y": 630.0
+        }
+      ],
+      "x_min": 975.0,
+      "y_min": 621.0,
+      "x_max": 1064.0,
+      "y_max": 654.0,
+      "width": 89.0,
+      "height": 33.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 5000.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 333,
+        "y": 641
+      },
+      "polygon": [
+        {
+          "x": 284.0,
+          "y": 630.0
+        },
+        {
+          "x": 284.0,
+          "y": 639.0
+        },
+        {
+          "x": 318.0,
+          "y": 641.0
+        },
+        {
+          "x": 383.0,
+          "y": 654.0
+        },
+        {
+          "x": 379.0,
+          "y": 650.0
+        },
+        {
+          "x": 383.0,
+          "y": 649.0
+        },
+        {
+          "x": 382.0,
+          "y": 644.0
+        },
+        {
+          "x": 363.0,
+          "y": 638.0
+        },
+        {
+          "x": 307.0,
+          "y": 629.0
+        }
+      ],
+      "x_min": 283.0,
+      "y_min": 628.0,
+      "x_max": 384.0,
+      "y_max": 655.0,
+      "width": 101.0,
+      "height": 27.0
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 6500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left lane ahead at intersection",
+      "center": {
+        "x": 644,
+        "y": 219
+      },
+      "polygon": [],
+      "x_min": 630.0494384765625,
+      "y_min": 209.52484130859375,
+      "x_max": 659.2440185546875,
+      "y_max": 229.05487060546875,
+      "width": 29.194580078125,
+      "height": 19.530029296875
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 6500.0,
+      "distance": "close",
+      "priority": "none",
+      "location_description": "center lane directly ahead",
+      "center": {
+        "x": 770,
+        "y": 233
+      },
+      "polygon": [],
+      "x_min": 729.6101684570312,
+      "y_min": 205.68231201171875,
+      "x_max": 810.5134887695312,
+      "y_max": 262.15069580078125,
+      "width": 80.9033203125,
+      "height": 56.4683837890625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 6500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "right side parked or stationary",
+      "center": {
+        "x": 864,
+        "y": 225
+      },
+      "polygon": [],
+      "x_min": 849.5586547851562,
+      "y_min": 215.34921264648438,
+      "x_max": 878.6583862304688,
+      "y_max": 236.17666625976562,
+      "width": 29.0997314453125,
+      "height": 20.82745361328125
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 6500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "oncoming lane ahead",
+      "center": {
+        "x": 686,
+        "y": 218
+      },
+      "polygon": [],
+      "x_min": 676.497802734375,
+      "y_min": 213.14694213867188,
+      "x_max": 695.970458984375,
+      "y_max": 224.52090454101562,
+      "width": 19.47265625,
+      "height": 11.37396240234375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 6500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right lane ahead",
+      "center": {
+        "x": 966,
+        "y": 229
+      },
+      "polygon": [],
+      "x_min": 947.8470458984375,
+      "y_min": 221.43255615234375,
+      "x_max": 985.1673583984375,
+      "y_max": 236.771728515625,
+      "width": 37.3203125,
+      "height": 15.33917236328125
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 6500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 601,
+        "y": 152
+      },
+      "polygon": [],
+      "x_min": 598.212158203125,
+      "y_min": 143.876708984375,
+      "x_max": 603.84228515625,
+      "y_max": 161.63739013671875,
+      "width": 5.630126953125,
+      "height": 17.76068115234375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 6500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "right side distant",
+      "center": {
+        "x": 1078,
+        "y": 237
+      },
+      "polygon": [],
+      "x_min": 1058.138671875,
+      "y_min": 232.26156616210938,
+      "x_max": 1098.466552734375,
+      "y_max": 242.90573120117188,
+      "width": 40.327880859375,
+      "height": 10.6441650390625
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 6500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 718,
+        "y": 156
+      },
+      "polygon": [],
+      "x_min": 714.5284423828125,
+      "y_min": 145.33743286132812,
+      "x_max": 722.87060546875,
+      "y_max": 166.67684936523438,
+      "width": 8.3421630859375,
+      "height": 21.33941650390625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 6500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right lane ahead",
+      "center": {
+        "x": 1013,
+        "y": 233
+      },
+      "polygon": [],
+      "x_min": 983.943603515625,
+      "y_min": 225.36917114257812,
+      "x_max": 1043.833984375,
+      "y_max": 242.10653686523438,
+      "width": 59.890380859375,
+      "height": 16.73736572265625
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 6500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 241,
+        "y": 441
+      },
+      "polygon": [
+        {
+          "x": 337.0,
+          "y": 389.0
+        },
+        {
+          "x": 339.0,
+          "y": 417.0
+        },
+        {
+          "x": 307.0,
+          "y": 437.0
+        },
+        {
+          "x": 161.0,
+          "y": 501.0
+        },
+        {
+          "x": 142.0,
+          "y": 475.0
+        },
+        {
+          "x": 159.0,
+          "y": 449.0
+        },
+        {
+          "x": 267.0,
+          "y": 380.0
+        }
+      ],
+      "x_min": 142.0,
+      "y_min": 380.0,
+      "x_max": 340.0,
+      "y_max": 502.0,
+      "width": 198.0,
+      "height": 122.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 6500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 368,
+        "y": 517
+      },
+      "polygon": [
+        {
+          "x": 357.0,
+          "y": 516.0
+        },
+        {
+          "x": 357.0,
+          "y": 519.0
+        },
+        {
+          "x": 362.0,
+          "y": 520.0
+        },
+        {
+          "x": 364.0,
+          "y": 519.0
+        },
+        {
+          "x": 365.0,
+          "y": 520.0
+        },
+        {
+          "x": 364.0,
+          "y": 521.0
+        },
+        {
+          "x": 367.0,
+          "y": 519.0
+        },
+        {
+          "x": 365.0,
+          "y": 518.0
+        },
+        {
+          "x": 365.0,
+          "y": 516.0
+        },
+        {
+          "x": 368.0,
+          "y": 513.0
+        },
+        {
+          "x": 369.0,
+          "y": 516.0
+        },
+        {
+          "x": 371.0,
+          "y": 517.0
+        },
+        {
+          "x": 372.0,
+          "y": 521.0
+        },
+        {
+          "x": 375.0,
+          "y": 522.0
+        },
+        {
+          "x": 376.0,
+          "y": 524.0
+        },
+        {
+          "x": 379.0,
+          "y": 523.0
+        },
+        {
+          "x": 378.0,
+          "y": 522.0
+        },
+        {
+          "x": 379.0,
+          "y": 518.0
+        },
+        {
+          "x": 374.0,
+          "y": 514.0
+        },
+        {
+          "x": 375.0,
+          "y": 511.0
+        },
+        {
+          "x": 373.0,
+          "y": 509.0
+        },
+        {
+          "x": 371.0,
+          "y": 510.0
+        },
+        {
+          "x": 370.0,
+          "y": 509.0
+        },
+        {
+          "x": 367.0,
+          "y": 512.0
+        }
+      ],
+      "x_min": 357.0,
+      "y_min": 509.0,
+      "x_max": 380.0,
+      "y_max": 525.0,
+      "width": 23.0,
+      "height": 16.0
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 7500.0,
+      "distance": "close",
+      "priority": "none",
+      "location_description": "center lane ahead",
+      "center": {
+        "x": 791,
+        "y": 245
+      },
+      "polygon": [],
+      "x_min": 738.2928466796875,
+      "y_min": 207.51290893554688,
+      "x_max": 844.4876708984375,
+      "y_max": 283.1681823730469,
+      "width": 106.19482421875,
+      "height": 75.6552734375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 7500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left lane ahead at intersection",
+      "center": {
+        "x": 595,
+        "y": 225
+      },
+      "polygon": [],
+      "x_min": 572.611328125,
+      "y_min": 211.12118530273438,
+      "x_max": 618.7646484375,
+      "y_max": 240.34286499023438,
+      "width": 46.1533203125,
+      "height": 29.2216796875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 7500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead at intersection",
+      "center": {
+        "x": 661,
+        "y": 223
+      },
+      "polygon": [],
+      "x_min": 650.5760498046875,
+      "y_min": 218.55169677734375,
+      "x_max": 673.3597412109375,
+      "y_max": 228.8514404296875,
+      "width": 22.78369140625,
+      "height": 10.29974365234375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 7500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center lane ahead at intersection",
+      "center": {
+        "x": 719,
+        "y": 223
+      },
+      "polygon": [],
+      "x_min": 707.3160400390625,
+      "y_min": 213.63900756835938,
+      "x_max": 731.9681396484375,
+      "y_max": 233.98269653320312,
+      "width": 24.652099609375,
+      "height": 20.34368896484375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 7500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right side parked",
+      "center": {
+        "x": 1097,
+        "y": 248
+      },
+      "polygon": [],
+      "x_min": 1074.377685546875,
+      "y_min": 240.124267578125,
+      "x_max": 1121.444091796875,
+      "y_max": 256.78387451171875,
+      "width": 47.06640625,
+      "height": 16.65960693359375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 7500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center lane ahead approaching intersection",
+      "center": {
+        "x": 737,
+        "y": 231
+      },
+      "polygon": [],
+      "x_min": 722.30908203125,
+      "y_min": 214.29458618164062,
+      "x_max": 752.774169921875,
+      "y_max": 249.39920043945312,
+      "width": 30.465087890625,
+      "height": 35.1046142578125
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 7500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right lane ahead",
+      "center": {
+        "x": 1036,
+        "y": 241
+      },
+      "polygon": [],
+      "x_min": 1007.422119140625,
+      "y_min": 231.22019958496094,
+      "x_max": 1065.876220703125,
+      "y_max": 251.4986572265625,
+      "width": 58.4541015625,
+      "height": 20.278457641601562
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 7500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right lane ahead",
+      "center": {
+        "x": 985,
+        "y": 236
+      },
+      "polygon": [],
+      "x_min": 969.2098388671875,
+      "y_min": 226.30580139160156,
+      "x_max": 1001.7510986328125,
+      "y_max": 246.327880859375,
+      "width": 32.541259765625,
+      "height": 20.022079467773438
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 7500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 634,
+        "y": 143
+      },
+      "polygon": [],
+      "x_min": 631.1168212890625,
+      "y_min": 133.06788635253906,
+      "x_max": 638.8416748046875,
+      "y_max": 153.88548278808594,
+      "width": 7.724853515625,
+      "height": 20.817596435546875
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 7500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 565,
+        "y": 144
+      },
+      "polygon": [],
+      "x_min": 561.5157470703125,
+      "y_min": 133.45082092285156,
+      "x_max": 569.4925537109375,
+      "y_max": 154.6159210205078,
+      "width": 7.976806640625,
+      "height": 21.16510009765625
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 7500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 375,
+        "y": 395
+      },
+      "polygon": [
+        {
+          "x": 278.0,
+          "y": 404.0
+        },
+        {
+          "x": 358.0,
+          "y": 360.0
+        },
+        {
+          "x": 471.0,
+          "y": 360.0
+        },
+        {
+          "x": 401.0,
+          "y": 423.0
+        },
+        {
+          "x": 387.0,
+          "y": 428.0
+        },
+        {
+          "x": 349.0,
+          "y": 429.0
+        }
+      ],
+      "x_min": 278.0,
+      "y_min": 360.0,
+      "x_max": 472.0,
+      "y_max": 430.0,
+      "width": 194.0,
+      "height": 70.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 7500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 88,
+        "y": 397
+      },
+      "polygon": [
+        {
+          "x": 175.0,
+          "y": 360.0
+        },
+        {
+          "x": 92.0,
+          "y": 389.0
+        },
+        {
+          "x": 0.0,
+          "y": 433.0
+        }
+      ],
+      "x_min": 0.0,
+      "y_min": 360.0,
+      "x_max": 176.0,
+      "y_max": 434.0,
+      "width": 176.0,
+      "height": 74.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 7500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 225,
+        "y": 385
+      },
+      "polygon": [
+        {
+          "x": 295.0,
+          "y": 360.0
+        },
+        {
+          "x": 224.0,
+          "y": 364.0
+        },
+        {
+          "x": 200.0,
+          "y": 380.0
+        },
+        {
+          "x": 187.0,
+          "y": 382.0
+        },
+        {
+          "x": 180.0,
+          "y": 394.0
+        },
+        {
+          "x": 168.0,
+          "y": 391.0
+        },
+        {
+          "x": 154.0,
+          "y": 402.0
+        },
+        {
+          "x": 164.0,
+          "y": 409.0
+        },
+        {
+          "x": 175.0,
+          "y": 407.0
+        },
+        {
+          "x": 182.0,
+          "y": 399.0
+        }
+      ],
+      "x_min": 154.0,
+      "y_min": 360.0,
+      "x_max": 296.0,
+      "y_max": 410.0,
+      "width": 142.0,
+      "height": 50.0
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 7500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 700,
+        "y": 506
+      },
+      "polygon": [
+        {
+          "x": 752.0,
+          "y": 495.0
+        },
+        {
+          "x": 743.0,
+          "y": 511.0
+        },
+        {
+          "x": 727.0,
+          "y": 525.0
+        },
+        {
+          "x": 660.0,
+          "y": 511.0
+        },
+        {
+          "x": 648.0,
+          "y": 499.0
+        },
+        {
+          "x": 651.0,
+          "y": 494.0
+        },
+        {
+          "x": 748.0,
+          "y": 487.0
+        }
+      ],
+      "x_min": 648.0,
+      "y_min": 486.0,
+      "x_max": 753.0,
+      "y_max": 526.0,
+      "width": 105.0,
+      "height": 40.0
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 8500.0,
+      "distance": "close",
+      "priority": "none",
+      "location_description": "left lane ahead oncoming",
+      "center": {
+        "x": 473,
+        "y": 243
+      },
+      "polygon": [],
+      "x_min": 420.95172119140625,
+      "y_min": 213.3758544921875,
+      "x_max": 526.367919921875,
+      "y_max": 273.509765625,
+      "width": 105.41619873046875,
+      "height": 60.1339111328125
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 8500.0,
+      "distance": "close",
+      "priority": "none",
+      "location_description": "right lane ahead at intersection",
+      "center": {
+        "x": 800,
+        "y": 255
+      },
+      "polygon": [],
+      "x_min": 725.9637451171875,
+      "y_min": 206.45448303222656,
+      "x_max": 875.3897705078125,
+      "y_max": 303.5726318359375,
+      "width": 149.426025390625,
+      "height": 97.11814880371094
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 8500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center ahead at intersection",
+      "center": {
+        "x": 725,
+        "y": 233
+      },
+      "polygon": [],
+      "x_min": 701.6835327148438,
+      "y_min": 214.04159545898438,
+      "x_max": 748.7609252929688,
+      "y_max": 252.66824340820312,
+      "width": 47.077392578125,
+      "height": 38.62664794921875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 8500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "right side parked",
+      "center": {
+        "x": 994,
+        "y": 238
+      },
+      "polygon": [],
+      "x_min": 971.5523681640625,
+      "y_min": 228.1996307373047,
+      "x_max": 1017.7425537109375,
+      "y_max": 248.81671142578125,
+      "width": 46.190185546875,
+      "height": 20.617080688476562
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 8500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center ahead at intersection",
+      "center": {
+        "x": 631,
+        "y": 223
+      },
+      "polygon": [],
+      "x_min": 618.277587890625,
+      "y_min": 217.9205322265625,
+      "x_max": 644.04248046875,
+      "y_max": 229.03533935546875,
+      "width": 25.764892578125,
+      "height": 11.11480712890625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 8500.0,
+      "distance": "very_far",
+      "priority": "none",
+      "location_description": "center ahead distant",
+      "center": {
+        "x": 577,
+        "y": 219
+      },
+      "polygon": [],
+      "x_min": 567.9691162109375,
+      "y_min": 213.5973663330078,
+      "x_max": 587.3045654296875,
+      "y_max": 226.02830505371094,
+      "width": 19.33544921875,
+      "height": 12.430938720703125
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 8500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 597,
+        "y": 127
+      },
+      "polygon": [],
+      "x_min": 592.795654296875,
+      "y_min": 116.6820068359375,
+      "x_max": 601.9637451171875,
+      "y_max": 139.00872802734375,
+      "width": 9.1680908203125,
+      "height": 22.32672119140625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 8500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center ahead at intersection",
+      "center": {
+        "x": 668,
+        "y": 220
+      },
+      "polygon": [],
+      "x_min": 655.2296142578125,
+      "y_min": 211.50189208984375,
+      "x_max": 680.9698486328125,
+      "y_max": 228.90081787109375,
+      "width": 25.740234375,
+      "height": 17.39892578125
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 8500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center ahead at intersection",
+      "center": {
+        "x": 695,
+        "y": 223
+      },
+      "polygon": [],
+      "x_min": 677.8138427734375,
+      "y_min": 213.63229370117188,
+      "x_max": 712.7335205078125,
+      "y_max": 233.15682983398438,
+      "width": 34.919677734375,
+      "height": 19.5245361328125
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 8500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 897,
+        "y": 491
+      },
+      "polygon": [
+        {
+          "x": 643.0,
+          "y": 360.0
+        },
+        {
+          "x": 804.0,
+          "y": 360.0
+        },
+        {
+          "x": 1155.0,
+          "y": 515.0
+        },
+        {
+          "x": 1023.0,
+          "y": 609.0
+        },
+        {
+          "x": 972.0,
+          "y": 622.0
+        },
+        {
+          "x": 672.0,
+          "y": 518.0
+        }
+      ],
+      "x_min": 638.0,
+      "y_min": 360.0,
+      "x_max": 1156.0,
+      "y_max": 623.0,
+      "width": 518.0,
+      "height": 263.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 8500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 954,
+        "y": 432
+      },
+      "polygon": [
+        {
+          "x": 818.0,
+          "y": 360.0
+        },
+        {
+          "x": 878.0,
+          "y": 414.0
+        },
+        {
+          "x": 841.0,
+          "y": 373.0
+        },
+        {
+          "x": 877.0,
+          "y": 388.0
+        },
+        {
+          "x": 888.0,
+          "y": 423.0
+        },
+        {
+          "x": 971.0,
+          "y": 502.0
+        },
+        {
+          "x": 1001.0,
+          "y": 482.0
+        },
+        {
+          "x": 959.0,
+          "y": 473.0
+        },
+        {
+          "x": 1002.0,
+          "y": 453.0
+        },
+        {
+          "x": 1090.0,
+          "y": 455.0
+        },
+        {
+          "x": 947.0,
+          "y": 361.0
+        }
+      ],
+      "x_min": 818.0,
+      "y_min": 360.0,
+      "x_max": 1091.0,
+      "y_max": 505.0,
+      "width": 273.0,
+      "height": 145.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 8500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 1125,
+        "y": 423
+      },
+      "polygon": [
+        {
+          "x": 971.0,
+          "y": 360.0
+        },
+        {
+          "x": 1124.0,
+          "y": 429.0
+        },
+        {
+          "x": 1197.0,
+          "y": 438.0
+        },
+        {
+          "x": 1279.0,
+          "y": 485.0
+        },
+        {
+          "x": 1279.0,
+          "y": 460.0
+        },
+        {
+          "x": 1260.0,
+          "y": 468.0
+        },
+        {
+          "x": 1249.0,
+          "y": 459.0
+        },
+        {
+          "x": 1260.0,
+          "y": 449.0
+        },
+        {
+          "x": 1234.0,
+          "y": 450.0
+        },
+        {
+          "x": 1261.0,
+          "y": 444.0
+        },
+        {
+          "x": 1262.0,
+          "y": 419.0
+        },
+        {
+          "x": 1279.0,
+          "y": 426.0
+        },
+        {
+          "x": 1268.0,
+          "y": 416.0
+        },
+        {
+          "x": 1279.0,
+          "y": 371.0
+        }
+      ],
+      "x_min": 971.0,
+      "y_min": 360.0,
+      "x_max": 1280.0,
+      "y_max": 486.0,
+      "width": 309.0,
+      "height": 126.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 8500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 301,
+        "y": 433
+      },
+      "polygon": [
+        {
+          "x": 194.0,
+          "y": 395.0
+        },
+        {
+          "x": 193.0,
+          "y": 383.0
+        },
+        {
+          "x": 252.0,
+          "y": 360.0
+        },
+        {
+          "x": 409.0,
+          "y": 360.0
+        },
+        {
+          "x": 387.0,
+          "y": 401.0
+        },
+        {
+          "x": 259.0,
+          "y": 506.0
+        }
+      ],
+      "x_min": 193.0,
+      "y_min": 360.0,
+      "x_max": 410.0,
+      "y_max": 507.0,
+      "width": 217.0,
+      "height": 147.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 8500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 89,
+        "y": 399
+      },
+      "polygon": [
+        {
+          "x": 0.0,
+          "y": 438.0
+        },
+        {
+          "x": 177.0,
+          "y": 361.0
+        },
+        {
+          "x": 71.0,
+          "y": 360.0
+        },
+        {
+          "x": 0.0,
+          "y": 388.0
+        },
+        {
+          "x": 0.0,
+          "y": 415.0
+        },
+        {
+          "x": 96.0,
+          "y": 389.0
+        }
+      ],
+      "x_min": 0.0,
+      "y_min": 360.0,
+      "x_max": 178.0,
+      "y_max": 439.0,
+      "width": 178.0,
+      "height": 79.0
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 9500.0,
+      "distance": "close",
+      "priority": "none",
+      "location_description": "center lane directly ahead",
+      "center": {
+        "x": 828,
+        "y": 264
+      },
+      "polygon": [],
+      "x_min": 735.0260009765625,
+      "y_min": 208.29852294921875,
+      "x_max": 921.3389892578125,
+      "y_max": 321.24212646484375,
+      "width": 186.31298828125,
+      "height": 112.943603515625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 9500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side at intersection",
+      "center": {
+        "x": 616,
+        "y": 221
+      },
+      "polygon": [],
+      "x_min": 603.0072021484375,
+      "y_min": 212.02618408203125,
+      "x_max": 630.731201171875,
+      "y_max": 230.90478515625,
+      "width": 27.7239990234375,
+      "height": 18.87860107421875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 9500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "center ahead at intersection",
+      "center": {
+        "x": 726,
+        "y": 234
+      },
+      "polygon": [],
+      "x_min": 697.0179443359375,
+      "y_min": 213.44125366210938,
+      "x_max": 756.2392578125,
+      "y_max": 255.91598510742188,
+      "width": 59.2213134765625,
+      "height": 42.4747314453125
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 9500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side at intersection",
+      "center": {
+        "x": 563,
+        "y": 219
+      },
+      "polygon": [],
+      "x_min": 552.6895751953125,
+      "y_min": 212.2972869873047,
+      "x_max": 575.0130615234375,
+      "y_max": 226.73716735839844,
+      "width": 22.323486328125,
+      "height": 14.43988037109375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 9500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "center at intersection",
+      "center": {
+        "x": 677,
+        "y": 223
+      },
+      "polygon": [],
+      "x_min": 660.279052734375,
+      "y_min": 213.82525634765625,
+      "x_max": 693.780517578125,
+      "y_max": 233.24798583984375,
+      "width": 33.50146484375,
+      "height": 19.4227294921875
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 9500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right sidewalk near intersection",
+      "center": {
+        "x": 1088,
+        "y": 262
+      },
+      "polygon": [],
+      "x_min": 1077.739501953125,
+      "y_min": 240.6827392578125,
+      "x_max": 1099.718505859375,
+      "y_max": 283.7327880859375,
+      "width": 21.97900390625,
+      "height": 43.050048828125
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 9500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right sidewalk near intersection",
+      "center": {
+        "x": 1146,
+        "y": 266
+      },
+      "polygon": [],
+      "x_min": 1139.626220703125,
+      "y_min": 247.60601806640625,
+      "x_max": 1152.503662109375,
+      "y_max": 285.43682861328125,
+      "width": 12.87744140625,
+      "height": 37.830810546875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 9500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side at intersection",
+      "center": {
+        "x": 643,
+        "y": 219
+      },
+      "polygon": [],
+      "x_min": 632.0266723632812,
+      "y_min": 211.24954223632812,
+      "x_max": 654.6406860351562,
+      "y_max": 227.75241088867188,
+      "width": 22.614013671875,
+      "height": 16.50286865234375
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 9500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 573,
+        "y": 104
+      },
+      "polygon": [],
+      "x_min": 566.99462890625,
+      "y_min": 90.77391052246094,
+      "x_max": 579.950439453125,
+      "y_max": 117.30882263183594,
+      "width": 12.955810546875,
+      "height": 26.534912109375
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 9500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 692,
+        "y": 108
+      },
+      "polygon": [],
+      "x_min": 684.1375732421875,
+      "y_min": 89.38581085205078,
+      "x_max": 699.9918212890625,
+      "y_max": 128.34295654296875,
+      "width": 15.854248046875,
+      "height": 38.95714569091797
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 9500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 911,
+        "y": 152
+      },
+      "polygon": [],
+      "x_min": 907.390625,
+      "y_min": 140.29977416992188,
+      "x_max": 916.0982666015625,
+      "y_max": 165.16265869140625,
+      "width": 8.7076416015625,
+      "height": 24.862884521484375
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 9500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left sidewalk distant",
+      "center": {
+        "x": 235,
+        "y": 249
+      },
+      "polygon": [],
+      "x_min": 229.05166625976562,
+      "y_min": 233.619873046875,
+      "x_max": 241.49954223632812,
+      "y_max": 264.776123046875,
+      "width": 12.4478759765625,
+      "height": 31.15625
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 9500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 461,
+        "y": 107
+      },
+      "polygon": [],
+      "x_min": 456.317138671875,
+      "y_min": 93.33610534667969,
+      "x_max": 467.5782470703125,
+      "y_max": 121.24696350097656,
+      "width": 11.2611083984375,
+      "height": 27.910858154296875
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 9500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 625,
+        "y": 159
+      },
+      "polygon": [],
+      "x_min": 620.2911987304688,
+      "y_min": 148.97894287109375,
+      "x_max": 630.6069946289062,
+      "y_max": 170.0863037109375,
+      "width": 10.3157958984375,
+      "height": 21.10736083984375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 9500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "right lane at intersection",
+      "center": {
+        "x": 1008,
+        "y": 243
+      },
+      "polygon": [],
+      "x_min": 991.5418701171875,
+      "y_min": 235.29495239257812,
+      "x_max": 1024.813720703125,
+      "y_max": 252.50039672851562,
+      "width": 33.2718505859375,
+      "height": 17.2054443359375
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 9500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 657,
+        "y": 449
+      },
+      "polygon": [
+        {
+          "x": 960.0,
+          "y": 538.0
+        },
+        {
+          "x": 354.0,
+          "y": 496.0
+        },
+        {
+          "x": 478.0,
+          "y": 360.0
+        },
+        {
+          "x": 798.0,
+          "y": 360.0
+        }
+      ],
+      "x_min": 354.0,
+      "y_min": 360.0,
+      "x_max": 961.0,
+      "y_max": 539.0,
+      "width": 607.0,
+      "height": 179.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 9500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 926,
+        "y": 443
+      },
+      "polygon": [
+        {
+          "x": 806.0,
+          "y": 360.0
+        },
+        {
+          "x": 979.0,
+          "y": 525.0
+        },
+        {
+          "x": 971.0,
+          "y": 501.0
+        },
+        {
+          "x": 994.0,
+          "y": 511.0
+        },
+        {
+          "x": 995.0,
+          "y": 497.0
+        },
+        {
+          "x": 968.0,
+          "y": 487.0
+        },
+        {
+          "x": 995.0,
+          "y": 481.0
+        },
+        {
+          "x": 959.0,
+          "y": 475.0
+        },
+        {
+          "x": 984.0,
+          "y": 455.0
+        },
+        {
+          "x": 968.0,
+          "y": 449.0
+        },
+        {
+          "x": 971.0,
+          "y": 422.0
+        },
+        {
+          "x": 1012.0,
+          "y": 456.0
+        },
+        {
+          "x": 1046.0,
+          "y": 458.0
+        },
+        {
+          "x": 1030.0,
+          "y": 416.0
+        },
+        {
+          "x": 960.0,
+          "y": 375.0
+        },
+        {
+          "x": 952.0,
+          "y": 387.0
+        },
+        {
+          "x": 942.0,
+          "y": 365.0
+        }
+      ],
+      "x_min": 806.0,
+      "y_min": 360.0,
+      "x_max": 1047.0,
+      "y_max": 526.0,
+      "width": 241.0,
+      "height": 166.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 9500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 1132,
+        "y": 423
+      },
+      "polygon": [
+        {
+          "x": 985.0,
+          "y": 360.0
+        },
+        {
+          "x": 1141.0,
+          "y": 429.0
+        },
+        {
+          "x": 1182.0,
+          "y": 431.0
+        },
+        {
+          "x": 1279.0,
+          "y": 485.0
+        },
+        {
+          "x": 1268.0,
+          "y": 472.0
+        },
+        {
+          "x": 1279.0,
+          "y": 459.0
+        },
+        {
+          "x": 1265.0,
+          "y": 470.0
+        },
+        {
+          "x": 1233.0,
+          "y": 452.0
+        },
+        {
+          "x": 1279.0,
+          "y": 427.0
+        },
+        {
+          "x": 1262.0,
+          "y": 414.0
+        },
+        {
+          "x": 1279.0,
+          "y": 405.0
+        },
+        {
+          "x": 1276.0,
+          "y": 372.0
+        },
+        {
+          "x": 1245.0,
+          "y": 360.0
+        }
+      ],
+      "x_min": 985.0,
+      "y_min": 360.0,
+      "x_max": 1280.0,
+      "y_max": 486.0,
+      "width": 295.0,
+      "height": 126.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 9500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 365,
+        "y": 426
+      },
+      "polygon": [
+        {
+          "x": 455.0,
+          "y": 360.0
+        },
+        {
+          "x": 329.0,
+          "y": 492.0
+        },
+        {
+          "x": 274.0,
+          "y": 420.0
+        },
+        {
+          "x": 283.0,
+          "y": 398.0
+        },
+        {
+          "x": 352.0,
+          "y": 360.0
+        }
+      ],
+      "x_min": 274.0,
+      "y_min": 360.0,
+      "x_max": 456.0,
+      "y_max": 493.0,
+      "width": 182.0,
+      "height": 133.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 9500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 87,
+        "y": 400
+      },
+      "polygon": [
+        {
+          "x": 2.0,
+          "y": 438.0
+        },
+        {
+          "x": 174.0,
+          "y": 360.0
+        },
+        {
+          "x": 66.0,
+          "y": 360.0
+        },
+        {
+          "x": 0.0,
+          "y": 388.0
+        },
+        {
+          "x": 0.0,
+          "y": 415.0
+        },
+        {
+          "x": 119.0,
+          "y": 380.0
+        }
+      ],
+      "x_min": 0.0,
+      "y_min": 360.0,
+      "x_max": 175.0,
+      "y_max": 440.0,
+      "width": 175.0,
+      "height": 80.0
+    },
+    {
+      "description": "truck",
+      "start_time_ms": 10500.0,
+      "distance": "close",
+      "priority": "none",
+      "location_description": "center lane directly ahead",
+      "center": {
+        "x": 845,
+        "y": 271
+      },
+      "polygon": [],
+      "x_min": 742.1419067382812,
+      "y_min": 210.22323608398438,
+      "x_max": 948.6554565429688,
+      "y_max": 333.0016174316406,
+      "width": 206.5135498046875,
+      "height": 122.77838134765625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 10500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "left lane ahead at intersection",
+      "center": {
+        "x": 725,
+        "y": 233
+      },
+      "polygon": [],
+      "x_min": 695.54150390625,
+      "y_min": 212.11837768554688,
+      "x_max": 754.84521484375,
+      "y_max": 254.96987915039062,
+      "width": 59.3037109375,
+      "height": 42.85150146484375
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 10500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side at intersection",
+      "center": {
+        "x": 612,
+        "y": 222
+      },
+      "polygon": [],
+      "x_min": 597.923583984375,
+      "y_min": 212.6923828125,
+      "x_max": 626.317138671875,
+      "y_max": 232.95993041992188,
+      "width": 28.3935546875,
+      "height": 20.267547607421875
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 10500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "left lane at intersection",
+      "center": {
+        "x": 661,
+        "y": 225
+      },
+      "polygon": [],
+      "x_min": 645.320556640625,
+      "y_min": 216.5498046875,
+      "x_max": 677.810546875,
+      "y_max": 233.91796875,
+      "width": 32.489990234375,
+      "height": 17.3681640625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 10500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left side at intersection",
+      "center": {
+        "x": 555,
+        "y": 219
+      },
+      "polygon": [],
+      "x_min": 541.8367919921875,
+      "y_min": 209.1334686279297,
+      "x_max": 568.8013916015625,
+      "y_max": 229.45350646972656,
+      "width": 26.964599609375,
+      "height": 20.320037841796875
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 10500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "right sidewalk near intersection",
+      "center": {
+        "x": 1213,
+        "y": 290
+      },
+      "polygon": [],
+      "x_min": 1199.818359375,
+      "y_min": 268.87347412109375,
+      "x_max": 1226.9560546875,
+      "y_max": 312.46063232421875,
+      "width": 27.1376953125,
+      "height": 43.587158203125
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 10500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "right sidewalk near intersection",
+      "center": {
+        "x": 1175,
+        "y": 286
+      },
+      "polygon": [],
+      "x_min": 1165.465087890625,
+      "y_min": 262.39642333984375,
+      "x_max": 1184.666748046875,
+      "y_max": 311.40240478515625,
+      "width": 19.20166015625,
+      "height": 49.0059814453125
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 10500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 710,
+        "y": 83
+      },
+      "polygon": [],
+      "x_min": 701.350830078125,
+      "y_min": 62.10481262207031,
+      "x_max": 718.8134765625,
+      "y_max": 105.70170593261719,
+      "width": 17.462646484375,
+      "height": 43.596893310546875
+    },
+    {
+      "description": "pedestrian",
+      "start_time_ms": 10500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left sidewalk",
+      "center": {
+        "x": 146,
+        "y": 263
+      },
+      "polygon": [],
+      "x_min": 139.96498107910156,
+      "y_min": 241.1463623046875,
+      "x_max": 153.8167266845703,
+      "y_max": 285.110595703125,
+      "width": 13.85174560546875,
+      "height": 43.9642333984375
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 10500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 985,
+        "y": 144
+      },
+      "polygon": [],
+      "x_min": 980.6812744140625,
+      "y_min": 133.24884033203125,
+      "x_max": 991.1707763671875,
+      "y_max": 154.9139404296875,
+      "width": 10.489501953125,
+      "height": 21.66510009765625
+    },
+    {
+      "description": "object_10",
+      "start_time_ms": 10500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "left sidewalk",
+      "center": {
+        "x": 239,
+        "y": 256
+      },
+      "polygon": [],
+      "x_min": 231.56185913085938,
+      "y_min": 231.3885498046875,
+      "x_max": 248.23580932617188,
+      "y_max": 281.96331787109375,
+      "width": 16.6739501953125,
+      "height": 50.57476806640625
+    },
+    {
+      "description": "vehicle",
+      "start_time_ms": 10500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "right side parked",
+      "center": {
+        "x": 1082,
+        "y": 254
+      },
+      "polygon": [],
+      "x_min": 1059.7720947265625,
+      "y_min": 241.4736328125,
+      "x_max": 1106.1380615234375,
+      "y_max": 267.4093017578125,
+      "width": 46.365966796875,
+      "height": 25.9356689453125
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 10500.0,
+      "distance": "far",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 954,
+        "y": 150
+      },
+      "polygon": [],
+      "x_min": 948.802734375,
+      "y_min": 133.89938354492188,
+      "x_max": 960.44775390625,
+      "y_max": 166.14950561523438,
+      "width": 11.64501953125,
+      "height": 32.2501220703125
+    },
+    {
+      "description": "traffic_signal",
+      "start_time_ms": 10500.0,
+      "distance": "moderate",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 555,
+        "y": 75
+      },
+      "polygon": [],
+      "x_min": 546.4639892578125,
+      "y_min": 61.21354675292969,
+      "x_max": 563.8397216796875,
+      "y_max": 89.91734313964844,
+      "width": 17.375732421875,
+      "height": 28.70379638671875
+    },
+    {
+      "description": "lane(current)",
+      "start_time_ms": 10500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 745,
+        "y": 485
+      },
+      "polygon": [
+        {
+          "x": 1147.0,
+          "y": 520.0
+        },
+        {
+          "x": 1023.0,
+          "y": 609.0
+        },
+        {
+          "x": 367.0,
+          "y": 533.0
+        },
+        {
+          "x": 342.0,
+          "y": 508.0
+        },
+        {
+          "x": 477.0,
+          "y": 360.0
+        },
+        {
+          "x": 788.0,
+          "y": 360.0
+        }
+      ],
+      "x_min": 342.0,
+      "y_min": 360.0,
+      "x_max": 1148.0,
+      "y_max": 611.0,
+      "width": 806.0,
+      "height": 251.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 10500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 930,
+        "y": 443
+      },
+      "polygon": [
+        {
+          "x": 798.0,
+          "y": 360.0
+        },
+        {
+          "x": 892.0,
+          "y": 433.0
+        },
+        {
+          "x": 973.0,
+          "y": 526.0
+        },
+        {
+          "x": 929.0,
+          "y": 476.0
+        },
+        {
+          "x": 989.0,
+          "y": 439.0
+        },
+        {
+          "x": 981.0,
+          "y": 425.0
+        },
+        {
+          "x": 1023.0,
+          "y": 431.0
+        },
+        {
+          "x": 1019.0,
+          "y": 447.0
+        },
+        {
+          "x": 1061.0,
+          "y": 467.0
+        },
+        {
+          "x": 956.0,
+          "y": 371.0
+        },
+        {
+          "x": 930.0,
+          "y": 391.0
+        },
+        {
+          "x": 891.0,
+          "y": 362.0
+        }
+      ],
+      "x_min": 798.0,
+      "y_min": 360.0,
+      "x_max": 1062.0,
+      "y_max": 527.0,
+      "width": 264.0,
+      "height": 167.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 10500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 1124,
+        "y": 415
+      },
+      "polygon": [
+        {
+          "x": 968.0,
+          "y": 360.0
+        },
+        {
+          "x": 1071.0,
+          "y": 410.0
+        },
+        {
+          "x": 1119.0,
+          "y": 417.0
+        },
+        {
+          "x": 1130.0,
+          "y": 435.0
+        },
+        {
+          "x": 1127.0,
+          "y": 423.0
+        },
+        {
+          "x": 1247.0,
+          "y": 470.0
+        },
+        {
+          "x": 1253.0,
+          "y": 454.0
+        },
+        {
+          "x": 1225.0,
+          "y": 453.0
+        },
+        {
+          "x": 1256.0,
+          "y": 446.0
+        },
+        {
+          "x": 1263.0,
+          "y": 425.0
+        },
+        {
+          "x": 1279.0,
+          "y": 431.0
+        },
+        {
+          "x": 1267.0,
+          "y": 421.0
+        },
+        {
+          "x": 1279.0,
+          "y": 376.0
+        },
+        {
+          "x": 1238.0,
+          "y": 360.0
+        }
+      ],
+      "x_min": 968.0,
+      "y_min": 360.0,
+      "x_max": 1280.0,
+      "y_max": 471.0,
+      "width": 312.0,
+      "height": 111.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 10500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 355,
+        "y": 432
+      },
+      "polygon": [
+        {
+          "x": 431.0,
+          "y": 374.0
+        },
+        {
+          "x": 320.0,
+          "y": 495.0
+        },
+        {
+          "x": 279.0,
+          "y": 406.0
+        },
+        {
+          "x": 282.0,
+          "y": 390.0
+        },
+        {
+          "x": 304.0,
+          "y": 372.0
+        },
+        {
+          "x": 320.0,
+          "y": 368.0
+        }
+      ],
+      "x_min": 279.0,
+      "y_min": 368.0,
+      "x_max": 432.0,
+      "y_max": 496.0,
+      "width": 153.0,
+      "height": 128.0
+    },
+    {
+      "description": "lane",
+      "start_time_ms": 10500.0,
+      "distance": "n/a",
+      "priority": "none",
+      "location_description": "",
+      "center": {
+        "x": 81,
+        "y": 400
+      },
+      "polygon": [
+        {
+          "x": 161.0,
+          "y": 360.0
+        },
+        {
+          "x": 158.0,
+          "y": 366.0
+        },
+        {
+          "x": 0.0,
+          "y": 440.0
+        },
+        {
+          "x": 1.0,
+          "y": 388.0
+        },
+        {
+          "x": 70.0,
+          "y": 360.0
+        }
+      ],
+      "x_min": 0.0,
+      "y_min": 360.0,
+      "x_max": 162.0,
+      "y_max": 441.0,
+      "width": 162.0,
+      "height": 81.0
+    }
+  ],
+  "hazard_events": [
+    {
+      "start_time_ms": 3000.0,
+      "hazard_type": "oncoming_vehicle_proximity",
+      "hazard_description": "Multiple oncoming vehicles detected in opposing lanes at moderate to far distances. A truck/vehicle (Object 5) is approaching in the oncoming lane at moderate distance while the ego vehicle maintains its lane. The vehicle speed decreases from 29 mph to 24 mph, suggesting the driver is exercising caution due to oncoming traffic density.",
+      "hazard_severity": "Low",
+      "road_conditions": "clear, dry pavement, good visibility",
+      "duration_ms": 2000.0
+    },
+    {
+      "start_time_ms": 6500.0,
+      "hazard_type": "close_proximity_oncoming",
+      "hazard_description": "A truck in the oncoming lane is detected at close proximity (CV distance: close) while approaching an intersection with traffic signals visible. The truck maintains its lane but represents a monitoring situation due to the reduced separation distance in the intersection approach zone.",
+      "hazard_severity": "Low",
+      "road_conditions": "clear, dry pavement, intersection approach",
+      "duration_ms": 1000.0
+    },
+    {
+      "start_time_ms": 7500.0,
+      "hazard_type": "slow_moving_vehicle",
+      "hazard_description": "Large truck directly ahead in close proximity moving slowly through intersection, requiring reduced speed and increased following distance. Truck occupies significant portion of lane and limits forward visibility.",
+      "hazard_severity": "Medium",
+      "road_conditions": "clear, dry pavement, intersection approach",
+      "duration_ms": 2000.0
+    },
+    {
+      "start_time_ms": 9500.0,
+      "hazard_type": "pedestrian_proximity",
+      "hazard_description": "Multiple pedestrians detected on right side of roadway near intersection at moderate distance. Pedestrians are in proximity to the travel lane as vehicle approaches intersection area.",
+      "hazard_severity": "Medium",
+      "road_conditions": "clear, intersection area with pedestrian activity",
+      "duration_ms": 1000.0
+    },
+    {
+      "start_time_ms": 9500.0,
+      "hazard_type": "traffic_signal_approach",
+      "hazard_description": "Vehicle decelerating from 24 mph to 13 mph while approaching intersection with truck stopped ahead at traffic signal. Close proximity to stopped truck requires continued braking and attention to signal status.",
+      "hazard_severity": "Medium",
+      "road_conditions": "clear, dry pavement, good visibility",
+      "duration_ms": 1000.0
+    }
+  ]
+}

@@ -1,0 +1,445 @@
+{
+  "filename": "DDA09132024-2-C_edit.mp4",
+  "video_description": "",
+  "video_class": "hazard_detection",
+  "road_type": "intersection",
+  "weather": "clear, good visibility",
+  "traffic": "light",
+  "speed": "15-40_mph",
+  "collision": "-",
+  "hazards": [],
+  "frames": [
+    {
+      "frame_number": 63,
+      "timestamp_sec": 2.091,
+      "objects": [
+        {
+          "class": "car",
+          "description": "Pickup truck ahead",
+          "distance": "mid",
+          "center": {
+            "x": 612,
+            "y": 328
+          },
+          "bbox": {
+            "x_min": 584,
+            "x_max": 641,
+            "y_min": 298,
+            "y_max": 359,
+            "width": 57,
+            "height": 61
+          }
+        },
+        {
+          "class": "barrier",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 295,
+            "y": 397
+          },
+          "bbox": {
+            "x_min": 9,
+            "x_max": 583,
+            "y_min": 303,
+            "y_max": 529,
+            "width": 574,
+            "height": 226
+          }
+        },
+        {
+          "class": "debris",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 963,
+            "y": 454
+          },
+          "bbox": {
+            "x_min": 941,
+            "x_max": 985,
+            "y_min": 432,
+            "y_max": 476,
+            "width": 44,
+            "height": 44
+          }
+        },
+        {
+          "class": "Lane_Shoulder",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 1017,
+            "y": 487
+          },
+          "bbox": {
+            "x_min": 639,
+            "x_max": 1265,
+            "y_min": 313,
+            "y_max": 631,
+            "width": 626,
+            "height": 318
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              584,
+              309
+            ],
+            [
+              587,
+              309
+            ],
+            [
+              260,
+              671
+            ],
+            [
+              7,
+              533
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              612,
+              300
+            ],
+            [
+              617,
+              303
+            ],
+            [
+              766,
+              719
+            ],
+            [
+              241,
+              709
+            ]
+          ]
+        },
+        {
+          "lane_id": 3,
+          "type": "other_lane",
+          "polygon": [
+            [
+              627,
+              312
+            ],
+            [
+              628,
+              313
+            ],
+            [
+              1220,
+              674
+            ],
+            [
+              797,
+              716
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "frame_number": 98,
+      "timestamp_sec": 3.273,
+      "objects": [
+        {
+          "class": "Lane_Shoulder",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 1031,
+            "y": 522
+          },
+          "bbox": {
+            "x_min": 647,
+            "x_max": 1274,
+            "y_min": 320,
+            "y_max": 677,
+            "width": 627,
+            "height": 357
+          }
+        },
+        {
+          "class": "car",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 618,
+            "y": 331
+          },
+          "bbox": {
+            "x_min": 592,
+            "x_max": 644,
+            "y_min": 305,
+            "y_max": 356,
+            "width": 52,
+            "height": 51
+          }
+        },
+        {
+          "class": "car",
+          "description": "SUV",
+          "distance": "far",
+          "center": {
+            "x": 264,
+            "y": 364
+          },
+          "bbox": {
+            "x_min": 211,
+            "x_max": 316,
+            "y_min": 331,
+            "y_max": 403,
+            "width": 105,
+            "height": 72
+          }
+        },
+        {
+          "class": "barrier",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 212,
+            "y": 444
+          },
+          "bbox": {
+            "x_min": 7,
+            "x_max": 603,
+            "y_min": 305,
+            "y_max": 551,
+            "width": 596,
+            "height": 246
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 3,
+          "type": "other_lane",
+          "polygon": [
+            [
+              634,
+              320
+            ],
+            [
+              829,
+              673
+            ],
+            [
+              1061,
+              611
+            ]
+          ]
+        },
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              602,
+              312
+            ],
+            [
+              37,
+              556
+            ],
+            [
+              326,
+              680
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              619,
+              301
+            ],
+            [
+              317,
+              677
+            ],
+            [
+              828,
+              680
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "frame_number": 134,
+      "timestamp_sec": 4.455,
+      "objects": [
+        {
+          "class": "barrier",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 202,
+            "y": 455
+          },
+          "bbox": {
+            "x_min": 7,
+            "x_max": 577,
+            "y_min": 317,
+            "y_max": 573,
+            "width": 570,
+            "height": 256
+          }
+        },
+        {
+          "class": "Lane_Shoulder",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 890,
+            "y": 488
+          },
+          "bbox": {
+            "x_min": 649,
+            "x_max": 1174,
+            "y_min": 320,
+            "y_max": 673,
+            "width": 525,
+            "height": 353
+          }
+        },
+        {
+          "class": "car",
+          "description": "pickup truck",
+          "distance": "far",
+          "center": {
+            "x": 620,
+            "y": 331
+          },
+          "bbox": {
+            "x_min": 594,
+            "x_max": 645,
+            "y_min": 305,
+            "y_max": 356,
+            "width": 51,
+            "height": 51
+          }
+        },
+        {
+          "class": "barrier",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 770,
+            "y": 364
+          },
+          "bbox": {
+            "x_min": 649,
+            "x_max": 835,
+            "y_min": 312,
+            "y_max": 408,
+            "width": 186,
+            "height": 96
+          }
+        },
+        {
+          "class": "barrier",
+          "description": "",
+          "distance": "far",
+          "center": {
+            "x": 312,
+            "y": 353
+          },
+          "bbox": {
+            "x_min": 178,
+            "x_max": 518,
+            "y_min": 317,
+            "y_max": 386,
+            "width": 340,
+            "height": 69
+          }
+        }
+      ],
+      "lanes": [
+        {
+          "lane_id": 1,
+          "type": "other_lane",
+          "polygon": [
+            [
+              25,
+              576
+            ],
+            [
+              611,
+              308
+            ],
+            [
+              392,
+              645
+            ]
+          ]
+        },
+        {
+          "lane_id": 2,
+          "type": "ego_lane",
+          "polygon": [
+            [
+              401,
+              650
+            ],
+            [
+              618,
+              318
+            ],
+            [
+              906,
+              655
+            ]
+          ]
+        },
+        {
+          "lane_id": 3,
+          "type": "other_lane",
+          "polygon": [
+            [
+              687,
+              384
+            ],
+            [
+              1070,
+              686
+            ],
+            [
+              913,
+              689
+            ]
+          ]
+        }
+      ],
+      "road_signs": [
+        {
+          "label": "speed_limit",
+          "bbox": {
+            "x_min": 1108,
+            "x_max": 1179,
+            "y_min": 262,
+            "y_max": 332,
+            "width": 71,
+            "height": 70
+          }
+        }
+      ]
+    }
+  ]
+}

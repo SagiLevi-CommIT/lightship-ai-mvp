@@ -1,0 +1,193 @@
+{
+  "filename": "hazard_still_3-6_panel_1-0.mp4",
+  "video_description": "workers mixing concrete in a wheelbarrow",
+  "video_class": "job_site_detection",
+  "weather": "clear, good visibility",
+  "hazards": [
+    {
+      "timestamp_sec": 0,
+      "description": "ppe",
+      "severity": "medium"
+    }
+  ],
+  "frames": [
+    {
+      "frame_number": 0,
+      "timestamp_sec": 0,
+      "objects": [
+        {
+          "class": "mask",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 222,
+            "y": 291
+          },
+          "bbox": {
+            "x_min": 189,
+            "x_max": 255,
+            "y_min": 258,
+            "y_max": 324,
+            "width": 66,
+            "height": 66
+          }
+        },
+        {
+          "class": "mask",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 316,
+            "y": 317
+          },
+          "bbox": {
+            "x_min": 292,
+            "x_max": 339,
+            "y_min": 293,
+            "y_max": 341,
+            "width": 47,
+            "height": 48
+          }
+        },
+        {
+          "class": "mask",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 382,
+            "y": 380
+          },
+          "bbox": {
+            "x_min": 358,
+            "x_max": 405,
+            "y_min": 356,
+            "y_max": 403,
+            "width": 47,
+            "height": 47
+          }
+        },
+        {
+          "class": "shovel",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 74,
+            "y": 482
+          },
+          "bbox": {
+            "x_min": 14,
+            "x_max": 144,
+            "y_min": 355,
+            "y_max": 609,
+            "width": 130,
+            "height": 254
+          }
+        }
+      ],
+      "jobsite_objects": [
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "near",
+          "center": {
+            "x": 364,
+            "y": 336
+          },
+          "bbox": {
+            "x_min": 333,
+            "x_max": 395,
+            "y_min": 305,
+            "y_max": 367,
+            "width": 62,
+            "height": 62
+          }
+        },
+        {
+          "class": "hardhat",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 316,
+            "y": 286
+          },
+          "bbox": {
+            "x_min": 285,
+            "x_max": 347,
+            "y_min": 254,
+            "y_max": 317,
+            "width": 62,
+            "height": 63
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 196,
+            "y": 440
+          },
+          "bbox": {
+            "x_min": 163,
+            "x_max": 228,
+            "y_min": 407,
+            "y_max": 472,
+            "width": 65,
+            "height": 65
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 251,
+            "y": 472
+          },
+          "bbox": {
+            "x_min": 218,
+            "x_max": 284,
+            "y_min": 439,
+            "y_max": 504,
+            "width": 66,
+            "height": 65
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 299,
+            "y": 441
+          },
+          "bbox": {
+            "x_min": 266,
+            "x_max": 331,
+            "y_min": 408,
+            "y_max": 473,
+            "width": 65,
+            "height": 65
+          }
+        },
+        {
+          "class": "gloves",
+          "description": "",
+          "distance": "mid",
+          "center": {
+            "x": 392,
+            "y": 487
+          },
+          "bbox": {
+            "x_min": 359,
+            "x_max": 425,
+            "y_min": 454,
+            "y_max": 520,
+            "width": 66,
+            "height": 66
+          }
+        }
+      ]
+    }
+  ]
+}

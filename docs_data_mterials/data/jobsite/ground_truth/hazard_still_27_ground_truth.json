@@ -1,0 +1,113 @@
+{
+  "filename": "hazard_still_27.mp4",
+  "fps": "unknown",
+  "camera": "unknown",
+  "duration_ms": "unknown",
+  "objects": [
+    {
+      "category": "object",
+      "description": "forklift",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1762,
+        "y": 706
+      },
+      "polygon": [
+        {
+          "x": 1085,
+          "y": 1
+        },
+        {
+          "x": 2347,
+          "y": 42
+        },
+        {
+          "x": 2353,
+          "y": 1401
+        },
+        {
+          "x": 1264,
+          "y": 1379
+        }
+      ],
+      "x_min": 1085,
+      "x_max": 2353,
+      "y_min": 1,
+      "y_max": 1401,
+      "width": 1268,
+      "height": 1400,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "floor_conditions_hazard",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1073,
+        "y": 1333
+      },
+      "polygon": [
+        {
+          "x": 517,
+          "y": 1159
+        },
+        {
+          "x": 1662,
+          "y": 1178
+        },
+        {
+          "x": 1601,
+          "y": 1509
+        },
+        {
+          "x": 513,
+          "y": 1487
+        }
+      ],
+      "x_min": 513,
+      "x_max": 1662,
+      "y_min": 1159,
+      "y_max": 1509,
+      "width": 1149,
+      "height": 350,
+      "distance": "mid"
+    },
+    {
+      "category": "object",
+      "description": "overheard_obstruction",
+      "notes": "",
+      "start_time_ms": 0,
+      "center": {
+        "x": 1287,
+        "y": 389
+      },
+      "polygon": [
+        {
+          "x": 903,
+          "y": 5
+        },
+        {
+          "x": 1671,
+          "y": 5
+        },
+        {
+          "x": 1671,
+          "y": 773
+        },
+        {
+          "x": 903,
+          "y": 773
+        }
+      ],
+      "x_min": 903,
+      "x_max": 1671,
+      "y_min": 5,
+      "y_max": 773,
+      "width": 768,
+      "height": 768,
+      "distance": "mid"
+    }
+  ]
+}
