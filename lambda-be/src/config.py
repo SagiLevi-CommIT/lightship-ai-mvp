@@ -13,8 +13,10 @@ load_dotenv()
 # Snapshot Selection Configuration
 # ============================================================================
 
-SNAPSHOT_STRATEGY: Literal["naive", "scene_change"] = "naive"
-"""Strategy for selecting snapshots: 'naive' or 'scene_change'"""
+SNAPSHOT_STRATEGY: Literal["naive", "scene_change", "clustering"] = os.getenv(
+    "SNAPSHOT_STRATEGY", "clustering"
+)
+"""Strategy for selecting snapshots: 'naive', 'scene_change', or 'clustering'"""
 
 MAX_SNAPSHOTS_PER_VIDEO: int = 10
 """Maximum number of snapshots to select per video"""
@@ -366,4 +368,7 @@ MIN_OBJECTS_FOR_SELECTION = 1
 
 CV_PARALLEL_WORKERS = 4
 """Maximum number of parallel workers for CV detection on all frames (threading)"""
+
+ENABLE_FRAME_PREPROCESSING = os.getenv("ENABLE_FRAME_PREPROCESSING", "true").lower() == "true"
+"""Enable CLAHE + sharpen preprocessing before CV detection"""
 
