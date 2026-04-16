@@ -53,9 +53,20 @@ Last updated: 2026-04-16
 
 | Task | Status | Files Changed |
 |------|--------|--------------|
+| **Task 1: Next.js Frontend** | **DONE** | Complete rewrite of `ui-fe/` |
 | **Task 1f: ALB Routes** | **DONE** | `infrastructure/app-stack.yaml` |
 | **Task 1g: Port 8501→3000** | **DONE** | `infrastructure/app-stack.yaml`, `infrastructure/frontend-service-stack.yaml`, `ui-fe/ecs-task-definition.json` |
 | **Task 1h: Deploy Script** | **DONE** | `infrastructure/deploy.sh` |
+
+**Task 1 — Next.js Frontend (FULL REPLACEMENT):**
+- Completely replaced Streamlit with Next.js 14 (App Router + TypeScript + Tailwind CSS)
+- Created `api-client.ts` wired to real backend endpoints (presign-upload, process-video, status, results, jobs, cleanup)
+- Upload page (`/`): drag & drop, multi-file, configurable max_snapshots and frame strategy
+- Processing page (`/run`): real S3 upload via presigned URL, form-encoded POST, polling with progress bar, real-time stage mapping
+- History page (`/history`): lists DynamoDB jobs, loads completed results
+- Results view: video metadata cards, priority distribution, frame-by-frame object table, hazard events list
+- Standalone Docker build on port 3000
+- `npm run build` verified passing
 
 **Task 1f details:**
 - Added missing ALB backend paths: `/presign-upload`, `/jobs`, `/frames/*`, `/pipeline-result/*`, `/cleanup/*`
