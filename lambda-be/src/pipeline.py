@@ -26,8 +26,12 @@ from src.config import (
     FRAME_REFINER_MAX_RETRIES,
     FRAME_REFINER_FALLBACK_ENABLED,
     CV_PARALLEL_WORKERS,
-    OUTPUT_DIR
+    OUTPUT_DIR,
+    SNAPSHOT_STRATEGY,
+    ENABLE_FRAME_PREPROCESSING,
 )
+from src.frame_selector import select_frames_by_clustering
+from src.frame_preprocessor import preprocess_frame
 
 logger = logging.getLogger(__name__)
 
@@ -406,11 +410,18 @@ class Pipeline:
         all_frame_objects: Dict[int, List[ObjectLabel]] = {}
 
         def process_frame(snapshot):
-            """Process a single frame with CV labeler."""
+            """Process a single frame with optional preprocessing + CV labeler."""
             frame_path = extracted_frames.get(snapshot.frame_idx)
             if not frame_path:
                 logger.warning(f"Frame not found for snapshot at {snapshot.timestamp_ms}ms")
                 return snapshot.frame_idx, []
+
+            if ENABLE_FRAME_PREPROCESSING:
+                import cv2 as _cv2
+                raw = _cv2.imread(frame_path)
+                if raw is not None:
+                    preprocessed = preprocess_frame(raw)
+                    _cv2.imwrite(frame_path, preprocessed)
 
             objects = self.cv_labeler.label_frame(
                 frame_path,
@@ -437,25 +448,53 @@ class Pipeline:
 
         logger.info(f"CV labeled {len(all_frame_objects)} frames")
 
-        # Step 4b: Filter to frames with sufficient objects
-        logger.info(f"Step 4b: Filtering frames with >= {MIN_OBJECTS_FOR_SELECTION} objects")
-        frames_with_objects = {
-            frame_idx: objs for frame_idx, objs in all_frame_objects.items()
-            if len(objs) >= MIN_OBJECTS_FOR_SELECTION
-        }
+        # Step 4b: Select top N frames — clustering or ranked by object count
+        max_snapshots = self.snapshot_selector.max_snapshots
 
-        logger.info(f"Filtered to {len(frames_with_objects)} frames with objects "
-                   f"(from {len(all_frame_objects)} total)")
+        for fidx, objs in all_frame_objects.items():
+            logger.debug(f"Frame {fidx}: {len(objs)} objects detected")
 
-        if not frames_with_objects:
-            logger.warning("No frames with sufficient objects found!")
+        use_clustering = SNAPSHOT_STRATEGY == "clustering"
+
+        if use_clustering:
+            try:
+                selected_indices = select_frames_by_clustering(
+                    extracted_frames, n_select=max_snapshots,
+                )
+                logger.info("Clustering frame selection succeeded")
+            except Exception as e:
+                logger.warning("Clustering failed (%s), falling back to ranked selection", e)
+                use_clustering = False
+
+        if not use_clustering:
+            ranked = sorted(
+                all_frame_objects.keys(),
+                key=lambda idx: len(all_frame_objects[idx]),
+                reverse=True,
+            )
+            selected_indices = ranked[:max_snapshots]
+
+            if len(selected_indices) < max_snapshots:
+                remaining = [idx for idx in all_frame_objects.keys() if idx not in selected_indices]
+                selected_indices.extend(remaining[: max_snapshots - len(selected_indices)])
+
+            selected_indices.sort()
+
+        logger.info(
+            f"Selected {len(selected_indices)}/{len(all_frame_objects)} frames "
+            f"(requested {max_snapshots}). Object counts: "
+            f"{[len(all_frame_objects.get(i, [])) for i in selected_indices]}"
+        )
+
+        if not selected_indices:
+            logger.warning("No frames available for selection!")
             return [], [], {}
 
-        # Step 4c: Select N frames uniformly from filtered set
-        selected_frame_indices = self._select_uniform_frames(
-            list(frames_with_objects.keys()),
-            self.snapshot_selector.max_snapshots
-        )
+        frames_with_objects = {
+            idx: all_frame_objects[idx] for idx in selected_indices
+        }
+
+        selected_frame_indices = selected_indices
 
         # Build selected frame_objects dict
         selected_frame_objects = {
@@ -465,6 +504,7 @@ class Pipeline:
         # Build selected frame_images dict
         selected_frame_images = {
             idx: extracted_frames[idx] for idx in selected_frame_indices
+            if idx in extracted_frames
         }
 
         logger.info(f"Selected {len(selected_frame_objects)} frames for processing")
@@ -589,6 +629,22 @@ class Pipeline:
         logger.info(f"Identified {len(hazard_events)} hazard events")
         logger.info(f"Final output: {len(final_objects)} objects")
         logger.info(f"LLM inferred video metadata: {inferred_metadata}")
+
+        # Quality check on inferred metadata
+        quality_fields = ["description", "traffic", "lighting", "weather", "speed"]
+        populated = sum(
+            1
+            for f in quality_fields
+            if inferred_metadata.get(f)
+            and str(inferred_metadata[f]).strip()
+            and str(inferred_metadata[f]).strip().lower() != "unknown"
+        )
+        quality_pct = (populated / len(quality_fields)) * 100
+        if quality_pct < 50:
+            logger.warning(
+                "Low quality classification (%d/%d fields populated, %.0f%%)",
+                populated, len(quality_fields), quality_pct,
+            )
 
         return final_objects, hazard_events, inferred_metadata
 

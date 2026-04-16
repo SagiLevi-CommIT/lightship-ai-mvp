@@ -59,10 +59,19 @@ class FrameExtractor:
                 ret, frame = cap.read()
                 
                 if not ret:
-                    logger.error(
-                        f"Failed to read frame {frame_idx} from {video_metadata.filename}"
+                    logger.warning(
+                        f"Read failed for frame {frame_idx}, retrying with seek-back strategy"
                     )
-                    continue
+                    seek_target = max(0, frame_idx - 1)
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, seek_target)
+                    cap.read()  # discard
+                    ret, frame = cap.read()
+                    if not ret:
+                        logger.error(
+                            f"Retry also failed for frame {frame_idx} from "
+                            f"{video_metadata.filename} — skipping"
+                        )
+                        continue
                 
                 # Generate output filename
                 output_filename = (
