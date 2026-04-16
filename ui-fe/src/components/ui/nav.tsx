@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Upload, PlayCircle, Clock, BarChart3 } from "lucide-react";
+import { Upload, PlayCircle, Clock, BarChart3, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/", label: "Upload", icon: Upload },
+  { href: "/image", label: "Image", icon: ImageIcon },
   { href: "/run", label: "Processing", icon: PlayCircle },
   { href: "/history", label: "History", icon: Clock },
 ];

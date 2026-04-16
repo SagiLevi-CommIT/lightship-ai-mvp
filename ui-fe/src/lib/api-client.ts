@@ -198,3 +198,36 @@ export function getFrameUrl(jobId: string, frameIdx: number): string {
 export async function cleanupJob(jobId: string): Promise<void> {
   await fetch(`${API_BASE}/cleanup/${jobId}`, { method: "DELETE" });
 }
+
+/* ------------------------------------------------------------------ */
+/*  Single-image mode (Phase 1 extension — job-site / frame analysis)  */
+/* ------------------------------------------------------------------ */
+
+export interface ImageResult {
+  filename: string;
+  camera: string;
+  width: number;
+  height: number;
+  num_objects: number;
+  objects: ObjectLabel[];
+}
+
+export async function processImage(file: File): Promise<ImageResult> {
+  const form = new FormData();
+  form.append("image", file);
+  return apiFetch("/process-image", { method: "POST", body: form });
+}
+
+export interface ClientConfigsBundle {
+  video_class: string;
+  configs: {
+    reactivity: Record<string, unknown>;
+    educational: Record<string, unknown>;
+    hazard: Record<string, unknown>;
+    jobsite: Record<string, unknown>;
+  };
+}
+
+export async function getClientConfigs(jobId: string): Promise<ClientConfigsBundle> {
+  return apiFetch(`/client-configs/${jobId}`);
+}

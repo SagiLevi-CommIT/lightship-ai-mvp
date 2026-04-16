@@ -78,7 +78,7 @@ phases:
               "essential": true,
               "portMappings": [
                 {
-                  "containerPort": 8501,
+                  "containerPort": 3000,
                   "protocol": "tcp"
                 }
               ],
@@ -86,6 +86,18 @@ phases:
                 {
                   "name": "AWS_REGION",
                   "value": "${AWS_REGION}"
+                },
+                {
+                  "name": "NODE_ENV",
+                  "value": "production"
+                },
+                {
+                  "name": "PORT",
+                  "value": "3000"
+                },
+                {
+                  "name": "NEXT_PUBLIC_API_BASE",
+                  "value": ""
                 },
                 {
                   "name": "BACKEND_API_URL",
@@ -131,7 +143,7 @@ phases:
             --desired-count 1 \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=[$PRIVATE_SUBNETS],securityGroups=[$SECURITY_GROUP],assignPublicIp=DISABLED}" \
-            --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=${PROJECT_NAME}-frontend,containerPort=8501" \
+            --load-balancers "targetGroupArn=$TARGET_GROUP_ARN,containerName=${PROJECT_NAME}-frontend,containerPort=3000" \
             --health-check-grace-period-seconds 60 \
             --region $AWS_REGION
         else
