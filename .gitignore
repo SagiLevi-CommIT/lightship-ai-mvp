@@ -50,4 +50,5 @@ Thumbs.db
 
 .env
 
-docs_data_mterials
+docs_data_mterialsui-fe/tsconfig.tsbuildinfo
+*.tsbuildinfo
