@@ -289,7 +289,12 @@ Now analyze the frame and return the complete JSON:"""
             response_body = json.loads(response['body'].read())
 
             if 'content' in response_body and len(response_body['content']) > 0:
-                return response_body['content'][0]['text']
+                text = response_body['content'][0]['text']
+                logger.info(
+                    "Frame refiner raw response (%d chars): %.500s",
+                    len(text), text,
+                )
+                return text
             else:
                 raise ValueError("No content in Bedrock response")
 
