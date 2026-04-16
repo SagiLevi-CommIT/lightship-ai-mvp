@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: #020814;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #163b84 0%, #08142e 34%, #020814 100%);
+  color: #f8fafc;
+  font-family: var(--font-ibm-plex-mono), monospace;
+}
+
+* {
+  box-sizing: border-box;
+}

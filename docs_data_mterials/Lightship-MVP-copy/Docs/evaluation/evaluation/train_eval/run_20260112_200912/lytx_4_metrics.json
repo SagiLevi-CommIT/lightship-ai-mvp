@@ -1,0 +1,333 @@
+{
+  "video_name": "lytx_4",
+  "geometric": {
+    "gt": 9,
+    "detected": 0,
+    "matched": 0,
+    "false_positives": 0,
+    "false_negatives": 9
+  },
+  "non_geometric": {
+    "gt": 11,
+    "detected": 1,
+    "matched": 1,
+    "false_positives": 0,
+    "false_negatives": 10
+  },
+  "frames": [
+    {
+      "timestamp_ms": 1903.613,
+      "frame_path": "evaluation/train_eval/run_20260112_200912/temp_frames/lytx_4_frame_19_1904ms.png",
+      "total_gt": 4,
+      "total_detected": 0,
+      "total_matched": 0,
+      "geometric": {
+        "gt": 2,
+        "detected": 0,
+        "matched": 0,
+        "false_positives": 0,
+        "false_negatives": 2
+      },
+      "non_geometric": {
+        "gt": 2,
+        "detected": 0,
+        "matched": 0,
+        "false_positives": 0,
+        "false_negatives": 2
+      },
+      "per_class": {
+        "lane": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2
+        },
+        "unknown_sign": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 2
+        }
+      },
+      "matches": [],
+      "false_positives": [],
+      "false_negatives": [
+        {
+          "class": "lane(current)",
+          "bbox": [
+            420,
+            355.7333297729492,
+            833.9333324432373,
+            691.1666793823242
+          ]
+        },
+        {
+          "class": "lane",
+          "bbox": [
+            34,
+            357.2666702270508,
+            626.9333324432373,
+            688.1666793823242
+          ]
+        },
+        {
+          "class": "unknown_sign",
+          "bbox": [
+            773,
+            291.5,
+            923,
+            366.5
+          ]
+        },
+        {
+          "class": "unknown_sign",
+          "bbox": [
+            700,
+            315.5,
+            755.9333324432373,
+            360.2666702270508
+          ]
+        }
+      ]
+    },
+    {
+      "timestamp_ms": 5469.956,
+      "frame_path": "evaluation/train_eval/run_20260112_200912/temp_frames/lytx_4_frame_54_5470ms.png",
+      "total_gt": 6,
+      "total_detected": 0,
+      "total_matched": 0,
+      "geometric": {
+        "gt": 3,
+        "detected": 0,
+        "matched": 0,
+        "false_positives": 0,
+        "false_negatives": 3
+      },
+      "non_geometric": {
+        "gt": 3,
+        "detected": 0,
+        "matched": 0,
+        "false_positives": 0,
+        "false_negatives": 3
+      },
+      "per_class": {
+        "merging_traffic_sign": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1
+        },
+        "lane": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3
+        },
+        "vehicle": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1
+        },
+        "unknown_sign": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1
+        }
+      },
+      "matches": [],
+      "false_positives": [],
+      "false_negatives": [
+        {
+          "class": "merging_traffic_sign",
+          "bbox": [
+            745,
+            311.5,
+            816.9333324432373,
+            386.5
+          ]
+        },
+        {
+          "class": "lane(current)",
+          "bbox": [
+            430.9333324432373,
+            376.9333267211914,
+            868.9333324432373,
+            689.9333267211914
+          ]
+        },
+        {
+          "class": "lane",
+          "bbox": [
+            100.9333324432373,
+            371.9333267211914,
+            629.9333324432373,
+            692.9333267211914
+          ]
+        },
+        {
+          "class": "lane",
+          "bbox": [
+            0,
+            376.9333267211914,
+            601.9333324432373,
+            634.9333267211914
+          ]
+        },
+        {
+          "class": "vehicle",
+          "bbox": [
+            681.9333324432373,
+            359.9333267211914,
+            726.9333324432373,
+            400.9333267211914
+          ]
+        },
+        {
+          "class": "unknown_sign",
+          "bbox": [
+            626.9333324432373,
+            323.9333267211914,
+            699.9333324432373,
+            361.9333267211914
+          ]
+        }
+      ]
+    },
+    {
+      "timestamp_ms": 10062.405,
+      "frame_path": "evaluation/train_eval/run_20260112_200912/temp_frames/lytx_4_frame_100_10062ms.png",
+      "total_gt": 10,
+      "total_detected": 1,
+      "total_matched": 1,
+      "geometric": {
+        "gt": 4,
+        "detected": 0,
+        "matched": 0,
+        "false_positives": 0,
+        "false_negatives": 4
+      },
+      "non_geometric": {
+        "gt": 6,
+        "detected": 1,
+        "matched": 1,
+        "false_positives": 0,
+        "false_negatives": 5
+      },
+      "per_class": {
+        "vehicle": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "turn_signal": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1
+        },
+        "brake_lights": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 1
+        },
+        "unknown_sign": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 3
+        },
+        "lane": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 4
+        }
+      },
+      "matches": [
+        {
+          "detected_class": "vehicle",
+          "gt_class": "vehicle",
+          "iou": 0.586
+        }
+      ],
+      "false_positives": [],
+      "false_negatives": [
+        {
+          "class": "turn_signal",
+          "bbox": [
+            788.9333324432373,
+            432.8666763305664,
+            909.9333324432373,
+            487.8666763305664
+          ]
+        },
+        {
+          "class": "brake_lights",
+          "bbox": [
+            851.9333324432373,
+            435.8666763305664,
+            919.9333324432373,
+            486.8666763305664
+          ]
+        },
+        {
+          "class": "unknown_sign",
+          "bbox": [
+            626.9333324432373,
+            283.8666763305664,
+            763.9333324432373,
+            337.8666763305664
+          ]
+        },
+        {
+          "class": "unknown_sign",
+          "bbox": [
+            767.9333324432373,
+            330.8666763305664,
+            803.9333324432373,
+            374.8666763305664
+          ]
+        },
+        {
+          "class": "unknown_sign",
+          "bbox": [
+            734.9333324432373,
+            330.8666763305664,
+            770.9333324432373,
+            374.8666763305664
+          ]
+        },
+        {
+          "class": "lane(current)",
+          "bbox": [
+            443.9333324432373,
+            372.1999969482422,
+            902.9333324432373,
+            692.1999969482422
+          ]
+        },
+        {
+          "class": "lane(exit)",
+          "bbox": [
+            626.9333324432373,
+            358.1999969482422,
+            1265.9333324432373,
+            671.1999969482422
+          ]
+        },
+        {
+          "class": "lane",
+          "bbox": [
+            90.9333324432373,
+            372.1999969482422,
+            626.9333324432373,
+            685.1999969482422
+          ]
+        },
+        {
+          "class": "lane",
+          "bbox": [
+            0,
+            367.1999969482422,
+            600.9333324432373,
+            641.1999969482422
+          ]
+        }
+      ]
+    }
+  ],
+  "timestamp": "2026-01-12T20:11:01.272532"
+}
