@@ -86,6 +86,25 @@ class TestHealthAndConnectivity:
         assert "s3_key" in body
         assert "required_headers" in body
 
+    def test_process_image_validates_body(self):
+        """POST /process-image with no body returns 422 (validation error)."""
+        r = requests.post(f"{BASE_URL}/process-image", timeout=REQUEST_TIMEOUT_S)
+        assert r.status_code == 422
+
+    def test_client_configs_404_for_unknown_job(self):
+        """GET /client-configs/<unknown> returns 404, proving the route is wired."""
+        r = requests.get(
+            f"{BASE_URL}/client-configs/nonexistent-job-id",
+            timeout=REQUEST_TIMEOUT_S,
+        )
+        assert r.status_code == 404
+
+    def test_image_page_served_by_frontend(self):
+        """GET /image returns HTML from the Next.js frontend (single-image page)."""
+        r = requests.get(f"{BASE_URL}/image", timeout=REQUEST_TIMEOUT_S)
+        assert r.status_code == 200
+        assert "text/html" in r.headers.get("content-type", "").lower()
+
 
 @pytest.mark.skipif(
     not TEST_VIDEO_S3_KEY,

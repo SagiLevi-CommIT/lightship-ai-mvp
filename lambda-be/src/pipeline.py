@@ -562,7 +562,9 @@ class Pipeline:
                     logger.info(f"Frame {current_frame_idx}: {len(objects)} -> {len(refined_objects)} objects")
                     break
 
-                # Refinement failed - try fallback if enabled
+                # Refinement failed - mark this frame as used (so it isn't
+                # picked as its own nearest neighbor) and try fallback if enabled.
+                used_frames.add(current_frame_idx)
                 if FRAME_REFINER_FALLBACK_ENABLED:
                     nearest_frame = self._find_nearest_unused_frame(
                         current_frame_idx,
@@ -570,7 +572,7 @@ class Pipeline:
                         used_frames
                     )
 
-                    if nearest_frame is not None:
+                    if nearest_frame is not None and nearest_frame != current_frame_idx:
                         logger.info(f"Falling back from frame {current_frame_idx} to frame {nearest_frame}")
                         current_frame_idx = nearest_frame
                         continue  # Try again with fallback frame
@@ -580,7 +582,6 @@ class Pipeline:
                 # No success and no fallback available - keep CV-only results
                 logger.warning(f"Using CV-only results for frame {current_frame_idx}")
                 refined_frame_objects[current_frame_idx] = objects
-                used_frames.add(current_frame_idx)
                 break
 
         logger.info(f"Per-frame refinement complete: {len(refined_frame_objects)} frames processed")
