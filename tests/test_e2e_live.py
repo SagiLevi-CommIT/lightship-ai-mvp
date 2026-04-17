@@ -22,8 +22,8 @@ ALB_DNS = os.environ.get(
 )
 BASE_URL = f"http://{ALB_DNS}"
 
-POLL_INTERVAL_S = 3
-POLL_TIMEOUT_S = 180
+POLL_INTERVAL_S = 5
+POLL_TIMEOUT_S = int(os.environ.get("E2E_TIMEOUT_S", "900"))
 REQUEST_TIMEOUT_S = 120
 
 TEST_VIDEO_S3_KEY = os.environ.get("TEST_VIDEO_S3_KEY", "")
@@ -33,15 +33,18 @@ TEST_VIDEO_S3_KEY = os.environ.get("TEST_VIDEO_S3_KEY", "")
 # ---------------------------------------------------------------------------
 
 def _poll_status(job_id: str, timeout: int = POLL_TIMEOUT_S) -> dict:
-    """Poll /status/{job_id} until COMPLETED or timeout."""
+    """Poll /status/{job_id} until COMPLETED or timeout. Tolerates cold starts."""
     deadline = time.time() + timeout
     while time.time() < deadline:
-        r = requests.get(f"{BASE_URL}/status/{job_id}", timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        status = data.get("status", "").upper()
-        if status in ("COMPLETED", "FAILED"):
-            return data
+        try:
+            r = requests.get(f"{BASE_URL}/status/{job_id}", timeout=60)
+            r.raise_for_status()
+            data = r.json()
+            status = data.get("status", "").upper()
+            if status in ("COMPLETED", "FAILED"):
+                return data
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
+            pass  # Lambda cold start or transient — just retry
         time.sleep(POLL_INTERVAL_S)
     raise TimeoutError(f"Job {job_id} did not complete within {timeout}s")
 
