@@ -148,6 +148,84 @@ def _dynamo_get_job(job_id: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+# ---------------------------------------------------------------------------
+# S3-backed result storage (survives cross-invocation Lambda cold starts)
+# ---------------------------------------------------------------------------
+_RESULTS_PREFIX = "results"
+_OUTPUT_JSON_KEY = "output.json"
+
+
+def _s3_result_key(job_id: str, name: str) -> str:
+    return f"{_RESULTS_PREFIX}/{job_id}/{name}"
+
+
+def _persist_result_to_s3(job_id: str, output_json_path: str,
+                          summary: Dict[str, Any],
+                          video_metadata: Dict[str, Any],
+                          snapshots: list) -> None:
+    """Upload the pipeline output JSON + manifest to S3.
+
+    In-memory `processing_results` is Lambda-instance-local; persisting
+    to S3 means `/results`, `/download/json`, `/client-configs` all keep
+    working after a cold start.
+    """
+    if _s3_client is None:
+        return
+    try:
+        _s3_client.upload_file(
+            output_json_path, PROCESSING_BUCKET,
+            _s3_result_key(job_id, _OUTPUT_JSON_KEY),
+            ExtraArgs={"ServerSideEncryption": "aws:kms",
+                       "ContentType": "application/json"},
+        )
+        manifest = {
+            "job_id": job_id,
+            "summary": summary,
+            "video_metadata": video_metadata,
+            "snapshots": snapshots,
+        }
+        _s3_client.put_object(
+            Bucket=PROCESSING_BUCKET,
+            Key=_s3_result_key(job_id, "manifest.json"),
+            Body=json.dumps(manifest).encode("utf-8"),
+            ContentType="application/json",
+            ServerSideEncryption="aws:kms",
+        )
+        logger.info(f"Results persisted to s3://{PROCESSING_BUCKET}/{_RESULTS_PREFIX}/{job_id}/")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Result S3 persist failed for {job_id}: {e}")
+
+
+def _load_result_manifest_from_s3(job_id: str) -> Optional[Dict[str, Any]]:
+    if _s3_client is None:
+        return None
+    try:
+        resp = _s3_client.get_object(
+            Bucket=PROCESSING_BUCKET,
+            Key=_s3_result_key(job_id, "manifest.json"),
+        )
+        return json.loads(resp["Body"].read())
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"No manifest in S3 for {job_id}: {e}")
+        return None
+
+
+def _load_output_json_from_s3(job_id: str, dest_dir: Optional[str] = None) -> Optional[str]:
+    """Download the pipeline output.json for job_id to a temp path. Returns path or None."""
+    if _s3_client is None:
+        return None
+    try:
+        dest_dir = dest_dir or tempfile.mkdtemp()
+        local_path = os.path.join(dest_dir, f"{job_id}-output.json")
+        _s3_client.download_file(
+            PROCESSING_BUCKET, _s3_result_key(job_id, _OUTPUT_JSON_KEY), local_path,
+        )
+        return local_path
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"No output.json in S3 for {job_id}: {e}")
+        return None
+
+
 class ProcessingConfig(BaseModel):
     """Configuration for video processing."""
     snapshot_strategy: str = "naive"
@@ -506,22 +584,27 @@ def process_video_task(
         # Sort snapshots by timestamp
         snapshots_info.sort(key=lambda x: x['timestamp_ms'])
 
-        # Store results
+        video_meta_dict = {
+            "filename": video_metadata.filename,
+            "camera": video_metadata.camera,
+            "fps": video_metadata.fps,
+            "duration_ms": video_metadata.duration_ms,
+            "width": video_metadata.width,
+            "height": video_metadata.height,
+        }
+
+        # Store results in-memory (warm cache) and persist to S3 (survives cold starts).
         processing_results[job_id] = {
             "output_json": output_json_path,
             "extracted_frames": extracted_frames,
             "snapshots": snapshots_info,
-            "video_metadata": {
-                "filename": video_metadata.filename,
-                "camera": video_metadata.camera,
-                "fps": video_metadata.fps,
-                "duration_ms": video_metadata.duration_ms,
-                "width": video_metadata.width,
-                "height": video_metadata.height
-            },
+            "video_metadata": video_meta_dict,
             "summary": summary,
             "temp_dir": temp_dir
         }
+        _persist_result_to_s3(
+            job_id, output_json_path, summary, video_meta_dict, snapshots_info,
+        )
 
         # Update status
         processing_status[job_id].update({
@@ -572,38 +655,47 @@ def get_status(job_id: str):
 
 @app.get("/results/{job_id}")
 def get_results(job_id: str):
-    """Get processing results for a completed job."""
-    if job_id not in processing_status:
-        raise HTTPException(status_code=404, detail="Job not found")
+    """Get processing results for a completed job (in-memory → S3 → DynamoDB)."""
+    if job_id in processing_results:
+        return processing_results[job_id]
 
-    if processing_status[job_id]["status"].upper() != "COMPLETED":
+    # Cold-start fallback: hydrate from S3 manifest.
+    manifest = _load_result_manifest_from_s3(job_id)
+    if manifest:
+        return manifest
+
+    # Last-resort: check DynamoDB to give a clearer error.
+    dynamo_item = _dynamo_get_job(job_id)
+    if not dynamo_item:
+        raise HTTPException(status_code=404, detail="Job not found")
+    status = (dynamo_item.get("status") or "").upper()
+    if status != "COMPLETED":
         raise HTTPException(
             status_code=400,
-            detail=f"Job not completed. Current status: {processing_status[job_id]['status']}"
+            detail=f"Job not completed. Current status: {status}",
         )
-
-    if job_id not in processing_results:
-        raise HTTPException(status_code=404, detail="Results not found")
-
-    return processing_results[job_id]
+    raise HTTPException(status_code=404, detail="Results not available")
 
 
 @app.get("/download/json/{job_id}")
 def download_json(job_id: str):
-    """Download output JSON file."""
-    if job_id not in processing_results:
-        raise HTTPException(status_code=404, detail="Results not found")
+    """Download output JSON file (in-memory → S3 fallback)."""
+    # In-memory fast path
+    if job_id in processing_results:
+        json_path = processing_results[job_id].get("output_json")
+        if json_path and os.path.exists(json_path):
+            return FileResponse(
+                json_path, media_type="application/json", filename="output.json",
+            )
 
-    json_path = processing_results[job_id]["output_json"]
+    # S3 fallback
+    local_path = _load_output_json_from_s3(job_id)
+    if local_path:
+        return FileResponse(
+            local_path, media_type="application/json", filename="output.json",
+        )
 
-    if not os.path.exists(json_path):
-        raise HTTPException(status_code=404, detail="JSON file not found")
-
-    return FileResponse(
-        json_path,
-        media_type="application/json",
-        filename="output.json"
-    )
+    raise HTTPException(status_code=404, detail="Results not found")
 
 
 @app.get("/download/frame/{job_id}/{frame_idx}")
@@ -630,13 +722,19 @@ def get_client_configs(job_id: str):
 
     Maps the pipeline `VideoOutput` to the reactivity / educational /
     hazard / jobsite config families requested in the MVP brief.
+    Tolerant to cross-invocation state loss by falling back to S3.
     """
-    if job_id not in processing_results:
-        raise HTTPException(status_code=404, detail="Results not found")
+    json_path: Optional[str] = None
+    if job_id in processing_results:
+        candidate = processing_results[job_id].get("output_json")
+        if candidate and os.path.exists(candidate):
+            json_path = candidate
 
-    json_path = processing_results[job_id]["output_json"]
-    if not os.path.exists(json_path):
-        raise HTTPException(status_code=404, detail="Results JSON missing")
+    if json_path is None:
+        json_path = _load_output_json_from_s3(job_id)
+
+    if json_path is None or not os.path.exists(json_path):
+        raise HTTPException(status_code=404, detail="Results not found")
 
     try:
         from src.schemas import VideoOutput
