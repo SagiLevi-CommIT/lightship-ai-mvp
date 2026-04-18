@@ -1,0 +1,391 @@
+{
+  "num_samples": 7,
+  "per_video": [
+    {
+      "video": "brown_2025-08-14_PKG_NC1-C",
+      "status": "scored",
+      "per_category": {
+        "motorcycle": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "lane": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "sign": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "construction": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        }
+      },
+      "classification": {
+        "weather_match": 1,
+        "lighting_match": 1,
+        "traffic_match": 1
+      },
+      "gt_objects": 5,
+      "pred_objects": 5
+    },
+    {
+      "video": "final_test",
+      "status": "scored",
+      "per_category": {
+        "motorcycle": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "lane": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "sign": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "construction": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        }
+      },
+      "classification": {
+        "weather_match": 1,
+        "lighting_match": 1,
+        "traffic_match": 1
+      },
+      "gt_objects": 0,
+      "pred_objects": 0
+    },
+    {
+      "video": "lytx_1",
+      "status": "scored",
+      "per_category": {
+        "motorcycle": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "gt": 1,
+          "pred": 1
+        },
+        "lane": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "sign": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 4,
+          "fp": 0,
+          "fn": 0,
+          "gt": 4,
+          "pred": 4
+        },
+        "construction": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        }
+      },
+      "classification": {
+        "weather_match": 1,
+        "lighting_match": 1,
+        "traffic_match": 1
+      },
+      "gt_objects": 27,
+      "pred_objects": 27
+    },
+    {
+      "video": "plr_snow_4818293461-C",
+      "status": "scored",
+      "per_category": {
+        "motorcycle": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "lane": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "sign": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "construction": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        }
+      },
+      "classification": {
+        "weather_match": 1,
+        "lighting_match": 1,
+        "traffic_match": 1
+      },
+      "gt_objects": 0,
+      "pred_objects": 0
+    },
+    {
+      "video": "test_dashcam",
+      "status": "scored",
+      "per_category": {
+        "motorcycle": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "lane": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "sign": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "construction": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        }
+      },
+      "classification": {
+        "weather_match": 1,
+        "lighting_match": 1,
+        "traffic_match": 1
+      },
+      "gt_objects": 0,
+      "pred_objects": 0
+    },
+    {
+      "video": "test_e2e",
+      "status": "scored",
+      "per_category": {
+        "motorcycle": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "lane": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 5,
+          "fp": 0,
+          "fn": 0,
+          "gt": 5,
+          "pred": 5
+        },
+        "sign": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "construction": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        }
+      },
+      "classification": {
+        "weather_match": 1,
+        "lighting_match": 1,
+        "traffic_match": 1
+      },
+      "gt_objects": 5,
+      "pred_objects": 5
+    },
+    {
+      "video": "verify_e2e",
+      "status": "scored",
+      "per_category": {
+        "motorcycle": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "lane": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "sign": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        },
+        "construction": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "gt": 0,
+          "pred": 0
+        }
+      },
+      "classification": {
+        "weather_match": 1,
+        "lighting_match": 1,
+        "traffic_match": 1
+      },
+      "gt_objects": 0,
+      "pred_objects": 0
+    }
+  ],
+  "aggregate": {
+    "num_scored": 7,
+    "num_skipped": 0,
+    "per_category": {
+      "motorcycle": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0
+      },
+      "lane": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0
+      },
+      "sign": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0
+      },
+      "construction": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0
+      }
+    },
+    "classification": {
+      "weather_accuracy": 1.0,
+      "lighting_accuracy": 1.0,
+      "traffic_accuracy": 1.0
+    }
+  }
+}

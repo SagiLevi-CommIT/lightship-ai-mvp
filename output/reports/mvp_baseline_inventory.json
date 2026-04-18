@@ -1,0 +1,98 @@
+{
+  "num_predictions": 6,
+  "rows": [
+    {
+      "filename": "brown_2025-08-14_PKG_NC1-C.mp4",
+      "duration_s": 11.5,
+      "fps": 10.0,
+      "camera": "unknown",
+      "traffic": "unknown",
+      "weather": "unknown",
+      "lighting": "unknown",
+      "num_objects": 5,
+      "num_hazards": 0,
+      "priority_counts": {
+        "none": 5
+      },
+      "distance_counts": {
+        "very_far": 5
+      },
+      "video_class": "reactivity"
+    },
+    {
+      "filename": "final_test.mp4",
+      "duration_s": 5.0,
+      "fps": 30.0,
+      "camera": "unknown",
+      "traffic": "unknown",
+      "weather": "unknown",
+      "lighting": "unknown",
+      "num_objects": 0,
+      "num_hazards": 0,
+      "priority_counts": {},
+      "distance_counts": {},
+      "video_class": "reactivity"
+    },
+    {
+      "filename": "plr_snow_4818293461-C.mp4",
+      "duration_s": 22.5,
+      "fps": 30.040880566830904,
+      "camera": "unknown",
+      "traffic": "unknown",
+      "weather": "unknown",
+      "lighting": "unknown",
+      "num_objects": 0,
+      "num_hazards": 0,
+      "priority_counts": {},
+      "distance_counts": {},
+      "video_class": "reactivity"
+    },
+    {
+      "filename": "test_dashcam.mp4",
+      "duration_s": 5.0,
+      "fps": 30.0,
+      "camera": "unknown",
+      "traffic": "unknown",
+      "weather": "unknown",
+      "lighting": "unknown",
+      "num_objects": 0,
+      "num_hazards": 0,
+      "priority_counts": {},
+      "distance_counts": {},
+      "video_class": "reactivity"
+    },
+    {
+      "filename": "test_e2e.mp4",
+      "duration_s": 3.0,
+      "fps": 10.0,
+      "camera": "unknown",
+      "traffic": "light",
+      "weather": "clear",
+      "lighting": "daylight",
+      "num_objects": 5,
+      "num_hazards": 0,
+      "priority_counts": {
+        "medium": 5
+      },
+      "distance_counts": {
+        "moderate": 4,
+        "close": 1
+      },
+      "video_class": "reactivity"
+    },
+    {
+      "filename": "verify_e2e.mp4",
+      "duration_s": 5.0,
+      "fps": 30.0,
+      "camera": "unknown",
+      "traffic": "unknown",
+      "weather": "unknown",
+      "lighting": "unknown",
+      "num_objects": 0,
+      "num_hazards": 0,
+      "priority_counts": {},
+      "distance_counts": {},
+      "video_class": "reactivity"
+    }
+  ]
+}
