@@ -500,12 +500,17 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # Target Group for Frontend (Next.js on port 3000)
+  # Target Group for Frontend.
+  # The TG `Port` is immutable once created; keep the historical value (8501)
+  # to avoid resource replacement (which would disrupt the running ECS
+  # service). Health-check and actual traffic run on the container port 3000
+  # — the TG `Port` is only a default for the target registration and
+  # the ECS service already overrides it with containerPort=3000.
   FrontendTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
       Name: !Sub '${ProjectName}-${Environment}-frontend-tg'
-      Port: 3000
+      Port: 8501
       Protocol: HTTP
       VpcId:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
