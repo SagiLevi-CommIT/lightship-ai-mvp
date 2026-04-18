@@ -133,3 +133,26 @@ def test_evaluation_harness_scores_matching_objects(tmp_path):
     assert out["per_category"]["sign"]["fn"] == 1
     assert out["classification"]["weather_match"] == 1
     assert out["classification"]["traffic_match"] == 0
+
+
+# ---------------------------------------------------------------------------
+# HazardAssessor distance/priority normalizer (protects VideoOutput schema
+# from out-of-enum LLM outputs like "mid" / "near" / "medium" seen in prod)
+# ---------------------------------------------------------------------------
+
+
+def test_hazard_assessor_normalizer_maps_known_aliases():
+    from src.hazard_assessor import HazardAssessor
+
+    assert HazardAssessor._normalize_distance("mid") == "moderate"
+    assert HazardAssessor._normalize_distance("MID") == "moderate"
+    assert HazardAssessor._normalize_distance("near") == "close"
+    assert HazardAssessor._normalize_distance("na") == "n/a"
+    assert HazardAssessor._normalize_distance("moderate") == "moderate"
+    assert HazardAssessor._normalize_distance("") == "moderate"
+
+    assert HazardAssessor._normalize_priority("mid") == "medium"
+    assert HazardAssessor._normalize_priority("moderate") == "medium"
+    assert HazardAssessor._normalize_priority("info") == "none"
+    assert HazardAssessor._normalize_priority("") == "none"
+    assert HazardAssessor._normalize_priority("high") == "high"

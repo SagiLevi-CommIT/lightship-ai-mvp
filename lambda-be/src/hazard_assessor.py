@@ -963,6 +963,45 @@ Return the corrected JSON now:"""
             logger.error(f"Error parsing response: {e}")
             return [], {}, {}
 
+    # Map common out-of-enum distance/priority strings that the LLM sometimes
+    # returns onto the canonical schema enums.  This prevents validation errors
+    # downstream (e.g. legacy runs that emitted "mid" / "near" / "medium").
+    _DISTANCE_ALIASES = {
+        "mid": "moderate",
+        "medium": "moderate",
+        "mid-range": "moderate",
+        "midrange": "moderate",
+        "near": "close",
+        "very near": "very_close",
+        "very-near": "very_close",
+        "far-away": "far",
+        "very_distant": "very_far",
+        "not_applicable": "n/a",
+        "na": "n/a",
+        "unknown": "moderate",
+    }
+    _PRIORITY_ALIASES = {
+        "mid": "medium",
+        "moderate": "medium",
+        "info": "none",
+        "informational": "none",
+        "unknown": "none",
+    }
+
+    @classmethod
+    def _normalize_distance(cls, value: str) -> str:
+        if not value:
+            return "moderate"
+        key = str(value).strip().lower()
+        return cls._DISTANCE_ALIASES.get(key, key)
+
+    @classmethod
+    def _normalize_priority(cls, value: str) -> str:
+        if not value:
+            return "none"
+        key = str(value).strip().lower()
+        return cls._PRIORITY_ALIASES.get(key, key)
+
     def _apply_refinements(
         self,
         frame_objects: Dict[int, List[ObjectLabel]],
@@ -1011,10 +1050,12 @@ Return the corrected JSON now:"""
                         logger.info(f"LLM rejected false positive: frame {logical_frame_idx}, object {object_index} ({obj.description})")
                         continue
 
-                    # Apply LLM refinements (not a false positive)
+                    # Apply LLM refinements (not a false positive). Normalize
+                    # out-of-enum LLM outputs to canonical schema values so
+                    # the final VideoOutput always validates.
                     refined_obj = obj.model_copy(update={
-                        'distance': refinement['refined_distance'],
-                        'priority': refinement['refined_priority'],
+                        'distance': self._normalize_distance(refinement['refined_distance']),
+                        'priority': self._normalize_priority(refinement['refined_priority']),
                         'location_description': refinement.get('location_description', '')
                     })
                     refined_list.append(refined_obj)
