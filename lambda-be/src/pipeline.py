@@ -33,6 +33,7 @@ from src.config import (
 from src.frame_selector import select_frames_by_clustering
 from src.frame_preprocessor import preprocess_frame
 from src.config_generator import write_client_configs
+from src.rekognition_labeler import RekognitionLabeler
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,8 @@ class Pipeline:
             use_cv_labeler: If True, use V2 CV pipeline; if False, use V1 LLM pipeline
         """
         self.video_loader = VideoLoader()
+        self.snapshot_strategy = snapshot_strategy
+        self.max_snapshots = max_snapshots
         self.snapshot_selector = SnapshotSelector(strategy=snapshot_strategy, max_snapshots=max_snapshots)
         self.frame_extractor = FrameExtractor()
 
@@ -66,10 +69,11 @@ class Pipeline:
         if use_cv_labeler:
             # Note: CVLabeler will be re-initialized per video with camera-specific profile
             self.cv_labeler = None  # Will be set in process_video
+            self.rekognition = RekognitionLabeler()
             self.frame_annotator = FrameAnnotator()
             self.frame_refiner = FrameRefiner()
             self.hazard_assessor = HazardAssessor()
-            logger.info("Using V3 pipeline: CV Labeler (camera-specific) + Per-Frame Refinement + Hazard Assessor")
+            logger.info("Using V3 pipeline: CV + Rekognition + Per-Frame Refinement + Hazard Assessor")
         else:
             self.scene_labeler = SceneLabeler()
             logger.info("Using V1 pipeline: LLM Scene Labeler")
@@ -82,6 +86,12 @@ class Pipeline:
             f"max_snapshots={max_snapshots}, cleanup={cleanup_frames}, "
             f"version={'V2' if use_cv_labeler else 'V1'})"
         )
+
+    # Last-run artefacts populated by process_video so callers can find
+    # selected/annotated per-frame paths without re-running the pipeline.
+    last_selected_frames: Dict[int, str] = {}
+    last_annotated_frames: Dict[int, str] = {}
+    last_frame_timestamps: Dict[int, float] = {}
 
     def process_video(
         self,
@@ -97,6 +107,10 @@ class Pipeline:
         Returns:
             Path to output JSON file, or None if processing failed
         """
+        # Reset per-run artefacts
+        self.last_selected_frames = {}
+        self.last_annotated_frames = {}
+        self.last_frame_timestamps = {}
         logger.info(f"{'='*80}")
         logger.info(f"Processing video: {video_path} (train={is_train})")
         logger.info(f"{'='*80}")
@@ -459,37 +473,97 @@ class Pipeline:
 
         logger.info(f"CV labeled {len(all_frame_objects)} frames")
 
-        # Step 4b: Select top N frames — clustering or ranked by object count
+        # Step 4b: Select N frames using the user's chosen strategy.
+        # - scene_change  : use SnapshotSelector._select_scene_change, then
+        #                   map its timestamps onto our dense frame grid.
+        # - clustering    : HOG+PCA+KMeans diversity selector on the
+        #                   dense frame images.
+        # - naive (default): rank by number of detections, top N.
         max_snapshots = self.snapshot_selector.max_snapshots
+        chosen_strategy = (self.snapshot_strategy or SNAPSHOT_STRATEGY or "naive").lower()
+        logger.info(
+            "Step 4b: Selecting %d frames with strategy=%s from %d candidates",
+            max_snapshots, chosen_strategy, len(all_frame_objects),
+        )
 
-        for fidx, objs in all_frame_objects.items():
-            logger.debug(f"Frame {fidx}: {len(objs)} objects detected")
+        selected_indices: List[int] = []
 
-        use_clustering = SNAPSHOT_STRATEGY == "clustering"
+        if chosen_strategy == "scene_change":
+            try:
+                sc_snaps = self.snapshot_selector._select_scene_change(video_metadata)
+                # Map each scene-change timestamp onto the nearest dense frame
+                dense_by_ms = {s.timestamp_ms: s.frame_idx for s in snapshots}
+                dense_ms_sorted = sorted(dense_by_ms.keys())
+                picked = []
+                for sc in sc_snaps:
+                    if not dense_ms_sorted:
+                        break
+                    # nearest dense ms
+                    nearest_ms = min(dense_ms_sorted, key=lambda m: abs(m - sc.timestamp_ms))
+                    idx = dense_by_ms[nearest_ms]
+                    if idx not in picked:
+                        picked.append(idx)
+                selected_indices = picked[:max_snapshots]
+                logger.info("scene_change selected %d frames", len(selected_indices))
+            except Exception as e:  # noqa: BLE001
+                logger.warning("scene_change selection failed (%s), falling back to ranked", e)
+                selected_indices = []
 
-        if use_clustering:
+        if chosen_strategy == "clustering" or (chosen_strategy == "scene_change" and not selected_indices):
             try:
                 selected_indices = select_frames_by_clustering(
                     extracted_frames, n_select=max_snapshots,
                 )
                 logger.info("Clustering frame selection succeeded")
-            except Exception as e:
-                logger.warning("Clustering failed (%s), falling back to ranked selection", e)
-                use_clustering = False
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Clustering failed (%s), falling back to ranked", e)
+                selected_indices = []
 
-        if not use_clustering:
+        if not selected_indices:
             ranked = sorted(
                 all_frame_objects.keys(),
                 key=lambda idx: len(all_frame_objects[idx]),
                 reverse=True,
             )
             selected_indices = ranked[:max_snapshots]
-
             if len(selected_indices) < max_snapshots:
                 remaining = [idx for idx in all_frame_objects.keys() if idx not in selected_indices]
                 selected_indices.extend(remaining[: max_snapshots - len(selected_indices)])
 
-            selected_indices.sort()
+        # Always sort selected frames chronologically for UI/render coherence
+        selected_indices = sorted(set(selected_indices))[:max_snapshots]
+
+        # Step 4c: Merge Rekognition labels into selected-frame CV detections.
+        # Rekognition adds broad managed-model labels (cones, workers,
+        # pedestrians, signs, signals) that YOLO often misses. We only call
+        # it on the small final set, not the full pre-selection sweep, to
+        # keep the cost bounded.
+        try:
+            for fidx in selected_indices:
+                frame_path = extracted_frames.get(fidx)
+                if not frame_path:
+                    continue
+                # Find matching timestamp for this frame
+                ts_ms = 0.0
+                for snap in snapshots:
+                    if snap.frame_idx == fidx:
+                        ts_ms = snap.timestamp_ms
+                        break
+                rk_objs = self.rekognition.detect(
+                    frame_path=frame_path,
+                    timestamp_ms=ts_ms,
+                    video_width=video_metadata.width,
+                    video_height=video_metadata.height,
+                )
+                if rk_objs:
+                    existing = all_frame_objects.setdefault(fidx, [])
+                    existing.extend(rk_objs)
+                    logger.info(
+                        "Rekognition added %d detections on frame %d (total now %d)",
+                        len(rk_objs), fidx, len(existing),
+                    )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Rekognition merge failed: %s", e)
 
         logger.info(
             f"Selected {len(selected_indices)}/{len(all_frame_objects)} frames "
@@ -622,6 +696,11 @@ class Pipeline:
                 logger.error(f"Failed to re-annotate frame {frame_idx}: {e}")
                 # Use original frame as fallback
                 refined_frame_images[frame_idx] = frame_path
+
+            # Record for callers (so API can persist per-frame images + JSON)
+            self.last_selected_frames[frame_idx] = frame_path
+            self.last_annotated_frames[frame_idx] = refined_frame_images[frame_idx]
+            self.last_frame_timestamps[frame_idx] = timestamp_ms
 
         # Step 4f: Hazard Assessment (temporal LLM - hazard events only)
         logger.info("Step 4f: Assessing hazards with temporal LLM (hazard events only)")
