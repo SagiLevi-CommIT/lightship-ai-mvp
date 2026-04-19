@@ -1,219 +1,261 @@
-"use client";
+'use client';
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import AppShellHeader from '@/components/evaluation/app-shell-header';
+import BatchNotification from '@/components/evaluation/batch-notification';
+import { useEvaluationFlow } from '@/components/evaluation/flow-provider';
+import { createRunId } from '@/components/evaluation/mock-results';
+import RunProgress from '@/components/evaluation/run-progress';
 import {
-  uploadAndProcess,
-  getJobStatus,
-  getPipelineResult,
-  getFrameUrl,
-  type PipelineResultJson,
-  type JobStatus,
-} from "@/lib/api-client";
-import { mapBackendStage, stageName, type RunStage } from "@/lib/types";
-import { Loader2, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { ResultsView } from "@/components/evaluation/results-view";
+  getClientConfigs,
+  getOutputJson,
+  pollJobToTerminal,
+  presignUploadAndStart,
+  type JobStatusResponse,
+} from '@/lib/api';
+import { buildAssetResultFromBackend } from '@/lib/map-backend-to-template';
+import type { AssetResult } from '@/components/evaluation/flow-types';
 
-interface JobTracker {
-  file: File;
-  jobId?: string;
-  stage: RunStage;
-  progress: number;
-  message: string;
-  result?: PipelineResultJson;
-  error?: string;
-}
+const STAGE_LABELS: Record<string, string> = {
+  init: 'Initializing pipeline',
+  processing: 'Processing video',
+  finalize: 'Finalizing results',
+  completed: 'Completed',
+  error: 'Failed',
+};
 
-const POLL_MS = 3000;
+const humanStage = (status: JobStatusResponse, fallback: string) => {
+  if (status.message) return status.message;
+  if (status.current_step) return STAGE_LABELS[status.current_step] ?? status.current_step;
+  return fallback;
+};
 
 export default function RunPage() {
   const router = useRouter();
-  const [jobs, setJobs] = useState<JobTracker[]>([]);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const started = useRef(false);
+  const [showBatchInfo, setShowBatchInfo] = useState<boolean>(true);
+  const {
+    completeRun,
+    requestNotificationPermission,
+    setAssetStatus,
+    setRunProgress,
+    state,
+  } = useEvaluationFlow();
+  const runConfigRef = useRef<{
+    mode: typeof state.mode;
+    assets: typeof state.assets;
+    pipelineConfig: typeof state.pipelineConfig;
+  } | null>(null);
+
+  if (runConfigRef.current === null) {
+    runConfigRef.current = {
+      mode: state.mode,
+      assets: state.assets,
+      pipelineConfig: state.pipelineConfig,
+    };
+  }
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-
-    const stored = (window as any).__ls_files as FileList | undefined;
-    if (!stored || stored.length === 0) {
-      router.replace("/");
+    const runConfig = runConfigRef.current;
+    if (!runConfig) {
+      router.replace('/');
+      return;
+    }
+    if (runConfig.assets.length === 0) {
+      router.replace('/');
       return;
     }
 
-    const maxSnaps = Number(sessionStorage.getItem("ls_max_snapshots") || "5");
-    const strategy = sessionStorage.getItem("ls_strategy") || "clustering";
+    let isCancelled = false;
 
-    const trackers: JobTracker[] = Array.from(stored).map((f) => ({
-      file: f,
-      stage: "uploading" as RunStage,
-      progress: 0,
-      message: "Starting upload…",
-    }));
-    setJobs(trackers);
+    const run = async () => {
+      const totalAssets = runConfig.assets.length;
+      const startedAt = Date.now();
 
-    trackers.forEach((t, idx) => {
-      processOne(idx, t.file, { max_snapshots: maxSnaps, snapshot_strategy: strategy });
-    });
+      setRunProgress({
+        phase: 'queued',
+        percent: 0,
+        currentStage: 'Queueing files for the pipeline',
+        activeAssetId: null,
+        totalAssets,
+        completedAssets: 0,
+        startedAt,
+        completedAt: null,
+      });
 
-    delete (window as any).__ls_files;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      runConfig.assets.forEach((asset) => setAssetStatus(asset.id, 'queued'));
 
-  async function processOne(
-    idx: number,
-    file: File,
-    config: { max_snapshots: number; snapshot_strategy: string }
-  ) {
-    const update = (patch: Partial<JobTracker>) =>
-      setJobs((prev) => prev.map((j, i) => (i === idx ? { ...j, ...patch } : j)));
+      const resultsByAssetId: Record<string, AssetResult> = {};
+      let completed = 0;
+      let failed = 0;
 
-    try {
-      update({ stage: "uploading", message: "Uploading to S3…", progress: 10 });
-      const { job_id } = await uploadAndProcess(file, config);
-      update({ jobId: job_id, stage: "queued", message: "Queued", progress: 20 });
+      for (const asset of runConfig.assets) {
+        if (isCancelled) return;
 
-      // Poll
-      let done = false;
-      while (!done) {
-        await new Promise((r) => setTimeout(r, POLL_MS));
-        let status: JobStatus;
+        setAssetStatus(asset.id, 'running');
+        setRunProgress({
+          phase: 'running',
+          percent: (completed / totalAssets) * 100,
+          currentStage: `Uploading ${asset.name}`,
+          activeAssetId: asset.id,
+          totalAssets,
+          completedAssets: completed,
+          startedAt,
+          completedAt: null,
+        });
+
         try {
-          status = await getJobStatus(job_id);
-        } catch {
-          continue;
-        }
-        const s = status.status.toUpperCase();
-        if (s === "COMPLETED") {
-          update({
-            stage: "finalizing",
-            progress: 90,
-            message: "Loading results…",
+          const fpsStr = runConfig.pipelineConfig.nativeFps;
+          const fps = Number.parseFloat(fpsStr) || 2;
+          const maxSnapshots = Math.max(3, Math.min(20, Math.round(fps * 3)));
+          const strategy =
+            runConfig.pipelineConfig.frameSelectionMethod === 'scene-change'
+              ? 'scene_change'
+              : 'naive';
+
+          const jobId = await presignUploadAndStart(asset.file, {
+            max_snapshots: maxSnapshots,
+            snapshot_strategy: strategy,
           });
-          const result = await getPipelineResult(job_id);
-          update({
-            stage: "completed",
-            progress: 100,
-            message: "Done",
-            result,
-          });
-          done = true;
-        } else if (s === "FAILED") {
-          update({
-            stage: "failed",
-            progress: 0,
-            message: status.message || "Processing failed",
-            error: status.message,
-          });
-          done = true;
-        } else {
-          const stage = mapBackendStage(status.current_step);
-          update({
-            stage,
-            progress: Math.round(status.progress * 100),
-            message: status.message || stageName(stage),
-          });
+
+          await pollJobToTerminal(
+            jobId,
+            (status) => {
+              if (isCancelled) return;
+              const progress = Math.max(0, Math.min(1, status.progress ?? 0));
+              const pct = ((completed + progress) / totalAssets) * 100;
+              setRunProgress({
+                phase: 'running',
+                percent: pct,
+                currentStage: `${humanStage(status, 'Processing')} · ${asset.name}`,
+                activeAssetId: asset.id,
+                totalAssets,
+                completedAssets: completed,
+                startedAt,
+                completedAt: null,
+              });
+            },
+            3000,
+          );
+
+          const bv = await getOutputJson(jobId);
+          let configs = null;
+          try {
+            configs = await getClientConfigs(jobId);
+          } catch {
+            configs = null;
+          }
+          resultsByAssetId[asset.id] = buildAssetResultFromBackend(asset, bv, configs);
+          setAssetStatus(asset.id, 'completed');
+          completed += 1;
+        } catch (err) {
+          console.error('Pipeline failed for asset', asset.name, err);
+          setAssetStatus(asset.id, 'failed');
+          failed += 1;
         }
       }
-    } catch (err: any) {
-      update({
-        stage: "failed",
-        progress: 0,
-        message: err.message ?? "Unknown error",
-        error: err.message,
+
+      if (isCancelled) return;
+
+      const runId = createRunId();
+      setRunProgress({
+        phase: failed > 0 && completed === 0 ? 'failed' : 'completed',
+        percent: 100,
+        currentStage:
+          failed === 0
+            ? 'Results are ready'
+            : completed === 0
+            ? 'All assets failed'
+            : `Completed with ${failed} failed asset(s)`,
+        activeAssetId: null,
+        totalAssets,
+        completedAssets: completed,
+        startedAt,
+        completedAt: Date.now(),
       });
-    }
-  }
 
-  const activeJob = jobs[activeIdx];
+      const completionMessage =
+        failed === 0
+          ? 'Pipeline run is complete. Your results are ready to review.'
+          : completed === 0
+          ? 'Pipeline run finished with failures. Check backend logs.'
+          : `Pipeline finished with ${failed} failed asset(s). Partial results available.`;
 
-  if (jobs.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[60vh] text-gray-400">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" /> Initializing…
-      </div>
-    );
+      if (Object.keys(resultsByAssetId).length === 0) {
+        // nothing to show — bail back to home with notification
+        return;
+      }
+
+      completeRun(runId, resultsByAssetId, completionMessage, {
+        mode: runConfig.mode,
+        createdAt: startedAt,
+        completedAt: Date.now(),
+      });
+      router.push(`/results/${runId}`);
+    };
+
+    void run();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [completeRun, router, setAssetStatus, setRunProgress]);
+
+  if (state.assets.length === 0) {
+    return null;
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Processing</h1>
-        <button
-          onClick={() => router.push("/")}
-          className="text-sm text-brand-600 hover:underline"
-        >
-          + New Analysis
-        </button>
+    <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#163b84_0%,#08142e_34%,#020814_100%)] px-6 py-8 text-white lg:px-10">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-16 top-12 h-56 w-56 rounded-full bg-cyan-400/18 blur-3xl" />
+        <div className="absolute right-0 top-0 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
       </div>
 
-      {/* Job tabs */}
-      {jobs.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {jobs.map((j, i) => (
+      <div className="relative mx-auto max-w-7xl">
+        <AppShellHeader
+          rightContent={
             <button
-              key={i}
-              onClick={() => setActiveIdx(i)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm whitespace-nowrap border transition-colors",
-                i === activeIdx
-                  ? "border-brand-500 bg-brand-50 text-brand-700"
-                  : "border-gray-200 text-gray-500 hover:bg-gray-50"
-              )}
+              type="button"
+              onClick={() => router.back()}
+              className="rounded-lg border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
             >
-              {j.stage === "completed" && (
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-              )}
-              {j.stage === "failed" && (
-                <XCircle className="h-3.5 w-3.5 text-red-500" />
-              )}
-              {j.stage !== "completed" && j.stage !== "failed" && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-brand-500" />
-              )}
-              {j.file.name}
+              Back
             </button>
-          ))}
-        </div>
-      )}
-
-      {/* Active job status */}
-      {activeJob && activeJob.stage !== "completed" && (
-        <div className="rounded-xl border bg-white p-8 text-center space-y-4">
-          {activeJob.stage === "failed" ? (
-            <XCircle className="mx-auto h-12 w-12 text-red-400" />
-          ) : (
-            <Loader2 className="mx-auto h-12 w-12 text-brand-500 animate-spin" />
-          )}
-          <p className="text-lg font-medium text-gray-700">
-            {stageName(activeJob.stage)}
-          </p>
-          <p className="text-sm text-gray-500">{activeJob.message}</p>
-          {activeJob.progress > 0 && activeJob.stage !== "failed" && (
-            <div className="mx-auto w-80">
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-brand-500 transition-all duration-500 rounded-full"
-                  style={{ width: `${activeJob.progress}%` }}
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-400">
-                {activeJob.progress}%
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Results */}
-      {activeJob && activeJob.stage === "completed" && activeJob.result && (
-        <ResultsView
-          result={activeJob.result}
-          jobId={activeJob.jobId!}
-          filename={activeJob.file.name}
+          }
         />
-      )}
+
+        <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="font-[family:var(--font-ibm-plex-sans)] text-[1.75rem] font-semibold tracking-tight text-white md:text-[2.25rem]">
+              Running Pipeline
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">{state.runProgress.currentStage}</p>
+          </div>
+          <div className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-slate-200">
+            {state.runProgress.completedAssets}/{state.runProgress.totalAssets} completed
+          </div>
+        </div>
+
+        <div className="mt-6 max-w-5xl">
+          {state.mode === 'batch' && showBatchInfo ? (
+            <BatchNotification
+              message={
+                state.notificationPermission === 'granted'
+                  ? 'Browser notifications are enabled. You will also get an in-app confirmation once the batch results are ready.'
+                  : 'Batch mode can show an in-app completion message and an optional browser notification while this page stays open.'
+              }
+              permission={state.notificationPermission}
+              onRequestPermission={requestNotificationPermission}
+              onDismiss={() => setShowBatchInfo(false)}
+            />
+          ) : null}
+
+          <div className="mt-4">
+            <RunProgress progress={state.runProgress} assets={state.assets} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
