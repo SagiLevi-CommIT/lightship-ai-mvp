@@ -9,9 +9,12 @@ import { createRunId } from '@/components/evaluation/mock-results';
 import RunProgress from '@/components/evaluation/run-progress';
 import {
   getClientConfigs,
+  getFrames,
   getOutputJson,
+  getVideoClass,
   pollJobToTerminal,
   presignUploadAndStart,
+  startS3VideoJob,
   type JobStatusResponse,
 } from '@/lib/api';
 import { buildAssetResultFromBackend } from '@/lib/map-backend-to-template';
@@ -19,7 +22,7 @@ import type { AssetResult } from '@/components/evaluation/flow-types';
 
 const STAGE_LABELS: Record<string, string> = {
   init: 'Initializing pipeline',
-  processing: 'Processing video',
+  processing: 'Running detection',
   finalize: 'Finalizing results',
   completed: 'Completed',
   error: 'Failed',
@@ -38,6 +41,7 @@ export default function RunPage() {
     completeRun,
     requestNotificationPermission,
     setAssetStatus,
+    setAssetJobId,
     setRunProgress,
     state,
   } = useEvaluationFlow();
@@ -72,6 +76,16 @@ export default function RunPage() {
       const totalAssets = runConfig.assets.length;
       const startedAt = Date.now();
 
+      // Decode user config. The "Number of frames to keep" is the single
+      // source of truth for max_snapshots; snapshot_strategy is derived
+      // from the Native / Scene change toggle.
+      const parsedMax = Number.parseInt(runConfig.pipelineConfig.maxSnapshots, 10);
+      const maxSnapshots = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 5;
+      const strategy =
+        runConfig.pipelineConfig.frameSelectionMethod === 'scene-change'
+          ? 'scene_change'
+          : 'naive';
+
       setRunProgress({
         phase: 'queued',
         percent: 0,
@@ -96,7 +110,10 @@ export default function RunPage() {
         setRunProgress({
           phase: 'running',
           percent: (completed / totalAssets) * 100,
-          currentStage: `Uploading ${asset.name}`,
+          currentStage:
+            asset.source === 's3'
+              ? `Copying S3 video: ${asset.name}`
+              : `Uploading ${asset.name}`,
           activeAssetId: asset.id,
           totalAssets,
           completedAssets: completed,
@@ -105,18 +122,22 @@ export default function RunPage() {
         });
 
         try {
-          const fpsStr = runConfig.pipelineConfig.nativeFps;
-          const fps = Number.parseFloat(fpsStr) || 2;
-          const maxSnapshots = Math.max(3, Math.min(20, Math.round(fps * 3)));
-          const strategy =
-            runConfig.pipelineConfig.frameSelectionMethod === 'scene-change'
-              ? 'scene_change'
-              : 'naive';
-
-          const jobId = await presignUploadAndStart(asset.file, {
-            max_snapshots: maxSnapshots,
-            snapshot_strategy: strategy,
-          });
+          let jobId: string;
+          if (asset.source === 's3' && asset.s3Uri) {
+            const resp = await startS3VideoJob(asset.s3Uri, {
+              max_snapshots: maxSnapshots,
+              snapshot_strategy: strategy,
+            });
+            jobId = resp.job_id;
+          } else if (asset.file) {
+            jobId = await presignUploadAndStart(asset.file, {
+              max_snapshots: maxSnapshots,
+              snapshot_strategy: strategy,
+            });
+          } else {
+            throw new Error(`Asset ${asset.name} has no file or s3Uri`);
+          }
+          setAssetJobId(asset.id, jobId);
 
           await pollJobToTerminal(
             jobId,
@@ -138,14 +159,29 @@ export default function RunPage() {
             3000,
           );
 
-          const bv = await getOutputJson(jobId);
-          let configs = null;
-          try {
-            configs = await getClientConfigs(jobId);
-          } catch {
-            configs = null;
-          }
-          resultsByAssetId[asset.id] = buildAssetResultFromBackend(asset, bv, configs);
+          const [bv, configs, frames, videoClass] = await Promise.all([
+            getOutputJson(jobId),
+            getClientConfigs(jobId).catch(() => null),
+            getFrames(jobId).catch(() => null),
+            getVideoClass(jobId).catch(() => null),
+          ]);
+
+          const result = buildAssetResultFromBackend(asset, bv, configs);
+          // Attach the real frame manifest + video class as extras on the
+          // result so the results page can render per-frame S3 images.
+          (result as AssetResult & {
+            jobId?: string;
+            frames?: typeof frames;
+            videoClass?: typeof videoClass;
+          }).jobId = jobId;
+          (result as AssetResult & {
+            frames?: typeof frames;
+          }).frames = frames;
+          (result as AssetResult & {
+            videoClass?: typeof videoClass;
+          }).videoClass = videoClass;
+          resultsByAssetId[asset.id] = result;
+
           setAssetStatus(asset.id, 'completed');
           completed += 1;
         } catch (err) {
@@ -182,7 +218,6 @@ export default function RunPage() {
           : `Pipeline finished with ${failed} failed asset(s). Partial results available.`;
 
       if (Object.keys(resultsByAssetId).length === 0) {
-        // nothing to show — bail back to home with notification
         return;
       }
 
@@ -199,7 +234,7 @@ export default function RunPage() {
     return () => {
       isCancelled = true;
     };
-  }, [completeRun, router, setAssetStatus, setRunProgress]);
+  }, [completeRun, router, setAssetJobId, setAssetStatus, setRunProgress]);
 
   if (state.assets.length === 0) {
     return null;

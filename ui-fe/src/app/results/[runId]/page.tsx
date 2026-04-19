@@ -5,9 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import AppShellHeader from '@/components/evaluation/app-shell-header';
 import BatchNotification from '@/components/evaluation/batch-notification';
 import EvaluationReportResults from '@/components/evaluation/evaluation-report-results';
-import ResultsFrameGallery from '@/components/evaluation/results-frame-gallery';
+import BackendFrameGallery from '@/components/evaluation/backend-frame-gallery';
 import ResultsPropertiesPanel from '@/components/evaluation/results-properties-panel';
 import { useEvaluationFlow } from '@/components/evaluation/flow-provider';
+import type { FrameManifest, VideoClassInfo } from '@/lib/api';
+import type { AssetResult } from '@/components/evaluation/flow-types';
 
 export default function ResultsPage() {
   const params = useParams<{ runId: string }>();
@@ -179,7 +181,14 @@ export default function ResultsPage() {
                   Batch processing finished successfully. Select any processed file from the left to inspect its frames and JSON output.
                 </div>
               ) : null}
-              <ResultsFrameGallery result={selectedResult} />
+              <BackendFrameGallery
+                result={selectedResult as AssetResult & {
+                  jobId?: string;
+                  frames?: FrameManifest | null;
+                  videoClass?: VideoClassInfo | null;
+                }}
+                onDownloadJson={handleDownloadJson}
+              />
               <div className="grid gap-6">
                 <ResultsPropertiesPanel result={selectedResult} />
               </div>

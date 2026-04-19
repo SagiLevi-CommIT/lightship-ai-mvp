@@ -1,50 +1,153 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AppShellHeader from '@/components/evaluation/app-shell-header';
-import EvaluationReportResults from '@/components/evaluation/evaluation-report-results';
-import ResultsFrameGallery from '@/components/evaluation/results-frame-gallery';
-import ResultsPropertiesPanel from '@/components/evaluation/results-properties-panel';
 import { useEvaluationFlow } from '@/components/evaluation/flow-provider';
+import {
+  getClientConfigs,
+  getFrames,
+  getOutputJson,
+  getVideoClass,
+  listBackendJobs,
+  type BackendJobRow,
+  type BackendVideoOutput,
+  type ClientConfigsBundle,
+  type FrameManifest,
+  type VideoClassInfo,
+} from '@/lib/api';
+import BackendFrameGallery from '@/components/evaluation/backend-frame-gallery';
+import { backendToPipelineResultJson } from '@/lib/map-backend-to-template';
+import type { AssetResult } from '@/components/evaluation/flow-types';
 
-const formatRunTime = (timestamp: number) =>
-  new Date(timestamp).toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+type RunDetail = {
+  bv: BackendVideoOutput;
+  configs: ClientConfigsBundle | null;
+  frames: FrameManifest | null;
+  videoClass: VideoClassInfo | null;
+};
+
+const formatRunTime = (iso?: string) => {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+};
+
+const statusClass = (s: string) => {
+  const u = (s || '').toUpperCase();
+  if (u === 'COMPLETED') return 'bg-emerald-500/20 text-emerald-200';
+  if (u === 'FAILED') return 'bg-rose-500/20 text-rose-200';
+  if (u === 'PROCESSING' || u === 'QUEUED') return 'bg-cyan-500/20 text-cyan-200';
+  return 'bg-slate-700 text-slate-300';
+};
 
 export default function HistoryPage() {
   const { state } = useEvaluationFlow();
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(state.historicalRuns[0]?.runId ?? null);
-  const selectedRun = useMemo(
-    () => state.historicalRuns.find((run) => run.runId === selectedRunId) ?? state.historicalRuns[0] ?? null,
-    [selectedRunId, state.historicalRuns],
-  );
-  const resultEntries = useMemo(() => Object.values(selectedRun?.resultsByAssetId ?? {}), [selectedRun]);
-  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(resultEntries[0]?.assetId ?? null);
-  const activeAssetId = resultEntries.some((result) => result.assetId === selectedAssetId)
-    ? selectedAssetId
-    : resultEntries[0]?.assetId ?? null;
-  const selectedResult = resultEntries.find((result) => result.assetId === activeAssetId) ?? resultEntries[0] ?? null;
+  const [backendJobs, setBackendJobs] = useState<BackendJobRow[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<RunDetail | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
-  const handleDownloadJson = (filename: string, payload: unknown) => {
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoadingJobs(true);
+      try {
+        const jobs = await listBackendJobs(100);
+        if (!cancelled) {
+          setBackendJobs(jobs);
+          if (!selectedJobId && jobs.length > 0) {
+            setSelectedJobId(jobs[0].job_id);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to list jobs', e);
+      } finally {
+        if (!cancelled) setLoadingJobs(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDetail(null);
+    setDetailError(null);
+    if (!selectedJobId) return;
+    const job = backendJobs.find((j) => j.job_id === selectedJobId);
+    if (!job) return;
+    if ((job.status || '').toUpperCase() !== 'COMPLETED') return;
+    setDetailLoading(true);
+    (async () => {
+      try {
+        const [bv, configs, frames, videoClass] = await Promise.all([
+          getOutputJson(selectedJobId),
+          getClientConfigs(selectedJobId).catch(() => null),
+          getFrames(selectedJobId).catch(() => null),
+          getVideoClass(selectedJobId).catch(() => null),
+        ]);
+        if (!cancelled) setDetail({ bv, configs, frames, videoClass });
+      } catch (e) {
+        if (!cancelled) setDetailError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [backendJobs, selectedJobId]);
+
+  const selectedJob = useMemo(
+    () => backendJobs.find((j) => j.job_id === selectedJobId) ?? null,
+    [backendJobs, selectedJobId],
+  );
+
+  const downloadJson = (filename: string, payload: unknown) => {
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const objectUrl = URL.createObjectURL(blob);
+    const obj = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = objectUrl;
+    link.href = obj;
     link.download = filename;
     link.click();
-    URL.revokeObjectURL(objectUrl);
+    URL.revokeObjectURL(obj);
   };
 
-  const handleDownloadAllJson = () => {
-    resultEntries.forEach((result) => {
-      handleDownloadJson(result.assetName.replace(/\.[^.]+$/, '.json'), result.rawJson);
-    });
-  };
+  const syntheticResult: (AssetResult & {
+    jobId?: string;
+    frames?: FrameManifest | null;
+    videoClass?: VideoClassInfo | null;
+  }) | null = detail
+    ? (() => {
+        const rawJson = backendToPipelineResultJson(detail.bv, detail.configs ?? null);
+        return {
+          assetId: selectedJob?.job_id ?? 'unknown',
+          assetName: detail.bv.filename,
+          previewUrl: '',
+          kind: 'video',
+          rawJson,
+          propertyRows: [],
+          jobId: selectedJob?.job_id,
+          frames: detail.frames,
+          videoClass: detail.videoClass,
+        };
+      })()
+    : null;
 
   return (
     <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#163b84_0%,#08142e_34%,#020814_100%)] px-6 py-8 text-white lg:px-10">
@@ -59,137 +162,112 @@ export default function HistoryPage() {
         <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-[family:var(--font-ibm-plex-sans)] text-[1.75rem] font-semibold tracking-tight text-white md:text-[2.25rem]">
-              Historical Runs
+              Run history
             </h1>
             <p className="mt-1 text-sm text-slate-400">
-              Review previous pipeline executions and inspect saved results.
+              All jobs tracked in DynamoDB. Select a completed job to review its
+              annotated frames and structured output.
             </p>
           </div>
-          <span className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-slate-200">
-            {state.historicalRuns.length} run{state.historicalRuns.length === 1 ? '' : 's'}
-          </span>
-        </div>
-
-        {state.historicalRuns.length === 0 ? (
-          <div className="mt-8 rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-8 text-center">
-            <p className="text-lg font-semibold text-white">No historical runs yet</p>
-            <p className="mt-2 text-sm text-slate-400">Run a pipeline first, then it will appear here automatically.</p>
+          <div className="flex items-center gap-3">
+            <span className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-slate-200">
+              {backendJobs.length} job{backendJobs.length === 1 ? '' : 's'}
+            </span>
             <Link
               href="/"
-              className="mt-5 inline-flex rounded-full border border-cyan-400/30 bg-cyan-500/10 px-5 py-2.5 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
+              className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-5 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
             >
-              New Pipeline
+              New pipeline
             </Link>
           </div>
+        </div>
+
+        {loadingJobs ? (
+          <div className="mt-8 rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-8 text-center text-sm text-slate-300">
+            Loading jobs from DynamoDB…
+          </div>
+        ) : backendJobs.length === 0 ? (
+          <div className="mt-8 rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-8 text-center">
+            <p className="text-lg font-semibold text-white">No jobs yet</p>
+            <p className="mt-2 text-sm text-slate-400">
+              Run a pipeline from the Upload page and it will appear here.
+            </p>
+          </div>
         ) : (
-          <section className="mt-6 grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+          <section className="mt-6 grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
             <aside className="rounded-2xl border border-cyan-500/20 bg-slate-950/82 p-5 backdrop-blur xl:sticky xl:top-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white">Past Runs</h2>
+                <h2 className="text-sm font-semibold text-white">Past jobs</h2>
                 <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-slate-300">
-                  {state.historicalRuns.length}
+                  {backendJobs.length}
                 </span>
               </div>
-
-              <div className="mt-4 grid gap-2">
-                {state.historicalRuns.map((run, index) => {
-                  const isSelected = run.runId === selectedRun?.runId;
-
+              <div className="mt-4 grid max-h-[72vh] gap-2 overflow-y-auto pr-1">
+                {backendJobs.map((job) => {
+                  const isSelected = job.job_id === selectedJobId;
                   return (
                     <button
-                      key={run.runId}
+                      key={job.job_id}
                       type="button"
-                      onClick={() => setSelectedRunId(run.runId)}
+                      onClick={() => setSelectedJobId(job.job_id)}
                       className={`flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition ${
                         isSelected
                           ? 'border-cyan-400/50 bg-cyan-500/10'
                           : 'border-slate-700/60 bg-slate-900/50 hover:border-cyan-400/40 hover:bg-slate-900'
                       }`}
                     >
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cyan-500/15 text-[11px] font-semibold text-cyan-200">
-                        {index + 1}
+                      <span
+                        className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusClass(job.status)}`}
+                      >
+                        {job.status}
                       </span>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-white">Run {run.runId.slice(0, 8)}</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500">
-                          {run.mode === 'evaluation' ? 'Evaluation' : `${run.assetCount} video${run.assetCount === 1 ? '' : 's'}`}
-                          {' · '}
-                          {formatRunTime(run.completedAt)}
+                        <p className="truncate text-sm font-medium text-white">{job.filename ?? job.job_id.slice(0, 8)}</p>
+                        <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                          {job.job_id.slice(0, 8)} · {formatRunTime(job.created_at)}
                         </p>
                       </div>
                     </button>
                   );
                 })}
               </div>
+              {state.historicalRuns.length > 0 ? (
+                <div className="mt-5 border-t border-white/10 pt-4 text-[11px] text-slate-500">
+                  Session runs: {state.historicalRuns.length}
+                </div>
+              ) : null}
             </aside>
 
-            {selectedRun ? (
-              <div className="space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-cyan-500/20 bg-slate-950/78 px-5 py-4 backdrop-blur">
-                  <p className="text-sm text-slate-300">
-                    Completed {formatRunTime(selectedRun.completedAt)}
-                  </p>
-
-                  {selectedRun.mode === 'batch' ? (
-                    <button
-                      type="button"
-                      onClick={handleDownloadAllJson}
-                      className="rounded-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 px-5 py-2 text-sm font-semibold text-white transition hover:scale-[1.01]"
-                    >
-                      Download all JSON
-                    </button>
+            <div className="space-y-6">
+              {!selectedJob ? (
+                <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-8 text-center text-sm text-slate-400">
+                  Select a job from the list to review results.
+                </div>
+              ) : selectedJob.status !== 'COMPLETED' ? (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 text-sm text-amber-200">
+                  This job is <b>{selectedJob.status}</b>. Results are only available
+                  after the pipeline completes.
+                  {selectedJob.error_message ? (
+                    <p className="mt-2 font-mono text-xs text-amber-100">
+                      {selectedJob.error_message}
+                    </p>
                   ) : null}
                 </div>
-
-                {selectedRun.mode === 'evaluation' ? (
-                  <EvaluationReportResults />
-                ) : (
-                  <>
-                    <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <h3 className="text-sm font-semibold text-white">Run videos</h3>
-                        <span className="rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-slate-300">
-                          {resultEntries.length} file{resultEntries.length === 1 ? '' : 's'}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1">
-                        {resultEntries.map((result) => {
-                          const isSelected = result.assetId === selectedResult?.assetId;
-
-                          return (
-                            <button
-                              key={result.assetId}
-                              type="button"
-                              onClick={() => setSelectedAssetId(result.assetId)}
-                              className={`min-w-[240px] max-w-[240px] rounded-xl border px-3.5 py-3 text-left transition ${
-                                isSelected
-                                  ? 'border-cyan-400/50 bg-cyan-500/10'
-                                  : 'border-slate-700/60 bg-slate-900/50 hover:border-cyan-400/40 hover:bg-slate-900'
-                              }`}
-                            >
-                              <p className="truncate text-sm font-medium text-white">{result.assetName}</p>
-                              <p className="mt-0.5 text-[11px] uppercase tracking-wider text-slate-500">{result.kind}</p>
-                              <p className="mt-1.5 text-xs text-slate-400">
-                                {result.rawJson.frames.length} frame{result.rawJson.frames.length === 1 ? '' : 's'} ·{' '}
-                                {result.rawJson.hazards.length} hazard{result.rawJson.hazards.length === 1 ? '' : 's'}
-                              </p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {selectedResult ? (
-                      <div className="space-y-6">
-                        <ResultsFrameGallery result={selectedResult} />
-                        <ResultsPropertiesPanel result={selectedResult} />
-                      </div>
-                    ) : null}
-                  </>
-                )}
-              </div>
-            ) : null}
+              ) : detailLoading ? (
+                <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-6 text-sm text-slate-300">
+                  Loading results from S3…
+                </div>
+              ) : detailError ? (
+                <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-6 text-sm text-rose-200">
+                  Failed to load this run: {detailError}
+                </div>
+              ) : syntheticResult ? (
+                <BackendFrameGallery
+                  result={syntheticResult}
+                  onDownloadJson={downloadJson}
+                />
+              ) : null}
+            </div>
           </section>
         )}
       </div>
