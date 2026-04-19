@@ -686,6 +686,20 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      # CORS: allow browser PUTs from the ALB (and localhost for dev) against
+      # the presigned upload URLs. Without this the browser blocks the direct
+      # S3 upload and reports "Failed to fetch".
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [PUT, POST, GET, HEAD]
+            AllowedOrigins:
+              - !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+              - !Sub 'https://${ApplicationLoadBalancer.DNSName}'
+              - http://localhost:3000
+              - http://localhost:8000
+            ExposedHeaders: [ETag, x-amz-request-id, x-amz-id-2]
+            MaxAge: 3600
       LifecycleConfiguration:
         Rules:
           - Id: ExpireProcessingFrames
