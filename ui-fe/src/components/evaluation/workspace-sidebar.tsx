@@ -178,6 +178,31 @@ export default function WorkspaceSidebar({
 
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              Number of frames to keep
+            </label>
+            <div className="mt-2 flex items-center rounded-lg border border-slate-700 bg-slate-950/75 pr-3 focus-within:border-cyan-400">
+              <input
+                type="number"
+                min="1"
+                max="30"
+                step="1"
+                value={config.maxSnapshots}
+                onChange={(event) => onChange({ maxSnapshots: event.target.value })}
+                className="w-full bg-transparent px-3 py-2 text-sm text-white outline-none"
+                placeholder="5"
+              />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                frames
+              </span>
+            </div>
+            <p className="mt-1 text-[10px] text-slate-500">
+              Applies to both Native and Scene change. The pipeline will detect
+              frames and keep up to this many for analysis.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               S3 bucket path
               <Tooltip id="s3-bucket" />
             </label>

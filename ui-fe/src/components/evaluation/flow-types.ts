@@ -14,13 +14,16 @@ export type NotificationState = 'default' | 'granted' | 'denied' | 'unsupported'
 
 export type UploadedAsset = {
   id: string;
-  file: File;
+  file?: File;                  // absent for s3-sourced assets
+  source?: 'upload' | 's3';
+  s3Uri?: string;               // s3://bucket/key for s3-sourced assets
   name: string;
   size: number;
   type: string;
   kind: MediaKind;
   previewUrl: string;
   status: AssetStatus;
+  jobId?: string;               // assigned after the backend accepts the job
   validationErrors: Array<string>;
   durationSec?: number;
   width?: number;
@@ -29,10 +32,15 @@ export type UploadedAsset = {
 
 export type PipelineConfig = {
   frameSelectionMethod: FrameSelectionMethod;
-  nativeFps: string;
-  s3BucketPath: string;
+  nativeFps: string;          // used when frameSelectionMethod === 'native'
+  maxSnapshots: string;        // number of frames to keep (all strategies)
+  s3BucketPath: string;        // informational; not used by backend
   outputCategory: OutputCategory;
 };
+
+export type VideoSource =
+  | { kind: 'upload'; file: File }
+  | { kind: 's3'; bucket: string; key: string };
 
 export type RunPhase = 'idle' | 'queued' | 'running' | 'completed' | 'failed';
 

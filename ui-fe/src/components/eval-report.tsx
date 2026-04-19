@@ -8,6 +8,7 @@ import ModeToggle from '@/components/evaluation/mode-toggle';
 import UploadDropzone from '@/components/evaluation/upload-dropzone';
 import UploadQueue from '@/components/evaluation/upload-queue';
 import WorkspaceSidebar from '@/components/evaluation/workspace-sidebar';
+import S3UriInput from '@/components/evaluation/s3-uri-input';
 import { useEvaluationFlow } from '@/components/evaluation/flow-provider';
 
 export default function EvalReport() {
@@ -15,6 +16,7 @@ export default function EvalReport() {
   const {
     state,
     addFiles,
+    addS3Uri,
     removeAsset,
     requestNotificationPermission,
     resetFlow,
@@ -24,12 +26,14 @@ export default function EvalReport() {
     updatePipelineConfig,
   } = useEvaluationFlow();
   const selectedAsset = state.assets.find((asset) => asset.id === state.selectedAssetId) ?? null;
+  const maxSnapshotsNum = Number.parseInt(state.pipelineConfig.maxSnapshots, 10);
   const canRun =
     state.mode === 'evaluation'
       ? true
       : state.assets.length > 0 &&
-        state.pipelineConfig.s3BucketPath.trim().length > 0 &&
-        (state.pipelineConfig.frameSelectionMethod !== 'native' || state.pipelineConfig.nativeFps.trim().length > 0);
+        maxSnapshotsNum > 0 &&
+        (state.pipelineConfig.frameSelectionMethod !== 'native' ||
+          state.pipelineConfig.nativeFps.trim().length > 0);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#163b84_0%,#08142e_34%,#020814_100%)] text-white">
@@ -91,8 +95,8 @@ export default function EvalReport() {
                 return;
               }
 
-              if (state.mode !== 'evaluation' && state.pipelineConfig.s3BucketPath.trim().length === 0) {
-                setNotificationMessage('Please provide the S3 bucket path for the result output.');
+              if (state.mode !== 'evaluation' && !(maxSnapshotsNum > 0)) {
+                setNotificationMessage('Please set "Number of frames to keep" to a positive integer.');
                 return;
               }
 
@@ -119,6 +123,7 @@ export default function EvalReport() {
                       onFilesSelected={addFiles}
                     />
                   </div>
+                  <S3UriInput onAdd={addS3Uri} />
                 </div>
 
                 {state.assets.length > 0 ? (

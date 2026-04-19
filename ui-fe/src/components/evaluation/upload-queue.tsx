@@ -49,9 +49,16 @@ export default function UploadQueue({
               }`}
             >
               <div className="min-w-0 flex-1 text-left">
-                <p className="truncate text-sm font-semibold text-white">{asset.name}</p>
+                <p className="truncate text-sm font-semibold text-white">
+                  {asset.name}{' '}
+                  {asset.source === 's3' ? (
+                    <span className="ml-1 rounded bg-cyan-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-200">
+                      S3
+                    </span>
+                  ) : null}
+                </p>
                 <p className="mt-1 truncate text-xs text-slate-400">
-                  {formatBytes(asset.size)}
+                  {asset.size > 0 ? formatBytes(asset.size) : asset.s3Uri ?? 'uploaded'}
                   {asset.durationSec ? ` · ${asset.durationSec}s` : ''}
                 </p>
               </div>

@@ -44,7 +44,17 @@ export default function MediaPreview({ asset }: MediaPreviewProps) {
       </div>
 
       <div className="mt-5 overflow-hidden rounded-[24px] bg-slate-950">
-        {asset.kind === 'image' ? (
+        {!asset.previewUrl ? (
+          <div className="flex h-[200px] items-center justify-center text-center">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">S3 source</p>
+              <p className="mt-2 font-mono text-sm text-slate-300">{asset.s3Uri}</p>
+              <p className="mt-3 text-xs text-slate-500">
+                Browser preview is unavailable for S3 objects. The backend will download and process this URI.
+              </p>
+            </div>
+          </div>
+        ) : asset.kind === 'image' ? (
           <Image
             src={asset.previewUrl}
             alt={asset.name}

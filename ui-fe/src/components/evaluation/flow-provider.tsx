@@ -25,7 +25,8 @@ import type {
 const DEFAULT_PIPELINE_CONFIG: PipelineConfig = {
   frameSelectionMethod: 'native',
   nativeFps: '2',
-  s3BucketPath: 's3://lightship-results/evaluation-run',
+  maxSnapshots: '5',
+  s3BucketPath: 's3://lightship-mvp-processing-336090301206/results',
   outputCategory: 'all-frames',
 };
 
@@ -60,6 +61,7 @@ type FlowAction =
   | { type: 'SET_ASSETS'; payload: Array<UploadedAsset> }
   | { type: 'REMOVE_ASSET'; payload: string }
   | { type: 'SELECT_ASSET'; payload: string | null }
+  | { type: 'SET_ASSET_JOB_ID'; payload: { assetId: string; jobId: string } }
   | { type: 'UPDATE_PIPELINE_CONFIG'; payload: Partial<PipelineConfig> }
   | { type: 'SET_RUN_PROGRESS'; payload: RunProgress }
   | { type: 'SET_ASSET_STATUS'; payload: { assetId: string; status: AssetStatus } }
@@ -81,6 +83,8 @@ type EvaluationFlowContextValue = {
   state: EvaluationFlowState;
   setMode: (mode: ProcessingMode) => void;
   addFiles: (files: FileList | Array<File>) => Promise<void>;
+  addS3Uri: (uri: string) => void;
+  setAssetJobId: (assetId: string, jobId: string) => void;
   removeAsset: (assetId: string) => void;
   selectAsset: (assetId: string) => void;
   updatePipelineConfig: (patch: Partial<PipelineConfig>) => void;
@@ -242,6 +246,16 @@ const flowReducer = (state: EvaluationFlowState, action: FlowAction): Evaluation
         ),
       };
 
+    case 'SET_ASSET_JOB_ID':
+      return {
+        ...state,
+        assets: state.assets.map((asset) =>
+          asset.id === action.payload.assetId
+            ? { ...asset, jobId: action.payload.jobId }
+            : asset,
+        ),
+      };
+
     case 'SET_RESULTS':
       const nextRun: HistoricalRun = {
         runId: action.payload.runId,
@@ -331,6 +345,49 @@ export function FlowProvider({
     },
     [state.assets],
   );
+
+  const addS3Uri = useCallback(
+    (uri: string) => {
+      const trimmed = uri.trim();
+      if (!trimmed.startsWith('s3://')) {
+        dispatch({
+          type: 'SET_NOTIFICATION_MESSAGE',
+          payload: 'S3 URI must start with s3://bucket/key',
+        });
+        return;
+      }
+      const rest = trimmed.slice(5);
+      const slash = rest.indexOf('/');
+      if (slash < 0) {
+        dispatch({
+          type: 'SET_NOTIFICATION_MESSAGE',
+          payload: 'S3 URI must include a key: s3://bucket/key',
+        });
+        return;
+      }
+      const [bucket, key] = [rest.slice(0, slash), rest.slice(slash + 1)];
+      const name = key.split('/').pop() || key;
+      const asset: UploadedAsset = {
+        id: `asset_${crypto.randomUUID()}`,
+        source: 's3',
+        s3Uri: trimmed,
+        name,
+        size: 0,
+        type: 'video/mp4',
+        kind: 'video',
+        previewUrl: '',
+        status: 'ready',
+        validationErrors: [],
+      };
+      dispatch({ type: 'SET_ASSETS', payload: [...state.assets, asset] });
+      dispatch({ type: 'SET_NOTIFICATION_MESSAGE', payload: null });
+    },
+    [state.assets],
+  );
+
+  const setAssetJobId = useCallback((assetId: string, jobId: string) => {
+    dispatch({ type: 'SET_ASSET_JOB_ID', payload: { assetId, jobId } });
+  }, []);
 
   const removeAsset = useCallback(
     (assetId: string) => {
@@ -422,6 +479,8 @@ export function FlowProvider({
       state,
       setMode,
       addFiles,
+      addS3Uri,
+      setAssetJobId,
       removeAsset,
       selectAsset,
       updatePipelineConfig,
@@ -434,11 +493,13 @@ export function FlowProvider({
     }),
     [
       addFiles,
+      addS3Uri,
       completeRun,
       removeAsset,
       requestNotificationPermission,
       resetFlow,
       selectAsset,
+      setAssetJobId,
       setAssetStatus,
       setMode,
       setNotificationMessage,

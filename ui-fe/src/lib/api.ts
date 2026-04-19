@@ -130,6 +130,17 @@ export async function startVideoJob(
   return json('/process-video', { method: 'POST', body: form });
 }
 
+export async function startS3VideoJob(
+  s3Uri: string,
+  options: { max_snapshots?: number; snapshot_strategy?: string } = {},
+): Promise<ProcessVideoResponse & { input_type: string }> {
+  return json('/process-s3-video', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ s3_uri: s3Uri, config: options }),
+  });
+}
+
 export async function getStatus(jobId: string): Promise<JobStatusResponse> {
   return json(`/status/${jobId}`);
 }
@@ -175,6 +186,39 @@ export async function presignUploadAndStart(
   await uploadToS3(presign_url, file, required_headers);
   const { job_id } = await startVideoJob(s3_key, options);
   return job_id;
+}
+
+export type FrameManifestEntry = {
+  frame_idx: number;
+  timestamp_ms: number;
+  num_objects: number;
+  annotated_url: string | null;
+  raw_url: string | null;
+  json_url: string | null;
+};
+
+export type FrameManifest = {
+  job_id: string;
+  num_frames: number;
+  frames: FrameManifestEntry[];
+};
+
+export async function getFrames(jobId: string): Promise<FrameManifest> {
+  return json(`/frames/${jobId}`);
+}
+
+export type VideoClassInfo = {
+  job_id: string;
+  video_class: string;
+  display_label: string;
+  collision: string;
+  weather: string;
+  lighting: string;
+  traffic: string;
+};
+
+export async function getVideoClass(jobId: string): Promise<VideoClassInfo> {
+  return json(`/video-class/${jobId}`);
 }
 
 export async function pollJobToTerminal(
