@@ -102,11 +102,14 @@ class TestHealthAndConnectivity:
         )
         assert r.status_code == 404
 
-    def test_image_page_served_by_frontend(self):
-        """GET /image returns HTML from the Next.js frontend (single-image page)."""
-        r = requests.get(f"{BASE_URL}/image", timeout=REQUEST_TIMEOUT_S)
-        assert r.status_code == 200
-        assert "text/html" in r.headers.get("content-type", "").lower()
+    def test_ui_template_pages_served_by_frontend(self):
+        """UI-Template pages (/, /history, /pipeline, /preview, /run) render HTML."""
+        for path in ("/", "/history", "/pipeline", "/preview", "/run"):
+            r = requests.get(f"{BASE_URL}{path}", timeout=REQUEST_TIMEOUT_S)
+            assert r.status_code == 200, f"{path} -> {r.status_code}"
+            assert "text/html" in r.headers.get("content-type", "").lower(), (
+                f"{path} returned non-HTML content-type"
+            )
 
 
 @pytest.mark.skipif(
