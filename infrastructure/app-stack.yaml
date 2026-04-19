@@ -569,7 +569,7 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref BackendTargetGroup
 
-  # Upload / history / frames / cleanup routes (priority 99)
+  # Upload / history / cleanup routes (priority 99)
   BackendListenerRuleUpload:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
@@ -581,13 +581,12 @@ Resources:
             - '/presign-upload'
             - '/jobs'
             - '/cleanup/*'
-            - '/frames/*'
             - '/pipeline-result/*'
       Actions:
         - Type: forward
           TargetGroupArn: !Ref BackendTargetGroup
 
-  # Single-image + client-config family routes (plan Phase 1 + Phase 4)
+  # Single-image + client-config + S3 start + video class (priority 98)
   BackendListenerRuleExtra:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
@@ -598,6 +597,9 @@ Resources:
           Values:
             - '/process-image'
             - '/client-configs/*'
+            - '/process-s3-video'
+            - '/video-class/*'
+            - '/frames/*'
       Actions:
         - Type: forward
           TargetGroupArn: !Ref BackendTargetGroup
