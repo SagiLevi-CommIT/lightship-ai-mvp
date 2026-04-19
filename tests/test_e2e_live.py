@@ -102,6 +102,31 @@ class TestHealthAndConnectivity:
         )
         assert r.status_code == 404
 
+    def test_frames_404_for_unknown_job(self):
+        """GET /frames/<unknown> returns 404 (route wired via ALB)."""
+        r = requests.get(
+            f"{BASE_URL}/frames/nonexistent-job-id",
+            timeout=REQUEST_TIMEOUT_S,
+        )
+        assert r.status_code == 404
+
+    def test_video_class_404_for_unknown_job(self):
+        """GET /video-class/<unknown> returns 404 (route wired via ALB)."""
+        r = requests.get(
+            f"{BASE_URL}/video-class/nonexistent-job-id",
+            timeout=REQUEST_TIMEOUT_S,
+        )
+        assert r.status_code == 404
+
+    def test_process_s3_video_validates_body(self):
+        """POST /process-s3-video with empty body -> 422."""
+        r = requests.post(
+            f"{BASE_URL}/process-s3-video",
+            json={},
+            timeout=REQUEST_TIMEOUT_S,
+        )
+        assert r.status_code == 422
+
     def test_ui_template_pages_served_by_frontend(self):
         """UI-Template pages (/, /history, /pipeline, /preview, /run) render HTML."""
         for path in ("/", "/history", "/pipeline", "/preview", "/run"):
@@ -193,6 +218,63 @@ class TestPipelineE2E:
             if total > 0:
                 none_pct = none_count / total
                 assert none_pct < 0.9, f"'none' priority dominates ({none_pct:.0%})"
+
+
+@pytest.mark.skipif(
+    not TEST_VIDEO_S3_KEY,
+    reason="Set TEST_VIDEO_S3_KEY env var to run the S3-video integration test",
+)
+class TestS3VideoPipelineE2E:
+    """Full-system test using the /process-s3-video endpoint + verifying
+    /frames, /video-class, /download/json all return real data.
+    """
+
+    @pytest.fixture(scope="class")
+    def job(self):
+        """Kick off an S3-sourced job and poll to completion."""
+        s3_uri = f"s3://lightship-mvp-processing-336090301206/{TEST_VIDEO_S3_KEY}"
+        r = requests.post(
+            f"{BASE_URL}/process-s3-video",
+            json={
+                "s3_uri": s3_uri,
+                "config": {
+                    "max_snapshots": 5,
+                    "snapshot_strategy": "scene_change",
+                },
+            },
+            timeout=60,
+        )
+        assert r.status_code == 200, r.text
+        job_id = r.json()["job_id"]
+        status = _poll_status(job_id, timeout=POLL_TIMEOUT_S)
+        assert status["status"] == "COMPLETED", f"Job ended with {status['status']}"
+        return job_id
+
+    def test_video_class_endpoint(self, job):
+        r = requests.get(f"{BASE_URL}/video-class/{job}", timeout=60)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["job_id"] == job
+        assert body["display_label"] in ("Driving", "Job Site")
+
+    def test_frames_endpoint(self, job):
+        r = requests.get(f"{BASE_URL}/frames/{job}", timeout=60)
+        assert r.status_code == 200
+        body = r.json()
+        assert body["job_id"] == job
+        assert body["num_frames"] > 0
+        first = body["frames"][0]
+        assert isinstance(first.get("annotated_url"), str)
+        assert isinstance(first.get("json_url"), str)
+        # Fetch the annotated image via the presigned URL (PNG magic bytes)
+        img = requests.get(first["annotated_url"], timeout=30)
+        assert img.status_code == 200
+        assert img.content[:8] == b"\x89PNG\r\n\x1a\n"
+        # Fetch the per-frame JSON
+        fj = requests.get(first["json_url"], timeout=30)
+        assert fj.status_code == 200
+        jd = fj.json()
+        assert jd.get("frame_idx") == first["frame_idx"]
 
 
 class TestCleanup:
