@@ -19,14 +19,42 @@ fix pass. What landed:
 | Task 6 — Rekognition audit + clean RGB input | DONE | `tests/test_11_rekognition_audit.py` (pre-existing pipeline already sends raw frames; new tests assert the contract) |
 | Task 7 — frame viewer UX | DONE | `ui-fe/src/components/evaluation/backend-frame-gallery.tsx` (open-full-size, fallback, substituted-frame annotation) |
 | Task 8 — Clear History + dedup header nav | DONE | `ui-fe/src/app/history/page.tsx`, flow provider |
+| Smoke-discovered: Float → Decimal for Dynamo writes | DONE | `lambda-be/src/job_status.py` |
+| Smoke-discovered: /status must read Dynamo first (HTTP vs worker Lambdas are different containers) | DONE | `lambda-be/src/job_status.py` |
 
-Each task is its own git commit on the branch. Test status:
+Test status:
 
-- Backend: `pytest tests/test_08_progress_tracking.py tests/test_09_frame_extractor.py tests/test_10_frame_selection.py tests/test_11_rekognition_audit.py -v` → **19 passed**.
+- Backend: `pytest tests/test_08_progress_tracking.py tests/test_09_frame_extractor.py tests/test_10_frame_selection.py tests/test_11_rekognition_audit.py -v` → **21 passed**.
 - Frontend: `cd ui-fe && npm run build` → green (5 routes).
-- Deployment from this branch requires new AWS creds (the VM's injected
-  access key is invalid). See the PR body for the deploy commands that
-  should run once creds are restored.
+
+### Production deploy — verified 2026-04-20 (smoke on live ALB)
+
+Deployed via CodeBuild (`lightship-mvp-backend` + `lightship-mvp-frontend`)
+from branch `cursor/lightship-mvp-fixes-6abf` at commit `ee7f5e3`.
+Lambda env vars (`PIPELINE_STATE_MACHINE_ARN`, `PROCESSING_QUEUE_URL`,
+`BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0`,
+`LOG_FORMAT=json`, `EMIT_METRICS=true`, `METRICS_NAMESPACE`) were
+re-applied after the backend buildspec's `update-function-configuration`
+call (which intentionally resets to a minimal set).
+
+ECS: `lightship-mvp-frontend-svc` (TaskDef:22) and
+`lightship-mvp-frontend-service` (TaskDef:23) both rolled over to
+the new `lightship-frontend:latest` image. Both 1/1 running.
+
+Live smoke against
+`http://lightship-mvp-alb-140533025.us-east-1.elb.amazonaws.com`:
+
+- `/health` → `{"status":"healthy"}` (17 s cold, < 100 ms warm).
+- `POST /process-s3-video` with `plr_snow_4818293461-C.mp4` returned
+  `{"dispatch":"sqs"}`.
+- `/status/<id>` polled at 4 s — progress stream visible:
+  `0.15 extracting_frames → 0.22-0.49 detecting_objects (46 frames)
+  → 0.65 refining_frames → 1.0 completed`. **No more 30 %
+  plateau, no more jump to 90 %.**
+- `/frames/<id>` returned real 1280×720 annotated frames with
+  `extraction_source=requested`, `status=ok`.
+- `/download/json/<id>` includes `rekognition_audit.frames_evaluated=3`.
+- `/video-class/<id>` returns `{ display_label: "Driving" }`.
 
 ### Production-Ready End-to-End Plan (in progress)
 
