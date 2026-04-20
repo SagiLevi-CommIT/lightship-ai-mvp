@@ -76,6 +76,8 @@ def test_put_job_sets_warm_cache_and_filters_none(job_status_fresh):
 
 
 def test_write_progress_uses_aliased_reserved_words(job_status_fresh):
+    from decimal import Decimal
+
     js = job_status_fresh
     table = _StubTable()
     js.set_table(table)
@@ -90,12 +92,14 @@ def test_write_progress_uses_aliased_reserved_words(job_status_fresh):
     )
 
     call = table.update_calls[-1]
-    # Every attribute name that appears in UpdateExpression must be aliased.
     assert "#a" in call["UpdateExpression"]
-    # Reserved words must appear only inside ExpressionAttributeNames values.
     for key in ("status", "message", "progress"):
         assert key in call["ExpressionAttributeNames"].values()
+    # Warm cache keeps the Python float so the UI sees standard JSON.
     assert js.processing_status["job-b"]["progress"] == pytest.approx(0.42)
+    # Dynamo writes must be Decimal because boto3 rejects floats.
+    assert isinstance(table.items["job-b"]["progress"], Decimal)
+    assert float(table.items["job-b"]["progress"]) == pytest.approx(0.42)
     assert table.items["job-b"]["status"] == "PROCESSING"
 
 
@@ -161,6 +165,24 @@ def test_read_status_missing_returns_none(job_status_fresh):
     table = _StubTable()
     js.set_table(table)
     assert js.read_status("nope") is None
+
+
+def test_dynamo_safe_converts_floats_to_decimal(job_status_fresh):
+    """boto3's DynamoDB resource rejects Python floats with
+    'Float types are not supported. Use Decimal types instead.'."""
+    from decimal import Decimal
+    js = job_status_fresh
+
+    result = js._dynamo_safe({
+        "progress": 0.42,
+        "nested": [1.5, 2.5],
+        "meta": {"ratio": 0.9},
+        "status": "PROCESSING",  # strings stay put
+    })
+    assert isinstance(result["progress"], Decimal)
+    assert all(isinstance(v, Decimal) for v in result["nested"])
+    assert isinstance(result["meta"]["ratio"], Decimal)
+    assert result["status"] == "PROCESSING"
 
 
 def test_update_status_with_error_message_reserved_word(job_status_fresh):

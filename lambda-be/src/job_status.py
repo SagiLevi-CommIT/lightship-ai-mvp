@@ -18,9 +18,35 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def _dynamo_safe(value: Any) -> Any:
+    """Coerce Python values into DynamoDB-safe types.
+
+    boto3's DynamoDB resource API refuses ``float`` (floats can't
+    round-trip through a Number attribute) — every numeric progress
+    value has to be a ``decimal.Decimal`` instead. We normalise here so
+    callers keep speaking in regular Python types and we transparently
+    convert at the boundary. Lists and dicts are walked recursively so
+    nested structures (e.g. manifest entries) survive.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, float):
+        # ``Decimal`` can't take a ``float`` losslessly via its
+        # constructor; use ``str`` to preserve the rounded value.
+        return Decimal(str(value))
+    if isinstance(value, list):
+        return [_dynamo_safe(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_dynamo_safe(v) for v in value)
+    if isinstance(value, dict):
+        return {k: _dynamo_safe(v) for k, v in value.items()}
+    return value
 
 # ---------------------------------------------------------------------------
 # Warm cache + table handle (module-level so callers can mutate without an
@@ -63,7 +89,7 @@ def _alias_update(attrs: Dict[str, Any]) -> Dict[str, Any]:
         name_alias = f"#a{i}"
         value_alias = f":v{i}"
         names[name_alias] = key
-        values[value_alias] = val
+        values[value_alias] = _dynamo_safe(val)
         set_parts.append(f"{name_alias} = {value_alias}")
     return {
         "UpdateExpression": "SET " + ", ".join(set_parts),
@@ -83,7 +109,7 @@ def put_job(job_id: str, **attrs: Any) -> None:
     item: Dict[str, Any] = {"job_id": job_id, "created_at": now, "updated_at": now}
     for k, v in attrs.items():
         if v is not None:
-            item[k] = v
+            item[k] = _dynamo_safe(v)
 
     # Keep warm-cache in sync so subsequent reads don't race the Dynamo
     # commit on the same container.
