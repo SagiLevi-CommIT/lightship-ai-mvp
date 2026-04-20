@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import AppShellHeader from '@/components/evaluation/app-shell-header';
 import { useEvaluationFlow } from '@/components/evaluation/flow-provider';
 import {
@@ -51,7 +50,7 @@ const statusClass = (s: string) => {
 };
 
 export default function HistoryPage() {
-  const { state } = useEvaluationFlow();
+  const { clearHistory, state } = useEvaluationFlow();
   const [backendJobs, setBackendJobs] = useState<BackendJobRow[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -173,12 +172,25 @@ export default function HistoryPage() {
             <span className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-slate-200">
               {backendJobs.length} job{backendJobs.length === 1 ? '' : 's'}
             </span>
-            <Link
-              href="/"
-              className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-5 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
-            >
-              New pipeline
-            </Link>
+            {state.historicalRuns.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window === 'undefined') return;
+                  const ok = window.confirm(
+                    'Clear local run history?\n\n' +
+                      'This removes session history stored in your browser only. ' +
+                      'Backend job records in DynamoDB are preserved.',
+                  );
+                  if (!ok) return;
+                  clearHistory();
+                  setSelectedJobId(null);
+                }}
+                className="rounded-full border border-rose-400/30 bg-rose-500/10 px-5 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
+              >
+                Clear local history
+              </button>
+            ) : null}
           </div>
         </div>
 
