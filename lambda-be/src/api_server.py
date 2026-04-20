@@ -402,6 +402,11 @@ class ProcessingConfig(BaseModel):
     hazard_mode: str = "sliding_window"
     window_size: int = 3
     window_overlap: int = 1
+    # Native sampling rate when ``snapshot_strategy == "naive"`` — the
+    # pipeline samples at ``native_fps`` Hz and then ranks candidates by
+    # detection count. Accepts strings for convenience because the UI
+    # posts form data and frequently sends ``"2"`` rather than ``2``.
+    native_fps: Optional[float] = None
 
 
 class ProcessingStatus(BaseModel):
@@ -637,13 +642,37 @@ def process_video_task(
     temp_dir: str,
     config: ProcessingConfig
 ):
-    """Background task for video processing."""
+    """Background task for video processing.
+
+    Uses a progress callback wired into the pipeline so the UI sees
+    monotonic, truthful progress rather than the old 0.1 → 0.3 → 0.9
+    jumps. The callback is resilient: a Dynamo write failure is logged
+    but never aborts the pipeline.
+    """
+    # Track last reported progress so we don't "flash" backwards when the
+    # pipeline reports a slightly smaller float.
+    _last_reported = {"p": 0.05}
+
+    def _on_progress(progress: float, step: str, message: str) -> None:
+        try:
+            p = max(_last_reported["p"], min(0.95, float(progress)))
+            _last_reported["p"] = p
+            _write_progress(
+                job_id,
+                status="PROCESSING",
+                progress=p,
+                message=message,
+                current_step=step,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("progress_cb write failed: %s", e)
+
     try:
         metrics.count("PipelineStarts")
         _write_progress(
             job_id,
             status="PROCESSING",
-            progress=0.1,
+            progress=0.02,
             message="Initializing pipeline",
             current_step="init",
         )
@@ -652,23 +681,21 @@ def process_video_task(
             snapshot_strategy=config.snapshot_strategy,
             max_snapshots=config.max_snapshots,
             cleanup_frames=config.cleanup_frames,
-            use_cv_labeler=config.use_cv_labeler
+            use_cv_labeler=config.use_cv_labeler,
+            native_fps=config.native_fps,
         )
 
-        _write_progress(
-            job_id,
-            status="PROCESSING",
-            progress=0.3,
-            message="Processing video with pipeline",
-            current_step="processing",
-        )
+        _on_progress(0.05, "loading_video", "Reading video from local storage")
 
         original_output_dir = pipeline.merger.output_dir
         pipeline.merger.output_dir = temp_dir
 
         try:
             with metrics.stage_timer("process_video"):
-                output_json_path = pipeline.process_video(video_path, is_train=False)
+                output_json_path = pipeline.process_video(
+                    video_path, is_train=False,
+                    progress_cb=_on_progress,
+                )
 
             if output_json_path is None:
                 raise ValueError("Pipeline returned None - processing failed")
@@ -683,13 +710,7 @@ def process_video_task(
             # Restore original output dir
             pipeline.merger.output_dir = original_output_dir
 
-        _write_progress(
-            job_id,
-            status="PROCESSING",
-            progress=0.9,
-            message="Loading results",
-            current_step="finalize",
-        )
+        _on_progress(0.95, "finalizing", "Persisting frames and results")
 
         video_metadata = pipeline.video_loader.load_video_metadata(video_path)
 

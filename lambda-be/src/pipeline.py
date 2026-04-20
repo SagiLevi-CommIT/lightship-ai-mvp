@@ -5,9 +5,21 @@ Supports both V1 (LLM image labeler) and V2 (CV + Temporal LLM) pipelines.
 """
 import logging
 import os
-from typing import List, Optional, Dict, Tuple
+from typing import Callable, List, Optional, Dict, Tuple
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# A progress reporter receives structured stage updates from the pipeline so
+# the caller (the Lambda worker, a CLI, or a unit test) can translate them
+# into DynamoDB / UI progress beacons. The callable is intentionally tiny:
+# ``fn(progress: float, step: str, message: str)``. Progress values are in
+# [0.0, 1.0] and always monotonically non-decreasing across a single run.
+ProgressReporter = Callable[[float, str, str], None]
+
+
+def _noop_progress(_progress: float, _step: str, _message: str) -> None:
+    """Default progress reporter: does nothing."""
+    return None
 from src.video_loader import VideoLoader
 from src.snapshot_selector import SnapshotSelector
 from src.frame_extractor import FrameExtractor
@@ -46,7 +58,8 @@ class Pipeline:
         snapshot_strategy: str = "naive",
         max_snapshots: int = 3,
         cleanup_frames: bool = False,  # Changed default to False for V2
-        use_cv_labeler: bool = True  # Use V2 CV pipeline by default
+        use_cv_labeler: bool = True,  # Use V2 CV pipeline by default
+        native_fps: Optional[float] = None,
     ):
         """Initialize Pipeline with all components.
 
@@ -55,10 +68,14 @@ class Pipeline:
             max_snapshots: Maximum number of snapshots to select per video
             cleanup_frames: Whether to delete temporary frame files after processing
             use_cv_labeler: If True, use V2 CV pipeline; if False, use V1 LLM pipeline
+            native_fps: Optional dense-sampling rate (Hz) for V2 pre-selection.
+                None = use default ``2 Hz`` (500 ms interval). The higher
+                this is, the more candidate frames the CV labeler sees.
         """
         self.video_loader = VideoLoader()
         self.snapshot_strategy = snapshot_strategy
         self.max_snapshots = max_snapshots
+        self.native_fps = native_fps
         self.snapshot_selector = SnapshotSelector(strategy=snapshot_strategy, max_snapshots=max_snapshots)
         self.frame_extractor = FrameExtractor()
 
@@ -92,31 +109,44 @@ class Pipeline:
     last_selected_frames: Dict[int, str] = {}
     last_annotated_frames: Dict[int, str] = {}
     last_frame_timestamps: Dict[int, float] = {}
+    # Per-frame extraction manifest (rich metadata: dimensions, source,
+    # status, substitution info). Populated by ``process_video`` so the
+    # API server can embed it in the per-frame JSON exposed to the UI.
+    last_extraction_manifest: List[Dict] = []
 
     def process_video(
         self,
         video_path: str,
-        is_train: bool = False
+        is_train: bool = False,
+        progress_cb: Optional[ProgressReporter] = None,
     ) -> Optional[str]:
         """Process a single video through the full pipeline.
 
         Args:
             video_path: Path to video file
             is_train: Whether this is a training video
+            progress_cb: Optional reporter invoked with
+                ``(progress, step, message)`` at each granular stage so the
+                caller can translate the updates into DynamoDB rows or UI
+                messages. ``progress`` is in [0.0, 1.0] and is
+                monotonically non-decreasing for the lifetime of one run.
 
         Returns:
             Path to output JSON file, or None if processing failed
         """
+        report: ProgressReporter = progress_cb or _noop_progress
+
         # Reset per-run artefacts
         self.last_selected_frames = {}
         self.last_annotated_frames = {}
         self.last_frame_timestamps = {}
+        self.last_extraction_manifest = []
         logger.info(f"{'='*80}")
         logger.info(f"Processing video: {video_path} (train={is_train})")
         logger.info(f"{'='*80}")
 
         try:
-            # Step 1: Load video metadata
+            report(0.05, "loading_video", "Loading video metadata")
             logger.info("Step 1: Loading video metadata")
             video_metadata = self.video_loader.load_video_metadata(video_path)
 
@@ -127,23 +157,53 @@ class Pipeline:
                 camera_profile = get_camera_profile(camera_type)
                 logger.info(f"Detected camera type: {camera_type}, using profile: {camera_profile.name}")
                 self.cv_labeler = CVLabeler(camera_profile=camera_profile)
-                # V2 Pipeline: Extract ALL frames first, CV on all, then select
-                logger.info("Step 2 (V2): Generating snapshots for all frames")
-                all_snapshots = self._generate_all_frame_snapshots(video_metadata)
 
-                logger.info("Step 3 (V2): Extracting all frames")
-                all_extracted_frames = self.frame_extractor.extract_frames(
-                    video_metadata,
-                    all_snapshots
+                # Honour the user's ``native_fps`` — front-end sends e.g. 2
+                # for "2 Hz sampling" which corresponds to a 500 ms
+                # interval. We bound the interval to [100 ms, 2000 ms]
+                # so a pathological value can't explode ML cost or
+                # starve the pipeline of data.
+                interval_ms = 500
+                if self.native_fps and self.native_fps > 0:
+                    interval_ms = int(1000.0 / self.native_fps)
+                    interval_ms = max(100, min(2000, interval_ms))
+                report(0.10, "sampling_frames",
+                       f"Sampling frames every {interval_ms} ms from "
+                       f"{int(video_metadata.duration_ms / 1000)}s video")
+                all_snapshots = self._generate_all_frame_snapshots(
+                    video_metadata, interval_ms=interval_ms,
                 )
+
+                report(0.15, "extracting_frames",
+                       f"Extracting {len(all_snapshots)} candidate frames")
+                extraction = self.frame_extractor.extract_frames_with_manifest(
+                    video_metadata,
+                    all_snapshots,
+                )
+                all_extracted_frames = extraction.frames
+                # Persist manifest snapshot on self so _process_v2 and
+                # callers can surface per-frame extraction metadata.
+                self.last_extraction_manifest = [
+                    {
+                        "frame_idx": e.frame_idx,
+                        "timestamp_ms": e.timestamp_ms,
+                        "source": e.source,
+                        "status": e.status,
+                        "width": e.width,
+                        "height": e.height,
+                        "decoded_idx": e.decoded_idx,
+                        "error": e.error,
+                    }
+                    for e in extraction.manifest
+                ]
 
                 if not all_extracted_frames:
                     logger.error("No frames extracted, aborting")
                     return None
 
-                # V2 Pipeline: CV Labeler + Per-Frame Refinement + Hazard Assessor
                 all_objects, hazard_events, inferred_metadata = self._process_v2(
-                    all_snapshots, all_extracted_frames, video_metadata
+                    all_snapshots, all_extracted_frames, video_metadata,
+                    progress_cb=report,
                 )
                 hazard_events = hazard_events if hazard_events else []
             else:
@@ -174,7 +234,7 @@ class Pipeline:
                 )
                 hazard_events = []  # V1 doesn't have hazard events
 
-            # Step 5: Merge and save
+            report(0.93, "writing_output", "Merging and saving output JSON")
             logger.info("Step 5: Merging and saving output")
             output_path = self.merger.merge_and_save(
                 video_metadata, all_objects, hazard_events, inferred_metadata if self.use_cv_labeler else {}
@@ -235,6 +295,7 @@ class Pipeline:
                 frame_paths = list(extracted_frames.values())
                 self.frame_extractor.cleanup_frames(frame_paths)
 
+            report(0.97, "finalizing", "Finalising output")
             logger.info(f"{'='*80}")
             logger.info(f"SUCCESS: Output saved to {output_path}")
             logger.info(f"{'='*80}")
@@ -436,7 +497,8 @@ class Pipeline:
         self,
         snapshots,
         extracted_frames: Dict[int, str],
-        video_metadata: VideoMetadata
+        video_metadata: VideoMetadata,
+        progress_cb: Optional[ProgressReporter] = None,
     ) -> tuple[List[ObjectLabel], List[HazardEvent], Dict]:
         """Process frames using V2 CV Labeler + Per-Frame Refinement + Hazard Assessor.
 
@@ -455,8 +517,12 @@ class Pipeline:
         Returns:
             Tuple of (objects_list, hazard_events_list, inferred_video_metadata)
         """
+        report: ProgressReporter = progress_cb or _noop_progress
+
         # Step 4a: CV Labeling on ALL frames (parallelized)
         logger.info(f"Step 4a: CV Labeling ALL frames in parallel")
+        report(0.20, "detecting_objects",
+               f"Running CV detection on {len(snapshots)} frames")
         all_frame_objects: Dict[int, List[ObjectLabel]] = {}
 
         def process_frame(snapshot):
@@ -485,6 +551,7 @@ class Pipeline:
         # Process frames sequentially (YOLO not thread-safe with some models)
         logger.info(f"Processing {len(snapshots)} frames sequentially")
 
+        total_snaps = max(1, len(snapshots))
         for i, snapshot in enumerate(snapshots):
             try:
                 frame_idx, objects = process_frame(snapshot)
@@ -492,12 +559,20 @@ class Pipeline:
 
                 if (i + 1) % 5 == 0 or (i + 1) == len(snapshots):
                     logger.info(f"Progress: {i + 1}/{len(snapshots)} frames processed")
+                # Report CV progress monotonically in [0.20, 0.50]
+                frac = (i + 1) / total_snaps
+                report(
+                    0.20 + 0.30 * frac,
+                    "detecting_objects",
+                    f"Detected objects on {i + 1}/{total_snaps} frames",
+                )
             except Exception as e:
                 logger.error(f"Error processing frame {snapshot.frame_idx}: {e}", exc_info=True)
                 all_frame_objects[snapshot.frame_idx] = []
 
         logger.info(f"CV labeled {len(all_frame_objects)} frames")
 
+        report(0.50, "selecting_frames", "Selecting key frames")
         # Step 4b: Select N frames using the user's chosen strategy.
         # - scene_change  : use SnapshotSelector._select_scene_change, then
         #                   map its timestamps onto our dense frame grid.
@@ -555,9 +630,17 @@ class Pipeline:
                 remaining = [idx for idx in all_frame_objects.keys() if idx not in selected_indices]
                 selected_indices.extend(remaining[: max_snapshots - len(selected_indices)])
 
-        # Always sort selected frames chronologically for UI/render coherence
-        selected_indices = sorted(set(selected_indices))[:max_snapshots]
+        # Always sort selected frames chronologically for UI/render coherence,
+        # drop indices whose extracted image is missing/unreadable — this
+        # protects the annotator from feeding it frames that never made it
+        # through ``FrameExtractor`` validation.
+        selected_indices = [
+            idx for idx in sorted(set(selected_indices))
+            if idx in extracted_frames and os.path.exists(extracted_frames[idx])
+        ][:max_snapshots]
 
+        report(0.55, "rekognition",
+               f"Running AWS Rekognition on {len(selected_indices)} selected frames")
         # Step 4c: Merge Rekognition labels into selected-frame CV detections.
         # Rekognition adds broad managed-model labels (cones, workers,
         # pedestrians, signs, signals) that YOLO often misses. We only call
@@ -621,12 +704,15 @@ class Pipeline:
 
         # Step 4d: Per-Frame LLM Refinement with retry/fallback
         logger.info("Step 4d: Per-frame LLM refinement with retry/fallback logic")
+        report(0.65, "refining_frames",
+               f"Refining {len(selected_frame_indices)} frames with LLM")
         refined_frame_objects: Dict[int, List[ObjectLabel]] = {}
         used_frames = set()
         output_dir = Path(OUTPUT_DIR) / "temp_annotations"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        for frame_idx in selected_frame_indices:
+        total_sel = max(1, len(selected_frame_indices))
+        for refine_i, frame_idx in enumerate(selected_frame_indices):
             current_frame_idx = frame_idx
             success = False
 
@@ -683,10 +769,20 @@ class Pipeline:
                 refined_frame_objects[current_frame_idx] = objects
                 break
 
+            # Report refine progress monotonically in [0.65, 0.80].
+            frac = (refine_i + 1) / total_sel
+            report(
+                0.65 + 0.15 * frac,
+                "refining_frames",
+                f"Refined {refine_i + 1}/{total_sel} frames",
+            )
+
         logger.info(f"Per-frame refinement complete: {len(refined_frame_objects)} frames processed")
 
         # Step 4e: Re-annotate frames with refined objects (for temporal LLM + delivery)
         logger.info("Step 4e: Re-annotating frames with refined objects")
+        report(0.82, "annotating_frames",
+               f"Drawing annotations on {len(refined_frame_objects)} frames")
         refined_frame_images: Dict[int, str] = {}
 
         # Create delivery annotated frames directory (direct save for customer)
@@ -729,6 +825,7 @@ class Pipeline:
 
         # Step 4f: Hazard Assessment (temporal LLM - hazard events only)
         logger.info("Step 4f: Assessing hazards with temporal LLM (hazard events only)")
+        report(0.88, "assessing_hazards", "Assessing hazards with temporal LLM")
 
         video_metadata_dict = {
             'camera': video_metadata.camera,
