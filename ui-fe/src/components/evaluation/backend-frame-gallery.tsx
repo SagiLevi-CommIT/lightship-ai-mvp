@@ -230,6 +230,12 @@ export default function BackendFrameGallery({ result, onDownloadJson }: Props) {
                   <span>
                     Frame {activeFrame.frame_idx} · {Math.round(activeFrame.timestamp_ms)}ms ·{' '}
                     {activeFrame.num_objects} object{activeFrame.num_objects === 1 ? '' : 's'}
+                    {activeFrame.width && activeFrame.height
+                      ? ` · ${activeFrame.width}×${activeFrame.height}`
+                      : ''}
+                    {activeFrame.extraction_source === 'substituted'
+                      ? ' · substituted'
+                      : ''}
                   </span>
                   <a
                     href={activeFrame.annotated_url}

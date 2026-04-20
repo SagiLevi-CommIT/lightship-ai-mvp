@@ -238,6 +238,10 @@ export type FrameManifestEntry = {
   annotated_url: string | null;
   raw_url: string | null;
   json_url: string | null;
+  extraction_source?: string | null;
+  extraction_status?: string | null;
+  width?: number | null;
+  height?: number | null;
 };
 
 export type FrameManifest = {

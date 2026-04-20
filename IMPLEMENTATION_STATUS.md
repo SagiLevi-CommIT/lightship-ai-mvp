@@ -2,7 +2,33 @@
 
 ## Complete System Implementation — Status
 
-Last updated: 2026-04-19
+Last updated: 2026-04-20
+
+### MVP fix pass — 2026-04-20 (branch `cursor/lightship-mvp-fixes-6abf`)
+
+Eight-task "misleading progress + flaky results + frame reliability"
+fix pass. What landed:
+
+| Task | Status | Files |
+|---|---|---|
+| Restore missing backend modules | DONE | `lambda-be/src/job_status.py`, `lambda-be/src/utils/metrics.py`, `ui-fe/src/lib/uuid.ts` |
+| Task 1 — granular pipeline progress | DONE | `lambda-be/src/pipeline.py`, `lambda-be/src/api_server.py`, `ui-fe/src/app/run/page.tsx` |
+| Task 2/3 — reliable Run→Results | DONE | `ui-fe/src/lib/api.ts` (`retry404`, `ApiError`), `ui-fe/src/app/results/[runId]/page.tsx`, `ui-fe/src/lib/history-persist.ts`, `ui-fe/src/components/evaluation/flow-provider.tsx` |
+| Task 4 — frame extraction reliability | DONE | `lambda-be/src/frame_extractor.py`, `tests/test_09_frame_extractor.py` |
+| Task 5 — selection logic | DONE | `lambda-be/src/pipeline.py` (dedup + path existence check), `tests/test_10_frame_selection.py` |
+| Task 6 — Rekognition audit + clean RGB input | DONE | `tests/test_11_rekognition_audit.py` (pre-existing pipeline already sends raw frames; new tests assert the contract) |
+| Task 7 — frame viewer UX | DONE | `ui-fe/src/components/evaluation/backend-frame-gallery.tsx` (open-full-size, fallback, substituted-frame annotation) |
+| Task 8 — Clear History + dedup header nav | DONE | `ui-fe/src/app/history/page.tsx`, flow provider |
+
+Each task is its own git commit on the branch. Test status:
+
+- Backend: `pytest tests/test_08_progress_tracking.py tests/test_09_frame_extractor.py tests/test_10_frame_selection.py tests/test_11_rekognition_audit.py -v` → **19 passed**.
+- Frontend: `cd ui-fe && npm run build` → green (5 routes).
+- Deployment from this branch requires new AWS creds (the VM's injected
+  access key is invalid). See the PR body for the deploy commands that
+  should run once creds are restored.
+
+### Production-Ready End-to-End Plan (in progress)
 
 ### Production-Ready End-to-End Plan (in progress)
 

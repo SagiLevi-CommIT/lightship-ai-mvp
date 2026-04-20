@@ -278,6 +278,7 @@ def _persist_frame_artefacts_to_s3(
     annotated_frames: Dict[int, str],
     timestamps: Dict[int, float],
     all_objects: list,
+    extraction_manifest: Optional[list] = None,
 ) -> list:
     """Persist selected + annotated frame images and per-frame JSON to S3.
 
@@ -287,6 +288,14 @@ def _persist_frame_artefacts_to_s3(
     if _s3_client is None:
         return []
     manifest: list = []
+    # Index the extraction manifest by frame_idx so per-frame entries
+    # can surface extraction status (ok / substituted / failed),
+    # decoded frame dimensions, and any substitution/error metadata.
+    extraction_by_idx: Dict[int, Dict[str, Any]] = {}
+    for entry in extraction_manifest or []:
+        idx = entry.get("frame_idx")
+        if idx is not None:
+            extraction_by_idx[int(idx)] = entry
     # Group objects by integer millisecond timestamp so we can slice them
     # per frame for per-frame JSON files.
     from collections import defaultdict
@@ -333,6 +342,7 @@ def _persist_frame_artefacts_to_s3(
         for ms in matched_ms:
             frame_objs.extend(objs_by_ms[ms])
 
+        extraction_meta = extraction_by_idx.get(int(frame_idx), {})
         per_frame_json_key = _s3_result_key(job_id, f"frames/frame_{frame_idx:04d}.json")
         per_frame_doc = {
             "job_id": job_id,
@@ -340,6 +350,14 @@ def _persist_frame_artefacts_to_s3(
             "timestamp_ms": ts_ms,
             "num_objects": len(frame_objs),
             "objects": frame_objs,
+            "extraction": {
+                "source": extraction_meta.get("source"),
+                "status": extraction_meta.get("status"),
+                "decoded_idx": extraction_meta.get("decoded_idx"),
+                "width": extraction_meta.get("width"),
+                "height": extraction_meta.get("height"),
+                "error": extraction_meta.get("error"),
+            },
         }
         try:
             _s3_client.put_object(
@@ -360,6 +378,10 @@ def _persist_frame_artefacts_to_s3(
             "annotated_key": frame_key,
             "raw_key": raw_key,
             "json_key": per_frame_json_key,
+            "extraction_source": extraction_meta.get("source"),
+            "extraction_status": extraction_meta.get("status"),
+            "width": extraction_meta.get("width"),
+            "height": extraction_meta.get("height"),
         })
     return manifest
 
@@ -776,6 +798,7 @@ def process_video_task(
             annotated_frames=getattr(pipeline, "last_annotated_frames", {}) or {},
             timestamps=getattr(pipeline, "last_frame_timestamps", {}) or {},
             all_objects=all_obj_dicts,
+            extraction_manifest=getattr(pipeline, "last_extraction_manifest", []) or [],
         )
         # Write the manifest to S3 too so /frames/{id} works cross-invocation
         if _s3_client is not None and frames_manifest:
@@ -1061,6 +1084,10 @@ def list_frames(job_id: str):
             "annotated_url": _presign_get(entry.get("annotated_key") or ""),
             "raw_url": _presign_get(entry.get("raw_key") or "") if entry.get("raw_key") else None,
             "json_url": _presign_get(entry.get("json_key") or "") if entry.get("json_key") else None,
+            "extraction_source": entry.get("extraction_source"),
+            "extraction_status": entry.get("extraction_status"),
+            "width": entry.get("width"),
+            "height": entry.get("height"),
         })
     return {"job_id": job_id, "num_frames": len(frames), "frames": frames}
 
