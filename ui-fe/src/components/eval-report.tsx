@@ -11,6 +11,8 @@ import WorkspaceSidebar from '@/components/evaluation/workspace-sidebar';
 import S3UriInput from '@/components/evaluation/s3-uri-input';
 import { useEvaluationFlow } from '@/components/evaluation/flow-provider';
 
+const VIDEO_ACCEPT = 'video/*,.mp4,.mov,.m4v,.avi,.mkv,.webm,.mpeg,.mpg,.wmv';
+
 export default function EvalReport() {
   const router = useRouter();
   const {
@@ -117,7 +119,7 @@ export default function EvalReport() {
                   <div className="mt-3">
                     <UploadDropzone
                       multiple
-                      accept="video/*"
+                      accept={VIDEO_ACCEPT}
                       title="Upload videos for processing"
                       description="Upload one or multiple videos. Once at least one video is loaded, the preview section appears below and you can switch between videos from the queue bar."
                       onFilesSelected={addFiles}

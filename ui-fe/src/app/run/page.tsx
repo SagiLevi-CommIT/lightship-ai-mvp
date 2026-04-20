@@ -68,7 +68,7 @@ async function startJobForAsset(
     // flow but keep it inlined so status transitions stay colocated.
     const { presign_url, s3_key, required_headers } = await presign(
       asset.file.name,
-      asset.file.type || 'video/mp4',
+      asset.file.type || asset.type || 'video/mp4',
     );
     await uploadToS3(presign_url, asset.file, required_headers);
     const { job_id } = await startVideoJob(s3_key, options);

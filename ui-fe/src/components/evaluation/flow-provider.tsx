@@ -42,6 +42,24 @@ const DEFAULT_RUN_PROGRESS: RunProgress = {
   completedAt: null,
 };
 
+const VIDEO_CONTENT_TYPES: Record<string, string> = {
+  avi: 'video/x-msvideo',
+  m4v: 'video/x-m4v',
+  mkv: 'video/x-matroska',
+  mov: 'video/quicktime',
+  mp4: 'video/mp4',
+  mpeg: 'video/mpeg',
+  mpg: 'video/mpeg',
+  webm: 'video/webm',
+  wmv: 'video/x-ms-wmv',
+};
+
+const getFileExtension = (filename: string) => filename.split('.').pop()?.toLowerCase() ?? '';
+
+const inferVideoContentType = (filename: string) => VIDEO_CONTENT_TYPES[getFileExtension(filename)] ?? '';
+
+const isVideoFile = (file: File) => file.type.startsWith('video/') || Boolean(inferVideoContentType(file.name));
+
 const INITIAL_STATE: EvaluationFlowState = {
   mode: 'batch',
   assets: [],
@@ -154,7 +172,7 @@ const buildUploadedAsset = async (file: File): Promise<UploadedAsset> => {
     file,
     name: file.name,
     size: file.size,
-    type: file.type,
+    type: file.type || inferVideoContentType(file.name) || 'video/mp4',
     kind: file.type.startsWith('image/') ? 'image' : 'video',
     previewUrl,
     status: 'ready',
@@ -328,12 +346,12 @@ export function FlowProvider({
   const addFiles = useCallback(
     async (incomingFiles: FileList | Array<File>) => {
       const files = Array.from(incomingFiles);
-      const validFiles = files.filter((file) => file.type.startsWith('video/'));
+      const validFiles = files.filter(isVideoFile);
 
       if (validFiles.length === 0) {
         dispatch({
           type: 'SET_NOTIFICATION_MESSAGE',
-          payload: 'Batch mode accepts video files only.',
+          payload: 'Batch mode accepts video files only. Supported files include MP4, MOV, M4V, AVI, MKV, WebM, MPEG, and WMV.',
         });
         return;
       }
