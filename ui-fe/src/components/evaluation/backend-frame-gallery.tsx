@@ -26,6 +26,114 @@ const downloadRemote = async (url: string, filename: string) => {
   }
 };
 
+function FrameThumb({
+  frame,
+  isActive,
+  onSelect,
+}: {
+  frame: FrameManifestEntry;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`shrink-0 rounded-xl border p-2 transition ${
+        isActive
+          ? 'border-cyan-400 bg-cyan-500/10'
+          : 'border-slate-700 bg-slate-900/70 hover:border-cyan-400/60'
+      }`}
+    >
+      {frame.annotated_url && !failed ? (
+        <Image
+          src={frame.annotated_url}
+          alt={`Frame ${frame.frame_idx}`}
+          width={160}
+          height={90}
+          unoptimized
+          onError={() => setFailed(true)}
+          className="h-20 w-32 rounded-md object-cover"
+        />
+      ) : (
+        <div className="flex h-20 w-32 items-center justify-center rounded-md bg-slate-800 text-[10px] text-slate-400">
+          {failed ? 'Failed to load' : 'No image'}
+        </div>
+      )}
+      <p className="mt-1.5 text-[11px] font-semibold text-white">
+        Frame {frame.frame_idx}
+      </p>
+      <p className="text-[10px] text-slate-400">
+        t={Math.round(frame.timestamp_ms)}ms · {frame.num_objects} obj
+      </p>
+    </button>
+  );
+}
+
+function ActiveFrameView({
+  frame,
+  assetName,
+}: {
+  frame: FrameManifestEntry | null;
+  assetName: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [frame?.frame_idx, frame?.annotated_url]);
+
+  if (!frame?.annotated_url) {
+    return (
+      <div className="flex h-80 items-center justify-center text-xs text-slate-400">
+        No annotated image available for this frame
+      </div>
+    );
+  }
+
+  if (failed) {
+    return (
+      <div className="flex h-80 flex-col items-center justify-center gap-3 px-4 text-center text-sm text-amber-200">
+        <p>Failed to load annotated frame.</p>
+        <p className="text-xs text-amber-100">
+          The S3 object may have expired or isn&apos;t accessible from
+          your network yet.
+        </p>
+        {frame.raw_url ? (
+          <a
+            href={frame.raw_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full border border-cyan-400/40 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold text-cyan-200 hover:bg-cyan-500/20"
+          >
+            Open raw frame in new tab
+          </a>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={frame.annotated_url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Open annotated frame full-size in a new tab"
+      className="block"
+    >
+      <Image
+        src={frame.annotated_url}
+        alt={`Annotated frame ${frame.frame_idx} of ${assetName}`}
+        width={1920}
+        height={1080}
+        unoptimized
+        onError={() => setFailed(true)}
+        className="h-auto max-h-[70vh] w-full rounded-xl object-contain transition hover:brightness-110"
+      />
+    </a>
+  );
+}
+
 export default function BackendFrameGallery({ result, onDownloadJson }: Props) {
   const frames: FrameManifestEntry[] = useMemo(
     () => result?.frames?.frames ?? [],
@@ -104,58 +212,35 @@ export default function BackendFrameGallery({ result, onDownloadJson }: Props) {
       ) : (
         <>
           <div className="flex gap-2 overflow-x-auto pb-2">
-            {frames.map((f, idx) => {
-              const isActive = idx === activeIdx;
-              return (
-                <button
-                  key={f.frame_idx}
-                  type="button"
-                  onClick={() => setActiveIdx(idx)}
-                  className={`shrink-0 rounded-xl border p-2 transition ${
-                    isActive
-                      ? 'border-cyan-400 bg-cyan-500/10'
-                      : 'border-slate-700 bg-slate-900/70 hover:border-cyan-400/60'
-                  }`}
-                >
-                  {f.annotated_url ? (
-                    <Image
-                      src={f.annotated_url}
-                      alt={`Frame ${f.frame_idx}`}
-                      width={160}
-                      height={90}
-                      unoptimized
-                      className="h-20 w-32 rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="h-20 w-32 rounded-md bg-slate-800" />
-                  )}
-                  <p className="mt-1.5 text-[11px] font-semibold text-white">
-                    Frame {f.frame_idx}
-                  </p>
-                  <p className="text-[10px] text-slate-400">
-                    t={Math.round(f.timestamp_ms)}ms · {f.num_objects} obj
-                  </p>
-                </button>
-              );
-            })}
+            {frames.map((f, idx) => (
+              <FrameThumb
+                key={f.frame_idx}
+                frame={f}
+                isActive={idx === activeIdx}
+                onSelect={() => setActiveIdx(idx)}
+              />
+            ))}
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
             <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-4">
+              <ActiveFrameView frame={activeFrame} assetName={result.assetName} />
               {activeFrame?.annotated_url ? (
-                <Image
-                  src={activeFrame.annotated_url}
-                  alt={`Annotated frame ${activeFrame.frame_idx}`}
-                  width={1280}
-                  height={720}
-                  unoptimized
-                  className="h-auto max-h-[70vh] w-full rounded-xl object-contain"
-                />
-              ) : (
-                <div className="flex h-80 items-center justify-center text-xs text-slate-400">
-                  No annotated image available for this frame
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                  <span>
+                    Frame {activeFrame.frame_idx} · {Math.round(activeFrame.timestamp_ms)}ms ·{' '}
+                    {activeFrame.num_objects} object{activeFrame.num_objects === 1 ? '' : 's'}
+                  </span>
+                  <a
+                    href={activeFrame.annotated_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-cyan-400/40 bg-cyan-500/10 px-3 py-1 font-semibold text-cyan-200 hover:bg-cyan-500/20"
+                  >
+                    Open full size
+                  </a>
                 </div>
-              )}
+              ) : null}
             </div>
 
             <aside className="max-h-[70vh] overflow-y-auto rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-4">
