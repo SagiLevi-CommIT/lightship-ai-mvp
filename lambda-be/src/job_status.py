@@ -209,10 +209,31 @@ def get_job(job_id: str) -> Optional[Dict[str, Any]]:
 def read_status(job_id: str) -> Optional[Dict[str, Any]]:
     """Normalised status row that the ``/status`` endpoint returns.
 
-    Warm-cache first, then Dynamo fallback. Always returns the same
-    keys so the UI's type signatures line up: ``status``, ``progress``,
-    ``message``, ``current_step``.
+    Prefers DynamoDB first whenever a table is bound, because on AWS
+    the worker Lambda container (where ``write_progress`` runs) is
+    almost never the same container that serves the ``/status`` HTTP
+    GET — so the HTTP Lambda's warm cache is *always* stale for
+    in-flight jobs. Falling through to the cache only matters when
+    Dynamo is unreachable (e.g. test environment, IAM issue).
+
+    Always returns the same keys so the UI's type signatures line up:
+    ``status``, ``progress``, ``message``, ``current_step``.
     """
+    row = get_job(job_id) if _jobs_table is not None else None
+    if row:
+        try:
+            progress = float(row.get("progress") or 0.0)
+        except (TypeError, ValueError):
+            progress = 0.0
+        normalised = {
+            "status": row.get("status", "UNKNOWN"),
+            "progress": progress,
+            "message": row.get("message", ""),
+            "current_step": row.get("current_step"),
+        }
+        processing_status[job_id] = {**row, **normalised}
+        return normalised
+
     cached = processing_status.get(job_id)
     if cached:
         return {
@@ -221,22 +242,4 @@ def read_status(job_id: str) -> Optional[Dict[str, Any]]:
             "message": cached.get("message", ""),
             "current_step": cached.get("current_step"),
         }
-
-    row = get_job(job_id)
-    if not row:
-        return None
-
-    try:
-        progress = float(row.get("progress") or 0.0)
-    except (TypeError, ValueError):
-        progress = 0.0
-
-    normalised = {
-        "status": row.get("status", "UNKNOWN"),
-        "progress": progress,
-        "message": row.get("message", ""),
-        "current_step": row.get("current_step"),
-    }
-    # keep the warm cache populated so the next hit is free
-    processing_status[job_id] = {**row, **normalised}
-    return normalised
+    return None

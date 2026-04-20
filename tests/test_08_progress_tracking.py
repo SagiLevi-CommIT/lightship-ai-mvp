@@ -124,7 +124,8 @@ def test_write_progress_clamps_to_unit_interval(job_status_fresh):
     assert js.processing_status["job-c"]["progress"] == 0.0
 
 
-def test_read_status_prefers_warm_cache(job_status_fresh):
+def test_read_status_uses_warm_cache_when_no_table(job_status_fresh):
+    """With no bound table, warm cache is the only source of truth."""
     js = job_status_fresh
     js.processing_status["job-d"] = {
         "status": "PROCESSING",
@@ -139,6 +140,36 @@ def test_read_status_prefers_warm_cache(job_status_fresh):
         "message": "warm",
         "current_step": "foo",
     }
+
+
+def test_read_status_prefers_dynamo_over_warm_cache(job_status_fresh):
+    """On AWS the HTTP-serving Lambda and the worker Lambda are
+    different containers, so the HTTP container's warm cache is
+    always stale for in-flight jobs. read_status must hit Dynamo
+    when a table is bound so the UI sees real progress."""
+    js = job_status_fresh
+    table = _StubTable()
+    table.put_item({
+        "job_id": "job-dp",
+        "status": "PROCESSING",
+        "progress": 0.7,
+        "message": "halfway",
+        "current_step": "refining_frames",
+    })
+    js.set_table(table)
+    # Seed a stale warm cache that does NOT match Dynamo.
+    js.processing_status["job-dp"] = {
+        "status": "QUEUED",
+        "progress": 0.0,
+        "message": "Queued",
+        "current_step": "queued",
+    }
+
+    row = js.read_status("job-dp")
+    # Dynamo should win; UI sees halfway instead of stale queued state.
+    assert row["status"] == "PROCESSING"
+    assert row["progress"] == pytest.approx(0.7)
+    assert row["current_step"] == "refining_frames"
 
 
 def test_read_status_falls_back_to_dynamo_when_cold(job_status_fresh):
