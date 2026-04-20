@@ -180,6 +180,31 @@ class Pipeline:
                 video_metadata, all_objects, hazard_events, inferred_metadata if self.use_cv_labeler else {}
             )
 
+            # Inject the Rekognition audit trail into output.json so every
+            # completed run carries proof that managed-vision inference was
+            # actually invoked. The audit is authored by ``RekognitionLabeler``
+            # one entry per frame (raw label names, confidence, kept count,
+            # latency) and tests assert on its presence.
+            import json as _json
+            if self.use_cv_labeler and self.rekognition is not None:
+                try:
+                    with open(output_path, "r", encoding="utf-8") as fp:
+                        output_doc = _json.load(fp)
+                    audit = self.rekognition.build_audit()
+                    output_doc["rekognition_audit"] = {
+                        "frames_evaluated": len(audit),
+                        "total_instances_kept": sum(
+                            int(entry.get("kept_instances", 0)) for entry in audit
+                        ),
+                        "region": getattr(self.rekognition, "region_name", None),
+                        "min_confidence": getattr(self.rekognition, "min_confidence", None),
+                        "per_frame": audit,
+                    }
+                    with open(output_path, "w", encoding="utf-8") as fp:
+                        _json.dump(output_doc, fp, indent=2)
+                except Exception as audit_err:
+                    logger.warning("Failed to embed rekognition_audit: %s", audit_err)
+
             # Get summary stats
             from src.schemas import VideoOutput
             with open(output_path, 'r') as f:

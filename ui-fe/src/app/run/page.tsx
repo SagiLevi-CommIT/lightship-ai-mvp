@@ -12,13 +12,15 @@ import {
   getFrames,
   getOutputJson,
   getVideoClass,
-  pollJobToTerminal,
-  presignUploadAndStart,
+  pollBatchToTerminal,
+  presign,
   startS3VideoJob,
-  type JobStatusResponse,
+  startVideoJob,
+  uploadToS3,
+  type BatchStatusRow,
 } from '@/lib/api';
 import { buildAssetResultFromBackend } from '@/lib/map-backend-to-template';
-import type { AssetResult } from '@/components/evaluation/flow-types';
+import type { AssetResult, UploadedAsset } from '@/components/evaluation/flow-types';
 
 const STAGE_LABELS: Record<string, string> = {
   init: 'Initializing pipeline',
@@ -28,11 +30,52 @@ const STAGE_LABELS: Record<string, string> = {
   error: 'Failed',
 };
 
-const humanStage = (status: JobStatusResponse, fallback: string) => {
-  if (status.message) return status.message;
-  if (status.current_step) return STAGE_LABELS[status.current_step] ?? status.current_step;
-  return fallback;
-};
+const PARALLEL_UPLOAD_CONCURRENCY = 3;
+
+async function runWithConcurrency<T, R>(
+  items: Array<T>,
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<Array<PromiseSettledResult<R>>> {
+  const results: Array<PromiseSettledResult<R>> = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= items.length) return;
+      try {
+        const value = await fn(items[index]);
+        results[index] = { status: 'fulfilled', value };
+      } catch (reason) {
+        results[index] = { status: 'rejected', reason };
+      }
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+async function startJobForAsset(
+  asset: UploadedAsset,
+  options: { max_snapshots: number; snapshot_strategy: string },
+): Promise<string> {
+  if (asset.source === 's3' && asset.s3Uri) {
+    const resp = await startS3VideoJob(asset.s3Uri, options);
+    return resp.job_id;
+  }
+  if (asset.file) {
+    // Upload via presign and start; mirror the old presignUploadAndStart
+    // flow but keep it inlined so status transitions stay colocated.
+    const { presign_url, s3_key, required_headers } = await presign(
+      asset.file.name,
+      asset.file.type || 'video/mp4',
+    );
+    await uploadToS3(presign_url, asset.file, required_headers);
+    const { job_id } = await startVideoJob(s3_key, options);
+    return job_id;
+  }
+  throw new Error(`Asset ${asset.name} has no file or s3Uri`);
+}
 
 export default function RunPage() {
   const router = useRouter();
@@ -76,9 +119,6 @@ export default function RunPage() {
       const totalAssets = runConfig.assets.length;
       const startedAt = Date.now();
 
-      // Decode user config. The "Number of frames to keep" is the single
-      // source of truth for max_snapshots; snapshot_strategy is derived
-      // from the Native / Scene change toggle.
       const parsedMax = Number.parseInt(runConfig.pipelineConfig.maxSnapshots, 10);
       const maxSnapshots = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 5;
       const strategy =
@@ -89,7 +129,7 @@ export default function RunPage() {
       setRunProgress({
         phase: 'queued',
         percent: 0,
-        currentStage: 'Queueing files for the pipeline',
+        currentStage: `Queueing ${totalAssets} file${totalAssets === 1 ? '' : 's'}`,
         activeAssetId: null,
         totalAssets,
         completedAssets: 0,
@@ -99,99 +139,167 @@ export default function RunPage() {
 
       runConfig.assets.forEach((asset) => setAssetStatus(asset.id, 'queued'));
 
-      const resultsByAssetId: Record<string, AssetResult> = {};
-      let completed = 0;
-      let failed = 0;
+      // ─── Step 1: launch upload + submit in parallel (bounded) ─────────────
+      const jobIdByAssetId = new Map<string, string>();
+      const launchResults = await runWithConcurrency(
+        runConfig.assets,
+        PARALLEL_UPLOAD_CONCURRENCY,
+        async (asset) => {
+          if (isCancelled) throw new Error('cancelled');
+          setAssetStatus(asset.id, 'running');
+          const jobId = await startJobForAsset(asset, {
+            max_snapshots: maxSnapshots,
+            snapshot_strategy: strategy,
+          });
+          setAssetJobId(asset.id, jobId);
+          jobIdByAssetId.set(asset.id, jobId);
+          return jobId;
+        },
+      );
 
-      for (const asset of runConfig.assets) {
+      if (isCancelled) return;
+
+      // Mark assets whose submit itself failed (no job_id ever assigned).
+      for (let i = 0; i < runConfig.assets.length; i += 1) {
+        const asset = runConfig.assets[i];
+        const result = launchResults[i];
+        if (result && result.status === 'rejected') {
+          console.error('submit failed for', asset.name, result.reason);
+          setAssetStatus(asset.id, 'failed');
+        }
+      }
+
+      const jobIds = Array.from(jobIdByAssetId.values());
+      if (jobIds.length === 0) {
+        setRunProgress({
+          phase: 'failed',
+          percent: 100,
+          currentStage: 'All submissions failed',
+          activeAssetId: null,
+          totalAssets,
+          completedAssets: 0,
+          startedAt,
+          completedAt: Date.now(),
+        });
+        return;
+      }
+
+      setRunProgress({
+        phase: 'running',
+        percent: 5,
+        currentStage: `Running pipeline on ${jobIds.length} job${jobIds.length === 1 ? '' : 's'}`,
+        activeAssetId: null,
+        totalAssets,
+        completedAssets: 0,
+        startedAt,
+        completedAt: null,
+      });
+
+      // ─── Step 2: single-round-trip batch polling ───────────────────────────
+      await pollBatchToTerminal(jobIds, (statusMap) => {
         if (isCancelled) return;
 
-        setAssetStatus(asset.id, 'running');
+        // Compute aggregate progress as sum of per-job progress / total.
+        let aggregate = 0;
+        let completed = 0;
+        for (const asset of runConfig.assets) {
+          const jid = jobIdByAssetId.get(asset.id);
+          if (!jid) continue;
+          const row = statusMap.get(jid);
+          if (!row) continue;
+          const prog = Math.max(0, Math.min(1, row.progress ?? 0));
+          aggregate += prog;
+          const status = (row.status || '').toUpperCase();
+          if (status === 'COMPLETED') {
+            completed += 1;
+            setAssetStatus(asset.id, 'completed');
+          } else if (status === 'FAILED' || status === 'NOT_FOUND') {
+            setAssetStatus(asset.id, 'failed');
+          }
+        }
+        const percent = Math.min(99, Math.round((aggregate / runConfig.assets.length) * 100));
+
+        // Pick one "active" asset — whichever has the latest partial
+        // progress — so the banner isn't blank when things are in flight.
+        let activeAssetId: string | null = null;
+        let activeRow: BatchStatusRow | null = null;
+        let bestProgress = -1;
+        for (const asset of runConfig.assets) {
+          const jid = jobIdByAssetId.get(asset.id);
+          if (!jid) continue;
+          const row = statusMap.get(jid);
+          if (!row) continue;
+          const status = (row.status || '').toUpperCase();
+          if (status === 'COMPLETED' || status === 'FAILED') continue;
+          const prog = row.progress ?? 0;
+          if (prog > bestProgress) {
+            bestProgress = prog;
+            activeAssetId = asset.id;
+            activeRow = row;
+          }
+        }
+
+        const currentStage = activeRow
+          ? `${
+              activeRow.message || STAGE_LABELS[activeRow.current_step ?? ''] || 'Processing'
+            }${activeAssetId ? ` · ${runConfig.assets.find((a) => a.id === activeAssetId)?.name ?? ''}` : ''}`
+          : `${completed}/${runConfig.assets.length} completed`;
+
         setRunProgress({
           phase: 'running',
-          percent: (completed / totalAssets) * 100,
-          currentStage:
-            asset.source === 's3'
-              ? `Copying S3 video: ${asset.name}`
-              : `Uploading ${asset.name}`,
-          activeAssetId: asset.id,
+          percent,
+          currentStage,
+          activeAssetId,
           totalAssets,
           completedAssets: completed,
           startedAt,
           completedAt: null,
         });
-
-        try {
-          let jobId: string;
-          if (asset.source === 's3' && asset.s3Uri) {
-            const resp = await startS3VideoJob(asset.s3Uri, {
-              max_snapshots: maxSnapshots,
-              snapshot_strategy: strategy,
-            });
-            jobId = resp.job_id;
-          } else if (asset.file) {
-            jobId = await presignUploadAndStart(asset.file, {
-              max_snapshots: maxSnapshots,
-              snapshot_strategy: strategy,
-            });
-          } else {
-            throw new Error(`Asset ${asset.name} has no file or s3Uri`);
-          }
-          setAssetJobId(asset.id, jobId);
-
-          await pollJobToTerminal(
-            jobId,
-            (status) => {
-              if (isCancelled) return;
-              const progress = Math.max(0, Math.min(1, status.progress ?? 0));
-              const pct = ((completed + progress) / totalAssets) * 100;
-              setRunProgress({
-                phase: 'running',
-                percent: pct,
-                currentStage: `${humanStage(status, 'Processing')} · ${asset.name}`,
-                activeAssetId: asset.id,
-                totalAssets,
-                completedAssets: completed,
-                startedAt,
-                completedAt: null,
-              });
-            },
-            3000,
-          );
-
-          const [bv, configs, frames, videoClass] = await Promise.all([
-            getOutputJson(jobId),
-            getClientConfigs(jobId).catch(() => null),
-            getFrames(jobId).catch(() => null),
-            getVideoClass(jobId).catch(() => null),
-          ]);
-
-          const result = buildAssetResultFromBackend(asset, bv, configs);
-          // Attach the real frame manifest + video class as extras on the
-          // result so the results page can render per-frame S3 images.
-          (result as AssetResult & {
-            jobId?: string;
-            frames?: typeof frames;
-            videoClass?: typeof videoClass;
-          }).jobId = jobId;
-          (result as AssetResult & {
-            frames?: typeof frames;
-          }).frames = frames;
-          (result as AssetResult & {
-            videoClass?: typeof videoClass;
-          }).videoClass = videoClass;
-          resultsByAssetId[asset.id] = result;
-
-          setAssetStatus(asset.id, 'completed');
-          completed += 1;
-        } catch (err) {
-          console.error('Pipeline failed for asset', asset.name, err);
-          setAssetStatus(asset.id, 'failed');
-          failed += 1;
-        }
-      }
+      });
 
       if (isCancelled) return;
+
+      // ─── Step 3: fetch results for every successful job in parallel ───────
+      const resultsByAssetId: Record<string, AssetResult> = {};
+
+      await runWithConcurrency(
+        runConfig.assets.filter((a) => jobIdByAssetId.has(a.id)),
+        PARALLEL_UPLOAD_CONCURRENCY,
+        async (asset) => {
+          if (isCancelled) return;
+          const jobId = jobIdByAssetId.get(asset.id);
+          if (!jobId) return;
+
+          try {
+            const [bv, configs, frames, videoClass] = await Promise.all([
+              getOutputJson(jobId),
+              getClientConfigs(jobId).catch(() => null),
+              getFrames(jobId).catch(() => null),
+              getVideoClass(jobId).catch(() => null),
+            ]);
+
+            const result = buildAssetResultFromBackend(asset, bv, configs);
+            (result as AssetResult & {
+              jobId?: string;
+              frames?: typeof frames;
+              videoClass?: typeof videoClass;
+            }).jobId = jobId;
+            (result as AssetResult & { frames?: typeof frames }).frames = frames;
+            (result as AssetResult & {
+              videoClass?: typeof videoClass;
+            }).videoClass = videoClass;
+            resultsByAssetId[asset.id] = result;
+          } catch (err) {
+            console.error('result fetch failed for', asset.name, err);
+            setAssetStatus(asset.id, 'failed');
+          }
+        },
+      );
+
+      if (isCancelled) return;
+
+      const completed = Object.keys(resultsByAssetId).length;
+      const failed = totalAssets - completed;
 
       const runId = createRunId();
       setRunProgress({
@@ -217,7 +325,7 @@ export default function RunPage() {
           ? 'Pipeline run finished with failures. Check backend logs.'
           : `Pipeline finished with ${failed} failed asset(s). Partial results available.`;
 
-      if (Object.keys(resultsByAssetId).length === 0) {
+      if (completed === 0) {
         return;
       }
 

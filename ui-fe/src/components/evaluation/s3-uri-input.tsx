@@ -38,10 +38,10 @@ export default function S3UriInput({ onAdd }: Props) {
           </p>
         </div>
       </div>
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex gap-2" data-test-id="s3-uri-input">
         <input
           type="text"
-          data-test-id="s3-uri-input"
+          data-test-id="s3-uri-input-field"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="s3://bucket/prefix/video.mp4"
@@ -49,6 +49,7 @@ export default function S3UriInput({ onAdd }: Props) {
         />
         <button
           type="button"
+          data-test-id="s3-uri-add-button"
           onClick={handleAdd}
           className="rounded-lg bg-cyan-500/20 px-4 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/30"
         >

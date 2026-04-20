@@ -244,3 +244,90 @@ export async function pollJobToTerminal(
   }
   throw new Error(`Polling timed out after ${timeoutMs / 1000}s`);
 }
+
+export type BatchStatusRow = JobStatusResponse & {
+  job_id: string;
+};
+
+export async function getBatchStatus(jobIds: Array<string>): Promise<Array<BatchStatusRow>> {
+  if (jobIds.length === 0) return [];
+  const qs = new URLSearchParams({ job_ids: jobIds.join(',') });
+  const data = await json<{ jobs: Array<BatchStatusRow>; count: number }>(
+    `/batch/status?${qs}`,
+  );
+  return data.jobs;
+}
+
+/**
+ * Map of jobId -> latest status. Polls in one round-trip per tick so a
+ * batch of 50 videos doesn't fan out to 50 parallel /status GETs.
+ */
+export async function pollBatchToTerminal(
+  jobIds: Array<string>,
+  onTick: (statuses: Map<string, BatchStatusRow>) => void,
+  intervalMs = 3000,
+  timeoutMs = 30 * 60 * 1000,
+): Promise<Map<string, BatchStatusRow>> {
+  const deadline = Date.now() + timeoutMs;
+  const live = new Set(jobIds);
+  const latest = new Map<string, BatchStatusRow>();
+
+  while (live.size > 0 && Date.now() < deadline) {
+    try {
+      const rows = await getBatchStatus(Array.from(live));
+      for (const row of rows) {
+        latest.set(row.job_id, row);
+        const s = (row.status || '').toUpperCase();
+        if (s === 'COMPLETED' || s === 'FAILED' || s === 'NOT_FOUND') {
+          live.delete(row.job_id);
+        }
+      }
+      onTick(new Map(latest));
+    } catch {
+      // ignore transient errors and keep polling
+    }
+    if (live.size === 0) break;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return latest;
+}
+
+export type BatchItemInput = {
+  s3_uri?: string;
+  s3_key?: string;
+  s3_prefix?: string;
+  filename?: string;
+  config?: { max_snapshots?: number; snapshot_strategy?: string };
+};
+
+export type BatchProcessResponse = {
+  jobs: Array<{
+    job_id: string;
+    filename: string;
+    s3_key: string;
+    dispatch: string;
+    status: string;
+  }>;
+  count: number;
+};
+
+export async function batchProcess(items: Array<BatchItemInput>): Promise<BatchProcessResponse> {
+  return json('/batch/process', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  });
+}
+
+/**
+ * Download an entire job's annotated frames + output.json as a single ZIP.
+ * Returns an object URL the caller can bind to an ``<a download>`` element.
+ */
+export async function downloadFramesZipUrl(jobId: string): Promise<string> {
+  const res = await fetch(`${API_BASE}/download/frames-zip/${jobId}`);
+  if (!res.ok) {
+    throw new Error(`ZIP download failed (${res.status}): ${res.statusText}`);
+  }
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}

@@ -1,12 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Backend Lambda Function for Lightship AI MVP with ALB Integration'
+Description: 'Backend Lambda + Step Functions + SQS integration for Lightship AI MVP.'
 
 Parameters:
   ProjectName:
     Type: String
     Default: lightship
     Description: Name of the project for resource naming
-    
+
   Environment:
     Type: String
     Default: mvp
@@ -15,7 +15,7 @@ Parameters:
   ImageUri:
     Type: String
     Description: ECR image URI for the Lambda function
-    Default: 095128162384.dkr.ecr.us-east-1.amazonaws.com/lightship-backend:latest
+    Default: 336090301206.dkr.ecr.us-east-1.amazonaws.com/lightship-backend:latest
 
 Resources:
   # Lambda Function
@@ -41,6 +41,9 @@ Resources:
           BEDROCK_REGION: us-east-1
           ENVIRONMENT: !Ref Environment
           LOG_LEVEL: INFO
+          LOG_FORMAT: json
+          EMIT_METRICS: 'true'
+          METRICS_NAMESPACE: Lightship/Backend
           DEFAULT_MODEL_ID: anthropic.claude-3-haiku-20240307-v1:0
           FAST_MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
           REASONING_MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
@@ -59,6 +62,13 @@ Resources:
           CONVERSATIONS_BUCKET:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-conversations-bucket'
           DATAFILES_BUCKET: s3-lightship-custom-datasources-us-east-1
+          # Phase 3: SQS + Step Functions dispatch. When these are set, the
+          # backend Lambda's /process-video endpoint sends to SQS instead of
+          # self-invoking, and the backend also services SQS batches by
+          # starting executions of the pipeline state machine.
+          PROCESSING_QUEUE_URL:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-processing-queue-url'
+          PIPELINE_STATE_MACHINE_ARN: !Ref LightshipPipelineStateMachine
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-backend'
@@ -73,6 +83,119 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: elasticloadbalancing.amazonaws.com
 
+  # =========================================================================
+  # Phase 3 — SQS consumer + Step Functions
+  # =========================================================================
+  # The backend Lambda doubles as the SQS dispatcher: an EventSourceMapping
+  # drives batches of queue messages into ``lambda_handler`` which then
+  # calls ``StartExecution`` on the state machine (see ``lambda_function.py``).
+  ProcessingQueueEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-processing-queue-arn'
+      FunctionName: !Ref BackendLambdaFunction
+      BatchSize: 1
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      MaximumBatchingWindowInSeconds: 0
+      Enabled: true
+
+  PipelineStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/vendedlogs/states/${ProjectName}-${Environment}-pipeline'
+      RetentionInDays: 30
+
+  LightshipPipelineStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-${Environment}-pipeline'
+      StateMachineType: STANDARD
+      RoleArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-sfn-execution-role-arn'
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt PipelineStateMachineLogGroup.Arn
+        Level: ERROR
+        IncludeExecutionData: false
+      # Definition is inline so the pipeline.asl.json file documents the flow
+      # but CloudFormation owns the actual deployed ASL. If you edit this,
+      # also update infrastructure/state-machines/pipeline.asl.json.
+      DefinitionSubstitutions:
+        PipelineFunctionArn: !GetAtt BackendLambdaFunction.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "Lightship video processing pipeline. SQS dispatcher enqueues a job, this state machine runs Pipeline.process_video as a Lambda task and catches failures to mark Dynamo FAILED.",
+          "StartAt": "RunPipeline",
+          "States": {
+            "RunPipeline": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${!PipelineFunctionArn}",
+                "Payload": {
+                  "action": "pipeline_stage",
+                  "job_id.$": "$.job_id",
+                  "s3_key.$": "$.s3_key",
+                  "filename.$": "$.filename",
+                  "config.$": "$.config"
+                }
+              },
+              "ResultSelector": {
+                "status.$": "$.Payload.status",
+                "job_id.$": "$.Payload.job_id"
+              },
+              "ResultPath": "$.pipeline_result",
+              "TimeoutSeconds": 870,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "MarkFailed"
+                }
+              ],
+              "Next": "Succeed"
+            },
+            "MarkFailed": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${!PipelineFunctionArn}",
+                "Payload": {
+                  "action": "mark_failed",
+                  "job_id.$": "$.job_id",
+                  "error.$": "$.error"
+                }
+              },
+              "ResultPath": "$.mark_failed_result",
+              "Next": "Fail"
+            },
+            "Succeed": {
+              "Type": "Succeed"
+            },
+            "Fail": {
+              "Type": "Fail",
+              "Error": "PipelineFailed",
+              "Cause": "See Dynamo job_id for error detail"
+            }
+          }
+        }
+
 Outputs:
   LambdaFunctionArn:
     Description: Backend Lambda Function ARN
@@ -85,3 +208,9 @@ Outputs:
     Value: !Ref BackendLambdaFunction
     Export:
       Name: !Sub '${ProjectName}-${Environment}-backend-lambda-name'
+
+  PipelineStateMachineArn:
+    Description: Lightship pipeline Step Functions state machine
+    Value: !Ref LightshipPipelineStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-pipeline-state-machine-arn'

@@ -128,13 +128,42 @@ class TestHealthAndConnectivity:
         assert r.status_code == 422
 
     def test_ui_template_pages_served_by_frontend(self):
-        """UI-Template pages (/, /history, /pipeline, /preview, /run) render HTML."""
-        for path in ("/", "/history", "/pipeline", "/preview", "/run"):
+        """UI-Template pages (/, /history, /run) render HTML.
+
+        Note: the stub ``/pipeline`` and ``/preview`` redirect pages were
+        removed in Phase 4 because they only re-directed to ``/``.
+        """
+        for path in ("/", "/history", "/run"):
             r = requests.get(f"{BASE_URL}{path}", timeout=REQUEST_TIMEOUT_S)
             assert r.status_code == 200, f"{path} -> {r.status_code}"
             assert "text/html" in r.headers.get("content-type", "").lower(), (
                 f"{path} returned non-HTML content-type"
             )
+
+    def test_batch_status_rejects_empty(self):
+        """GET /batch/status without job_ids -> 422 (Phase 4 endpoint)."""
+        r = requests.get(f"{BASE_URL}/batch/status", timeout=REQUEST_TIMEOUT_S)
+        assert r.status_code in (400, 422)
+
+    def test_batch_status_returns_not_found_row_for_unknown_job(self):
+        """GET /batch/status?job_ids=unknown -> 200 with NOT_FOUND row."""
+        r = requests.get(
+            f"{BASE_URL}/batch/status",
+            params={"job_ids": "does-not-exist"},
+            timeout=REQUEST_TIMEOUT_S,
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["count"] == 1
+        assert body["jobs"][0]["status"] == "NOT_FOUND"
+
+    def test_frames_zip_404_for_unknown_job(self):
+        """GET /download/frames-zip/<unknown> -> 404."""
+        r = requests.get(
+            f"{BASE_URL}/download/frames-zip/nonexistent-job-id",
+            timeout=REQUEST_TIMEOUT_S,
+        )
+        assert r.status_code == 404
 
 
 @pytest.mark.skipif(
@@ -275,6 +304,54 @@ class TestS3VideoPipelineE2E:
         assert fj.status_code == 200
         jd = fj.json()
         assert jd.get("frame_idx") == first["frame_idx"]
+
+    def test_rekognition_audit_present_in_download_json(self, job):
+        """The downloaded ``output.json`` must carry the Phase 2 audit block.
+
+        This is the live-ALB counterpart to the offline assertion in
+        ``test_06_e2e_pipeline.test_rekognition_audit_present_in_output_json`` —
+        it proves the embedding survives the full Lambda → S3 → ALB path.
+        """
+        r = requests.get(f"{BASE_URL}/download/json/{job}", timeout=120)
+        assert r.status_code == 200
+        doc = r.json()
+        audit = doc.get("rekognition_audit")
+        assert audit is not None, (
+            "rekognition_audit missing from output.json — either Rekognition "
+            "did not run, or the pipeline regressed the embedding step."
+        )
+        assert audit.get("frames_evaluated", 0) > 0, (
+            f"Rekognition ran but reported 0 frames_evaluated: {audit}"
+        )
+        assert audit.get("per_frame"), "rekognition_audit.per_frame was empty"
+
+    def test_frames_zip_streams_valid_zip(self, job):
+        """GET /download/frames-zip/{job} returns a real ZIP with output.json."""
+        import io
+        import zipfile
+
+        r = requests.get(f"{BASE_URL}/download/frames-zip/{job}", timeout=120)
+        assert r.status_code == 200
+        assert r.headers.get("content-type") == "application/zip"
+        with zipfile.ZipFile(io.BytesIO(r.content)) as zf:
+            names = zf.namelist()
+            assert "output.json" in names
+            assert any(n.startswith("frames/") for n in names), (
+                f"frames-zip missing frames/: {names[:10]}"
+            )
+
+    def test_batch_status_for_completed_job(self, job):
+        """GET /batch/status?job_ids=<completed> reports COMPLETED + progress=1.0."""
+        r = requests.get(
+            f"{BASE_URL}/batch/status", params={"job_ids": job}, timeout=60,
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["count"] == 1
+        row = body["jobs"][0]
+        assert row["job_id"] == job
+        assert row["status"] == "COMPLETED"
+        assert row["progress"] == 1.0
 
 
 class TestCleanup:

@@ -21,6 +21,7 @@ import type {
   RunProgress,
   UploadedAsset,
 } from '@/components/evaluation/flow-types';
+import { uuidv4 } from '@/lib/uuid';
 
 const DEFAULT_PIPELINE_CONFIG: PipelineConfig = {
   frameSelectionMethod: 'native',
@@ -109,7 +110,7 @@ const revokePreviewUrls = (assets: Array<UploadedAsset>) => {
   });
 };
 
-const createAssetId = () => `asset_${crypto.randomUUID()}`;
+const createAssetId = () => `asset_${uuidv4()}`;
 
 const getImageMetadata = (url: string) =>
   new Promise<{ width: number; height: number }>((resolve, reject) => {
@@ -368,7 +369,7 @@ export function FlowProvider({
       const [bucket, key] = [rest.slice(0, slash), rest.slice(slash + 1)];
       const name = key.split('/').pop() || key;
       const asset: UploadedAsset = {
-        id: `asset_${crypto.randomUUID()}`,
+        id: createAssetId(),
         source: 's3',
         s3Uri: trimmed,
         name,

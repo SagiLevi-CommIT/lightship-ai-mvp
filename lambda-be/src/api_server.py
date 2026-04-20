@@ -22,9 +22,12 @@ from botocore.exceptions import ClientError
 from src.pipeline import Pipeline
 from src.config import SNAPSHOT_STRATEGY, MAX_SNAPSHOTS_PER_VIDEO, TEMP_FRAMES_DIR
 from src.config_generator import generate_client_configs, write_client_configs
+from src import job_status
+from src.utils import metrics
+from src.utils.logging_setup import setup_logging
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
+# Structured JSON logging on Lambda, readable text locally.
+setup_logging()
 logger = logging.getLogger(__name__)
 
 # FastAPI app
@@ -33,10 +36,6 @@ app = FastAPI(
     description="Object detection and hazard labeling for dashcam videos",
     version="1.0.0"
 )
-
-# Configure uvicorn logger to reduce clutter
-import logging as uvicorn_logging
-uvicorn_logging.getLogger("uvicorn.access").setLevel(uvicorn_logging.WARNING)
 
 # CORS middleware
 app.add_middleware(
@@ -47,8 +46,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory storage for processing status (warm-cache; DynamoDB is authoritative)
-processing_status: Dict[str, Dict[str, Any]] = {}
+# Warm-cache handles for status + results. ``processing_status`` lives in the
+# ``job_status`` module so the helper functions can mutate it without an
+# import cycle; we keep this alias so the rest of the file reads naturally.
+processing_status: Dict[str, Dict[str, Any]] = job_status.processing_status
 processing_results: Dict[str, Dict[str, Any]] = {}
 
 # ─── DynamoDB job tracking ──────────────────────────────────────────────────
@@ -74,78 +75,123 @@ except Exception as e:
 try:
     _dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
     _jobs_table = _dynamodb.Table(DYNAMODB_TABLE)
+    job_status.set_table(_jobs_table)
     logger.info(f"DynamoDB table connected: {DYNAMODB_TABLE}")
 except Exception as e:
     logger.warning(f"DynamoDB init failed (will use in-memory only): {e}")
     _jobs_table = None
 
-# ─── Lambda self-invocation client (async worker dispatch) ───────────────────
-# AWS_LAMBDA_FUNCTION_NAME is set automatically by the Lambda runtime.
-# When running locally (uvicorn), it is absent so we fall back to background_tasks.
+# ─── Async dispatch clients ──────────────────────────────────────────────────
+# Two paths are supported so we can roll the Phase 3 migration out safely:
+#
+# * **SQS + Step Functions (preferred)** — when ``PROCESSING_QUEUE_URL`` is
+#   set, ``/process-video`` sends a message to SQS. A separate dispatcher
+#   Lambda (backend image, SQS event source) consumes the message and calls
+#   ``StartExecution`` on the ``LightshipPipelineStateMachine`` which then
+#   invokes the same backend Lambda with ``action=pipeline_stage``.
+#
+# * **Lambda self-invoke (legacy / local)** — when ``PROCESSING_QUEUE_URL``
+#   is empty but ``AWS_LAMBDA_FUNCTION_NAME`` is set, we fall back to the
+#   ``boto3.client("lambda").invoke(..., InvocationType="Event")`` path.
+#   This keeps un-migrated deployments working and is removed entirely in
+#   Phase 6 once every environment has the state machine.
 LAMBDA_FUNCTION_NAME = os.environ.get("AWS_LAMBDA_FUNCTION_NAME", "")
+PROCESSING_QUEUE_URL = os.environ.get("PROCESSING_QUEUE_URL", "")
+
 _lambda_client = None
-if LAMBDA_FUNCTION_NAME:
+if LAMBDA_FUNCTION_NAME and not PROCESSING_QUEUE_URL:
     try:
         _lambda_client = boto3.client("lambda", region_name=AWS_REGION)
-        logger.info(f"Lambda client initialised for async self-invocation: {LAMBDA_FUNCTION_NAME}")
+        logger.info(
+            "Lambda client initialised for async self-invocation (legacy path): %s",
+            LAMBDA_FUNCTION_NAME,
+        )
     except Exception as e:
         logger.warning(f"Lambda client init failed: {e}")
 
-
-def _dynamo_put_job(job_id: str, status: str, **extra) -> None:
-    """Create or update a job record in DynamoDB."""
-    if _jobs_table is None:
-        logger.warning(f"DynamoDB table ref is None – skipping put_item for {job_id}")
-        return
+_sqs_client = None
+if PROCESSING_QUEUE_URL:
     try:
-        item = {
-            "job_id": job_id,
-            "status": status,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            **{k: v for k, v in extra.items() if v is not None},
-        }
-        _jobs_table.put_item(Item=item)
-        logger.info(f"DynamoDB put_item OK job={job_id} status={status}")
-    except Exception as e:
-        logger.warning(f"DynamoDB put_item failed for {job_id}: {type(e).__name__}: {e}")
-
-
-def _dynamo_update_status(job_id: str, status: str, **extra) -> None:
-    """Update just the status (and optional extra attrs) of an existing job."""
-    if _jobs_table is None:
-        return
-    try:
-        update_expr = "SET #s = :s, updated_at = :u"
-        expr_values: Dict[str, Any] = {
-            ":s": status,
-            ":u": datetime.now(timezone.utc).isoformat(),
-        }
-        expr_names = {"#s": "status"}  # status is a DynamoDB reserved word
-        for k, v in extra.items():
-            if v is not None:
-                update_expr += f", {k} = :{k}"
-                expr_values[f":{k}"] = v
-        _jobs_table.update_item(
-            Key={"job_id": job_id},
-            UpdateExpression=update_expr,
-            ExpressionAttributeValues=expr_values,
-            ExpressionAttributeNames=expr_names,
+        _sqs_client = boto3.client("sqs", region_name=AWS_REGION)
+        logger.info(
+            "SQS client initialised for Step Functions dispatch: %s",
+            PROCESSING_QUEUE_URL,
         )
-        logger.info(f"DynamoDB update OK job={job_id} status={status}")
     except Exception as e:
-        logger.warning(f"DynamoDB update failed for {job_id}: {type(e).__name__}: {e}")
+        logger.warning(f"SQS client init failed: {e}")
 
 
-def _dynamo_get_job(job_id: str) -> Optional[Dict[str, Any]]:
-    """Get a job record from DynamoDB. Returns None if not found."""
-    if _jobs_table is None:
-        return None
-    try:
-        resp = _jobs_table.get_item(Key={"job_id": job_id})
-        return resp.get("Item")
-    except Exception as e:
-        logger.warning(f"DynamoDB get_item failed for {job_id}: {type(e).__name__}: {e}")
-        return None
+# Thin module-local aliases — the real implementations live in ``job_status``
+# so they can be unit tested without pulling in the pipeline. Keeping the
+# names stable here means the rest of this file reads the same as before.
+_dynamo_put_job = job_status.put_job
+_dynamo_update_status = job_status.update_status
+_dynamo_get_job = job_status.get_job
+_write_progress = job_status.write_progress
+
+
+def _enqueue_job(job_id: str, s3_key: str, filename: str,
+                 proc_config: "ProcessingConfig") -> str:
+    """Hand a queued job off to the async pipeline.
+
+    Returns the short name of the path used so the caller can log it:
+    ``"sqs"`` for the Phase 3 SQS → Step Functions path, ``"lambda"`` for
+    the legacy Lambda self-invoke fallback.
+
+    Raises ``HTTPException(500)`` only on transport failure; the Dynamo row
+    is already ``QUEUED`` by the time we're called, so we must either hand
+    off successfully or mark the row ``FAILED`` and propagate.
+    """
+    payload = {
+        "job_id": job_id,
+        "s3_key": s3_key,
+        "filename": filename,
+        "config": proc_config.model_dump(),
+    }
+
+    if _sqs_client and PROCESSING_QUEUE_URL:
+        try:
+            _sqs_client.send_message(
+                QueueUrl=PROCESSING_QUEUE_URL,
+                MessageBody=json.dumps(payload),
+                MessageAttributes={
+                    "job_id": {"StringValue": job_id, "DataType": "String"},
+                },
+            )
+            logger.info(
+                "Job enqueued to SQS for Step Functions dispatch",
+                extra={"job_id": job_id, "queue_url": PROCESSING_QUEUE_URL},
+            )
+            return "sqs"
+        except Exception as e:
+            logger.error(
+                "SQS send_message failed; marking job FAILED",
+                extra={"job_id": job_id, "error": str(e)},
+            )
+            _dynamo_update_status(job_id, "FAILED", error_message=f"sqs dispatch failed: {e}")
+            raise HTTPException(status_code=500, detail=f"SQS dispatch failed: {e}")
+
+    if _lambda_client and LAMBDA_FUNCTION_NAME:
+        try:
+            _lambda_client.invoke(
+                FunctionName=LAMBDA_FUNCTION_NAME,
+                InvocationType="Event",
+                Payload=json.dumps({"action": "process_worker", **payload}).encode(),
+            )
+            logger.info(
+                "Legacy self-invoke dispatched",
+                extra={"job_id": job_id, "function": LAMBDA_FUNCTION_NAME},
+            )
+            return "lambda"
+        except Exception as e:
+            logger.error(
+                "Lambda self-invoke failed; marking job FAILED",
+                extra={"job_id": job_id, "error": str(e)},
+            )
+            _dynamo_update_status(job_id, "FAILED", error_message=f"lambda dispatch failed: {e}")
+            raise HTTPException(status_code=500, detail=f"Worker dispatch failed: {e}")
+
+    return "background"
 
 
 # ---------------------------------------------------------------------------
@@ -508,31 +554,14 @@ async def process_video(
     logger.info(f"Job {job_id} queued for video: {filename}")
 
     # ── Dispatch worker ───────────────────────────────────────────────────────
-    if _lambda_client and LAMBDA_FUNCTION_NAME:
-        # Production Lambda: self-invoke async (InvocationType=Event → 202, no wait)
-        # This returns immediately so the ALB connection is never timed out.
-        worker_payload = {
-            "action": "process_worker",
-            "job_id": job_id,
-            "s3_key": s3_key,
-            "filename": filename,
-            "config": proc_config.model_dump(),
-        }
-        try:
-            _lambda_client.invoke(
-                FunctionName=LAMBDA_FUNCTION_NAME,
-                InvocationType="Event",  # fire-and-forget, returns 202
-                Payload=json.dumps(worker_payload).encode(),
-            )
-            logger.info(f"✅ Worker Lambda invoked async for job {job_id}")
-        except Exception as e:
-            logger.error(f"❌ Worker dispatch failed for job {job_id}: {e}")
-            _dynamo_update_status(job_id, "FAILED", error=str(e))
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            raise HTTPException(status_code=500, detail=f"Worker dispatch failed: {e}")
+    dispatch_path = _enqueue_job(job_id, s3_key, filename, proc_config)
+
+    if dispatch_path in ("sqs", "lambda"):
         shutil.rmtree(temp_dir, ignore_errors=True)
     else:
-        # Local dev (uvicorn): download from S3 now and run in background task
+        # Local dev (uvicorn): no SQS and no Lambda self-invoke — run the
+        # pipeline in a FastAPI background task so the HTTP request returns
+        # immediately while processing continues.
         video_path = os.path.join(temp_dir, filename)
         if not os.path.exists(video_path) and _s3_client:
             logger.info(f"Downloading s3://{PROCESSING_BUCKET}/{s3_key} → {video_path}")
@@ -551,7 +580,10 @@ async def process_video(
         }
         background_tasks.add_task(process_video_task, job_id, video_path, temp_dir, proc_config)
 
-    logger.info(f"POST /process-video 200 job_id={job_id}")
+    logger.info(
+        "process-video accepted",
+        extra={"job_id": job_id, "dispatch": dispatch_path},
+    )
     return {"job_id": job_id, "status": "QUEUED"}
 
 
@@ -607,16 +639,15 @@ def process_video_task(
 ):
     """Background task for video processing."""
     try:
-        # Update status
-        processing_status[job_id].update({
-            "status": "PROCESSING",
-            "progress": 0.1,
-            "message": "Initializing pipeline",
-            "current_step": "init"
-        })
-        _dynamo_update_status(job_id, "PROCESSING", current_step="init")
+        metrics.count("PipelineStarts")
+        _write_progress(
+            job_id,
+            status="PROCESSING",
+            progress=0.1,
+            message="Initializing pipeline",
+            current_step="init",
+        )
 
-        # Initialize pipeline with config
         pipeline = Pipeline(
             snapshot_strategy=config.snapshot_strategy,
             max_snapshots=config.max_snapshots,
@@ -624,20 +655,20 @@ def process_video_task(
             use_cv_labeler=config.use_cv_labeler
         )
 
-        # Update progress for processing
-        processing_status[job_id].update({
-            "progress": 0.3,
-            "message": "Processing video with pipeline",
-            "current_step": "processing"
-        })
+        _write_progress(
+            job_id,
+            status="PROCESSING",
+            progress=0.3,
+            message="Processing video with pipeline",
+            current_step="processing",
+        )
 
-        # Process video using pipeline (handles both V1 and V2)
-        # Temporarily change merger output dir to temp_dir
         original_output_dir = pipeline.merger.output_dir
         pipeline.merger.output_dir = temp_dir
 
         try:
-            output_json_path = pipeline.process_video(video_path, is_train=False)
+            with metrics.stage_timer("process_video"):
+                output_json_path = pipeline.process_video(video_path, is_train=False)
 
             if output_json_path is None:
                 raise ValueError("Pipeline returned None - processing failed")
@@ -652,14 +683,14 @@ def process_video_task(
             # Restore original output dir
             pipeline.merger.output_dir = original_output_dir
 
-        # Update progress
-        processing_status[job_id].update({
-            "progress": 0.9,
-            "message": "Loading results",
-            "current_step": "finalize"
-        })
+        _write_progress(
+            job_id,
+            status="PROCESSING",
+            progress=0.9,
+            message="Loading results",
+            current_step="finalize",
+        )
 
-        # Load video metadata for results
         video_metadata = pipeline.video_loader.load_video_metadata(video_path)
 
         # Load output for summary
@@ -753,50 +784,54 @@ def process_video_task(
         )
 
         # Update status
-        processing_status[job_id].update({
-            "status": "COMPLETED",
-            "progress": 1.0,
-            "message": "Processing completed successfully",
-            "current_step": "completed"
-        })
+        _write_progress(
+            job_id,
+            status="COMPLETED",
+            progress=1.0,
+            message="Processing completed successfully",
+            current_step="completed",
+        )
         _dynamo_update_status(
             job_id, "COMPLETED",
             completed_at=datetime.now(timezone.utc).isoformat(),
         )
+        metrics.count("PipelineCompletions")
 
-        logger.info(f"Job {job_id} completed successfully")
+        logger.info(
+            "Job completed",
+            extra={"job_id": job_id, "status": "COMPLETED"},
+        )
 
     except Exception as e:
-        logger.error(f"Job {job_id} failed: {e}", exc_info=True)
-        processing_status[job_id].update({
-            "status": "FAILED",
-            "progress": 0.0,
-            "message": f"Processing failed: {str(e)}",
-            "current_step": "error"
-        })
+        logger.exception(
+            "Job failed",
+            extra={"job_id": job_id, "status": "FAILED"},
+        )
+        _write_progress(
+            job_id,
+            status="FAILED",
+            progress=0.0,
+            message=f"Processing failed: {str(e)}",
+            current_step="error",
+        )
         _dynamo_update_status(
             job_id, "FAILED",
             error_message=str(e),
         )
+        metrics.count("PipelineFailures")
 
 
 @app.get("/status/{job_id}")
 def get_status(job_id: str):
-    """Get processing status for a job (in-memory first, DynamoDB fallback)."""
-    if job_id in processing_status:
-        return processing_status[job_id]
+    """Get processing status for a job (in-memory first, DynamoDB fallback).
 
-    # Fallback to DynamoDB (handles cold-start / different Lambda instance)
-    dynamo_item = _dynamo_get_job(job_id)
-    if dynamo_item:
-        return {
-            "status": dynamo_item.get("status", "UNKNOWN"),
-            "progress": float(dynamo_item.get("progress", 0)),
-            "message": dynamo_item.get("message", ""),
-            "current_step": dynamo_item.get("current_step"),
-        }
-
-    raise HTTPException(status_code=404, detail="Job not found")
+    Delegates to ``job_status.read_status`` which normalises the shape so
+    warm-cache and Dynamo responses look identical to the UI.
+    """
+    result = job_status.read_status(job_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return result
 
 
 @app.get("/results/{job_id}")
@@ -1117,38 +1152,24 @@ async def process_s3_video(payload: Dict[str, Any]):
         max_snapshots=proc_config.max_snapshots,
     )
 
-    worker_payload = {
-        "action": "process_worker",
-        "job_id": job_id,
-        "s3_key": target_key,
-        "filename": filename,
-        "config": proc_config.model_dump(),
-    }
+    dispatch_path = _enqueue_job(job_id, target_key, filename, proc_config)
 
-    if _lambda_client and LAMBDA_FUNCTION_NAME:
-        try:
-            _lambda_client.invoke(
-                FunctionName=LAMBDA_FUNCTION_NAME,
-                InvocationType="Event",
-                Payload=json.dumps(worker_payload).encode(),
-            )
-            logger.info("Worker invoked async for S3 job %s", job_id)
-        except Exception as e:  # noqa: BLE001
-            logger.error("Worker dispatch failed: %s", e)
-            _dynamo_update_status(job_id, "FAILED", error_message=str(e))
-            raise HTTPException(status_code=500, detail=f"Worker dispatch failed: {e}") from e
-    else:
-        # Local dev: run synchronously via a background task (api_server
-        # is imported by uvicorn in dev; we intentionally avoid importing
-        # BackgroundTasks here because that requires request context).
+    if dispatch_path == "background":
         import threading
+        worker_payload = {
+            "action": "process_worker",
+            "job_id": job_id,
+            "s3_key": target_key,
+            "filename": filename,
+            "config": proc_config.model_dump(),
+        }
         threading.Thread(
             target=process_video_worker,
             args=(worker_payload,),
             daemon=True,
         ).start()
 
-    return {"job_id": job_id, "status": "QUEUED", "input_type": "s3"}
+    return {"job_id": job_id, "status": "QUEUED", "input_type": "s3", "dispatch": dispatch_path}
 
 
 @app.delete("/cleanup/{job_id}")
@@ -1164,6 +1185,247 @@ def cleanup_job(job_id: str):
         del processing_status[job_id]
 
     return {"message": "Cleanup successful"}
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — batch + UX endpoints
+# ---------------------------------------------------------------------------
+
+
+class _BatchItem(BaseModel):
+    """Single item in a batch submit request.
+
+    Exactly one of ``s3_uri`` / ``s3_key`` / ``s3_prefix`` must be supplied.
+    ``s3_prefix`` expands (via S3 ListObjectsV2) to one job per matching
+    video object so callers can hand off an entire folder in one call.
+    """
+    s3_uri: Optional[str] = None
+    s3_key: Optional[str] = None
+    s3_prefix: Optional[str] = None
+    filename: Optional[str] = None
+    config: Optional[Dict[str, Any]] = None
+
+
+class _BatchRequest(BaseModel):
+    items: list[_BatchItem]
+
+
+def _item_to_jobs(item: _BatchItem) -> list[tuple[str, str, str, ProcessingConfig]]:
+    """Materialise one ``_BatchItem`` into (job_id, s3_key, filename, cfg).
+
+    Bucket resolution mirrors ``/process-s3-video``: objects outside the
+    processing bucket get copied in so the worker can read them.
+    """
+    import uuid as _uuid
+
+    cfg = ProcessingConfig(**(item.config or {}))
+    results: list[tuple[str, str, str, ProcessingConfig]] = []
+
+    if item.s3_prefix:
+        if _s3_client is None:
+            raise HTTPException(status_code=503, detail="S3 client not available")
+        prefix = item.s3_prefix
+        bucket = PROCESSING_BUCKET
+        if prefix.startswith("s3://"):
+            _, _, rest = prefix.partition("s3://")
+            bucket, _, prefix = rest.partition("/")
+        try:
+            paginator = _s3_client.get_paginator("list_objects_v2")
+            for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                for entry in page.get("Contents", []) or []:
+                    key = entry["Key"]
+                    if not key.lower().endswith((".mp4", ".mov", ".avi", ".mkv", ".webm")):
+                        continue
+                    job_id = str(_uuid.uuid4())
+                    filename = key.rsplit("/", 1)[-1]
+                    target_key = key
+                    if bucket != PROCESSING_BUCKET:
+                        target_key = f"input/videos/{job_id}/{filename}"
+                        _s3_client.copy_object(
+                            Bucket=PROCESSING_BUCKET,
+                            Key=target_key,
+                            CopySource={"Bucket": bucket, "Key": key},
+                            ServerSideEncryption="aws:kms",
+                            MetadataDirective="REPLACE",
+                            ContentType="video/mp4",
+                        )
+                    results.append((job_id, target_key, filename, cfg))
+        except Exception as e:
+            logger.error("s3 prefix expansion failed: %s", e)
+            raise HTTPException(status_code=500, detail=f"s3 prefix expansion failed: {e}") from e
+        return results
+
+    s3_uri = item.s3_uri
+    if s3_uri and s3_uri.startswith("s3://"):
+        rest = s3_uri[5:]
+        if "/" in rest:
+            bucket, key = rest.split("/", 1)
+        else:
+            raise HTTPException(status_code=422, detail=f"Invalid s3_uri: {s3_uri}")
+    elif item.s3_key:
+        bucket = PROCESSING_BUCKET
+        key = item.s3_key
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail="each batch item must provide s3_uri, s3_key, or s3_prefix",
+        )
+
+    job_id = str(_uuid.uuid4())
+    filename = item.filename or key.rsplit("/", 1)[-1]
+
+    target_key = key
+    if bucket != PROCESSING_BUCKET:
+        if _s3_client is None:
+            raise HTTPException(status_code=503, detail="S3 client not available")
+        target_key = f"input/videos/{job_id}/{filename}"
+        try:
+            _s3_client.copy_object(
+                Bucket=PROCESSING_BUCKET,
+                Key=target_key,
+                CopySource={"Bucket": bucket, "Key": key},
+                ServerSideEncryption="aws:kms",
+                MetadataDirective="REPLACE",
+                ContentType="video/mp4",
+            )
+        except Exception as e:
+            logger.error("s3 copy failed: %s", e)
+            raise HTTPException(status_code=500, detail=f"s3 copy failed: {e}") from e
+
+    results.append((job_id, target_key, filename, cfg))
+    return results
+
+
+@app.post("/batch/process")
+def batch_process(request: _BatchRequest):
+    """Enqueue many jobs in a single round-trip.
+
+    The UI uses this to submit a whole batch (mix of uploaded s3 keys and
+    s3 URIs) without N HTTP requests. Each materialised job hits the same
+    dispatch path as ``/process-video`` so there is one Dynamo row, one
+    queue message (or self-invoke), and one state machine execution per
+    job.
+    """
+    all_jobs: list[dict] = []
+    for item in request.items:
+        for job_id, s3_key, filename, cfg in _item_to_jobs(item):
+            _dynamo_put_job(
+                job_id,
+                status="QUEUED",
+                filename=filename,
+                input_type="batch",
+                snapshot_strategy=cfg.snapshot_strategy,
+                max_snapshots=cfg.max_snapshots,
+            )
+            dispatch_path = _enqueue_job(job_id, s3_key, filename, cfg)
+            all_jobs.append({
+                "job_id": job_id,
+                "filename": filename,
+                "s3_key": s3_key,
+                "dispatch": dispatch_path,
+                "status": "QUEUED",
+            })
+
+    logger.info(
+        "batch/process accepted",
+        extra={"job_count": len(all_jobs)},
+    )
+    return {"jobs": all_jobs, "count": len(all_jobs)}
+
+
+@app.post("/process-s3-prefix")
+def process_s3_prefix(payload: Dict[str, Any]):
+    """Convenience endpoint: expand an S3 prefix to jobs.
+
+    Body: ``{ "s3_prefix": "s3://bucket/folder/", "config": {...} }``.
+    Equivalent to ``POST /batch/process`` with one item.
+    """
+    prefix = payload.get("s3_prefix") or payload.get("prefix")
+    if not prefix:
+        raise HTTPException(status_code=422, detail="s3_prefix is required")
+    item = _BatchItem(s3_prefix=prefix, config=payload.get("config"))
+    return batch_process(_BatchRequest(items=[item]))
+
+
+@app.get("/batch/status")
+def batch_status(job_ids: str):
+    """Return the status of many jobs in one round-trip.
+
+    ``job_ids`` is a comma-separated list (URLs like ``?job_ids=a,b,c``).
+    Unknown IDs are reported as ``NOT_FOUND`` so the UI can render the
+    gap instead of getting a 404 on the whole call.
+    """
+    ids = [x.strip() for x in (job_ids or "").split(",") if x.strip()]
+    if not ids:
+        raise HTTPException(status_code=422, detail="job_ids query parameter required")
+
+    statuses = []
+    for jid in ids:
+        row = job_status.read_status(jid)
+        if row is None:
+            statuses.append({"job_id": jid, "status": "NOT_FOUND"})
+        else:
+            statuses.append({"job_id": jid, **row})
+    return {"jobs": statuses, "count": len(statuses)}
+
+
+@app.get("/download/frames-zip/{job_id}")
+def download_frames_zip(job_id: str):
+    """Stream all annotated frames + per-frame JSON as a single ZIP.
+
+    Avoids N round-trips when a user wants to export every frame of a
+    completed job. ZIP is built in memory for simplicity; the output
+    rarely exceeds a few megabytes because frames are PNG thumbnails.
+    """
+    import zipfile
+    import io as _io
+
+    manifest: list = []
+    if job_id in processing_results:
+        manifest = list(processing_results[job_id].get("frames_manifest") or [])
+    if not manifest:
+        manifest = _load_per_frame_manifest_from_s3(job_id)
+    if not manifest:
+        if not _dynamo_get_job(job_id):
+            raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(status_code=404, detail="No frame manifest for this job yet")
+    if _s3_client is None:
+        raise HTTPException(status_code=503, detail="S3 client not available")
+
+    buffer = _io.BytesIO()
+    with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for entry in manifest:
+            frame_idx = entry.get("frame_idx", 0)
+            annotated_key = entry.get("annotated_key")
+            json_key = entry.get("json_key")
+            if annotated_key:
+                try:
+                    obj = _s3_client.get_object(Bucket=PROCESSING_BUCKET, Key=annotated_key)
+                    zf.writestr(f"frames/frame_{frame_idx:04d}.png", obj["Body"].read())
+                except Exception as e:
+                    logger.warning("frames-zip: annotated fetch failed for %d: %s", frame_idx, e)
+            if json_key:
+                try:
+                    obj = _s3_client.get_object(Bucket=PROCESSING_BUCKET, Key=json_key)
+                    zf.writestr(f"frames/frame_{frame_idx:04d}.json", obj["Body"].read())
+                except Exception as e:
+                    logger.warning("frames-zip: json fetch failed for %d: %s", frame_idx, e)
+        # Also embed output.json and manifest.json at the zip root.
+        try:
+            output_obj = _s3_client.get_object(
+                Bucket=PROCESSING_BUCKET, Key=_s3_result_key(job_id, _OUTPUT_JSON_KEY),
+            )
+            zf.writestr("output.json", output_obj["Body"].read())
+        except Exception:
+            pass
+
+    from fastapi.responses import StreamingResponse
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{job_id}.zip"'},
+    )
 
 
 if __name__ == "__main__":

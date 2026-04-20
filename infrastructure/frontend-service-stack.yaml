@@ -66,7 +66,7 @@ Resources:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-cluster'
       TaskDefinition: !Ref FrontendTaskDefinition
       LaunchType: FARGATE
-      DesiredCount: 2
+      DesiredCount: 1
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
@@ -94,8 +94,8 @@ Resources:
   ECSServiceAutoScalingTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
     Properties:
-      MaxCapacity: 10
-      MinCapacity: 2
+      MaxCapacity: 4
+      MinCapacity: 1
       ResourceId: !Sub 'service/${ProjectName}-${Environment}-cluster/${FrontendECSService.Name}'
       RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService'
       ScalableDimension: ecs:service:DesiredCount

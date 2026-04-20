@@ -18,11 +18,16 @@ const nextConfig: NextConfig = {
       { source: '/presign-upload', destination: `${apiBase}/presign-upload` },
       { source: '/process-video', destination: `${apiBase}/process-video` },
       { source: '/process-image', destination: `${apiBase}/process-image` },
+      { source: '/process-s3-video', destination: `${apiBase}/process-s3-video` },
+      { source: '/process-s3-prefix', destination: `${apiBase}/process-s3-prefix` },
       { source: '/status/:path*', destination: `${apiBase}/status/:path*` },
       { source: '/results/:path*', destination: `${apiBase}/results/:path*` },
+      { source: '/frames/:path*', destination: `${apiBase}/frames/:path*` },
+      { source: '/video-class/:path*', destination: `${apiBase}/video-class/:path*` },
       { source: '/download/:path*', destination: `${apiBase}/download/:path*` },
       { source: '/cleanup/:path*', destination: `${apiBase}/cleanup/:path*` },
       { source: '/client-configs/:path*', destination: `${apiBase}/client-configs/:path*` },
+      { source: '/batch/:path*', destination: `${apiBase}/batch/:path*` },
     ];
   },
 };

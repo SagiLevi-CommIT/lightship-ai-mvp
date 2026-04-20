@@ -49,6 +49,12 @@ Thumbs.db
 *.wmv
 
 .env
+!.env.example
 
 docs_data_mterialsui-fe/tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# Playwright test artefacts
+ui-fe/playwright-report/
+ui-fe/test-results/
+ui-fe/tests/e2e/.auth/

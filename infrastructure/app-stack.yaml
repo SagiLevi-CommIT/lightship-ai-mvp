@@ -501,11 +501,12 @@ Resources:
           Value: !Ref Environment
 
   # Target Group for Frontend.
-  # The TG `Port` is immutable once created; keep the historical value (8501)
-  # to avoid resource replacement (which would disrupt the running ECS
-  # service). Health-check and actual traffic run on the container port 3000
-  # — the TG `Port` is only a default for the target registration and
-  # the ECS service already overrides it with containerPort=3000.
+  # ``Port`` on a TG is used only as the default registration port — because
+  # we register ``TargetType: ip`` ECS tasks and ECS supplies an explicit
+  # containerPort=3000 at registration, the TG's own Port value is
+  # cosmetic. We leave it at the historical 8501 to avoid a resource
+  # replacement on existing deployments; health-check port is 3000 which
+  # is what actually matters.
   FrontendTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -581,12 +582,13 @@ Resources:
             - '/presign-upload'
             - '/jobs'
             - '/cleanup/*'
-            - '/pipeline-result/*'
       Actions:
         - Type: forward
           TargetGroupArn: !Ref BackendTargetGroup
 
-  # Single-image + client-config + S3 start + video class (priority 98)
+  # Single-image + client-config + S3 start + video class (priority 98).
+  # ALB limits path-pattern conditions to 5 values per rule, so Phase 4
+  # batch-related paths live on a separate rule below.
   BackendListenerRuleExtra:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
@@ -600,6 +602,21 @@ Resources:
             - '/process-s3-video'
             - '/video-class/*'
             - '/frames/*'
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref BackendTargetGroup
+
+  # Phase 4 batch endpoints (priority 97).
+  BackendListenerRuleBatch:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref ALBListenerHTTP
+      Priority: 97
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - '/batch/*'
+            - '/process-s3-prefix'
       Actions:
         - Type: forward
           TargetGroupArn: !Ref BackendTargetGroup
@@ -938,11 +955,28 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
+              # Direct log writes (rarely used by SFN itself but harmless).
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
+                Resource: '*'
+              # Step Functions vended-logs integration uses the CloudWatch
+              # Logs "log delivery" API. These permissions must be on * per
+              # the docs — they're administrative actions tied to the
+              # account-wide logs resource policy, not to a specific group.
+              # https://docs.aws.amazon.com/step-functions/latest/dg/cw-logs.html
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogDelivery
+                  - logs:GetLogDelivery
+                  - logs:UpdateLogDelivery
+                  - logs:DeleteLogDelivery
+                  - logs:ListLogDeliveries
+                  - logs:PutResourcePolicy
+                  - logs:DescribeResourcePolicies
+                  - logs:DescribeLogGroups
                 Resource: '*'
       Tags:
         - Key: Name
@@ -1106,13 +1140,60 @@ Resources:
                 "region": "${AWS::Region}",
                 "period": 300
               }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 12, "width": 12, "height": 6,
+              "properties": {
+                "title": "Pipeline Throughput (EMF: Lightship/Backend)",
+                "metrics": [
+                  ["Lightship/Backend", "PipelineStarts", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum"}],
+                  ["Lightship/Backend", "PipelineCompletions", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum", "color": "#2ca02c"}],
+                  ["Lightship/Backend", "PipelineFailures", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum", "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 12, "width": 12, "height": 6,
+              "properties": {
+                "title": "Rekognition Activity (EMF)",
+                "metrics": [
+                  ["Lightship/Backend", "RekognitionCalls", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum"}],
+                  ["Lightship/Backend", "RekognitionLabelsReturned", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum", "color": "#2ca02c"}],
+                  ["Lightship/Backend", "RekognitionInstancesKept", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum"}],
+                  ["Lightship/Backend", "RekognitionFailures", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum", "color": "#d62728"}]
+                ],
+                "region": "${AWS::Region}",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 18, "width": 24, "height": 6,
+              "properties": {
+                "title": "Stage Duration p50/p95 (milliseconds)",
+                "metrics": [
+                  [{"expression": "SEARCH('{Lightship/Backend,Service,Environment,Stage} MetricName=\"StageDurationMs\"', 'Average', 300)", "label": "avg", "id": "e1"}],
+                  [{"expression": "SEARCH('{Lightship/Backend,Service,Environment,Stage} MetricName=\"StageDurationMs\"', 'p95', 300)", "label": "p95", "id": "e2"}]
+                ],
+                "region": "${AWS::Region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "period": 300
+              }
             }
           ]
         }
 
-  # Note: ECS Task Definition and Service will be created during Phase 3 (Frontend deployment)
-  # Note: Lambda Function will be created during Phase 4 (Backend deployment)
-  # Note: Step Functions State Machine will be created when pipeline Lambda functions are ready
+  # ECS Task Definition and Service live in ``frontend-service-stack.yaml``.
+  # The backend Lambda, the SQS EventSourceMapping, and the Step Functions
+  # state machine (``lightship-mvp-pipeline``) are defined in
+  # ``backend-lambda-stack.yaml`` so they can reference the Lambda ARN
+  # directly. This stack only provisions the queue, IAM role, and log group
+  # they depend on.
 
 Outputs:
   # Application Load Balancer

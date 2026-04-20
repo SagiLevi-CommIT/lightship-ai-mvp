@@ -386,7 +386,7 @@ VPC (10.0.0.0/16) — us-east-1
 
 ## 10) SQS configuration
 
-### Main queue: `lightship-processing-queue`
+### Main queue: `lightship-mvp-processing-queue`
 - Visibility timeout: 900 seconds (matches Step Functions max expected duration)
 - Message retention: 4 days
 - Encryption: SSE-KMS
@@ -401,7 +401,7 @@ VPC (10.0.0.0/16) — us-east-1
 }
 ```
 
-### Dead Letter Queue: `lightship-processing-dlq`
+### Dead Letter Queue: `lightship-mvp-processing-dlq`
 - Receive count threshold: 3 (after 3 failed attempts, message moves to DLQ)
 - Retention: 14 days
 - CloudWatch alarm: DLQ message count > 0 triggers SNS notification

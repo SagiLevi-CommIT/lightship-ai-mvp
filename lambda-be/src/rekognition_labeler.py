@@ -9,18 +9,25 @@ schema as CV detections and merged downstream.
 Budget-wise this adds one Rekognition DetectLabels call per selected frame
 and is therefore only invoked on the final selected set, never on the full
 dense pre-selection sweep.
+
+Also produces a per-frame **audit record** (``last_audit`` /
+``build_audit``) that the pipeline persists into ``output.json`` so every
+successful run carries proof that Rekognition actually ran — closing the
+"Rekognition is in code but not proven in outputs" gap from Phase 2.
 """
 from __future__ import annotations
 
 import logging
 import os
+import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import boto3
 from botocore.exceptions import ClientError
 
 from src.schemas import ObjectLabel, Center
+from src.utils import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -115,15 +122,25 @@ class RekognitionLabeler:
         self.region_name = region_name or os.environ.get("AWS_REGION", "us-east-1")
         self.min_confidence = min_confidence
         self.max_labels = max_labels
+        self._audit_records: List[Dict[str, Any]] = []
         try:
             self.client = boto3.client("rekognition", region_name=self.region_name)
             logger.info(
                 "RekognitionLabeler initialised (region=%s, min_confidence=%d, max_labels=%d)",
                 self.region_name, self.min_confidence, self.max_labels,
             )
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             logger.warning("Rekognition client init failed: %s", e)
             self.client = None
+
+    def build_audit(self) -> List[Dict[str, Any]]:
+        """Return the per-frame audit trail accumulated during this run.
+
+        Pipeline callers write this into ``output.json`` so downstream
+        analysis and the ``test_06_e2e_pipeline`` assertion can prove that
+        Rekognition was actually invoked during the run.
+        """
+        return list(self._audit_records)
 
     def detect(
         self,
@@ -143,6 +160,16 @@ class RekognitionLabeler:
             logger.warning("Cannot read frame %s: %s", frame_path, e)
             return []
 
+        audit_entry: Dict[str, Any] = {
+            "frame_path": Path(frame_path).name,
+            "timestamp_ms": float(timestamp_ms),
+            "min_confidence": self.min_confidence,
+            "raw_labels": [],
+            "kept_instances": 0,
+            "error": None,
+        }
+
+        start = time.monotonic()
         try:
             resp = self.client.detect_labels(
                 Image={"Bytes": image_bytes},
@@ -150,12 +177,29 @@ class RekognitionLabeler:
                 MinConfidence=self.min_confidence,
             )
         except ClientError as e:
-            logger.warning("Rekognition DetectLabels failed on %s: %s", frame_path, e)
+            logger.warning(
+                "Rekognition DetectLabels failed on %s: %s",
+                frame_path, e,
+                extra={"frame": Path(frame_path).name, "timestamp_ms": float(timestamp_ms)},
+            )
+            audit_entry["error"] = str(e)
+            self._audit_records.append(audit_entry)
+            metrics.count("RekognitionFailures")
             return []
 
+        elapsed_ms = (time.monotonic() - start) * 1000.0
+
+        raw_label_summary: List[Dict[str, Any]] = []
         results: List[ObjectLabel] = []
         for label in resp.get("Labels", []):
-            canonical = self._canonicalise(label.get("Name", ""))
+            name = label.get("Name", "")
+            confidence = float(label.get("Confidence", 0.0))
+            instance_count = len(label.get("Instances", []) or [])
+            raw_label_summary.append(
+                {"name": name, "confidence": round(confidence, 2), "instances": instance_count}
+            )
+
+            canonical = self._canonicalise(name)
             if not canonical:
                 continue
             for inst in label.get("Instances", []) or []:
@@ -173,9 +217,30 @@ class RekognitionLabeler:
                 if obj is not None:
                     results.append(obj)
 
+        audit_entry["raw_labels"] = raw_label_summary
+        audit_entry["kept_instances"] = len(results)
+        audit_entry["elapsed_ms"] = round(elapsed_ms, 1)
+        self._audit_records.append(audit_entry)
+
+        metrics.put_metrics(
+            {
+                "RekognitionCalls": 1.0,
+                "RekognitionLabelsReturned": float(len(raw_label_summary)),
+                "RekognitionInstancesKept": float(len(results)),
+            }
+        )
+        metrics.duration_ms("RekognitionCallMs", elapsed_ms)
+
         logger.info(
-            "Rekognition on %s -> %d labelled instances (timestamp=%dms)",
-            Path(frame_path).name, len(results), int(timestamp_ms),
+            "Rekognition on %s -> %d labelled instances (timestamp=%dms, elapsed=%.0fms)",
+            Path(frame_path).name, len(results), int(timestamp_ms), elapsed_ms,
+            extra={
+                "frame": Path(frame_path).name,
+                "timestamp_ms": float(timestamp_ms),
+                "raw_labels_returned": len(raw_label_summary),
+                "instances_kept": len(results),
+                "elapsed_ms": round(elapsed_ms, 1),
+            },
         )
         return results
 
