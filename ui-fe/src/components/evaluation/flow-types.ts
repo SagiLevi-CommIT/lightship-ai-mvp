@@ -7,6 +7,7 @@ export type MediaKind = 'image' | 'video';
 export type AssetStatus = 'ready' | 'queued' | 'running' | 'completed' | 'failed';
 
 export type FrameSelectionMethod = 'native' | 'scene-change';
+export type NativeSelectionMode = 'interval' | 'count';
 
 export type OutputCategory = 'high' | 'medium' | 'low' | 'all-frames';
 
@@ -32,9 +33,17 @@ export type UploadedAsset = {
 
 export type PipelineConfig = {
   frameSelectionMethod: FrameSelectionMethod;
-  nativeFps: string;          // used when frameSelectionMethod === 'native'
-  maxSnapshots: string;        // number of frames to keep (all strategies)
-  s3BucketPath: string;        // informational; not used by backend
+  // Sub-mode for ``native``. When ``interval`` the pipeline samples at
+  // ``nativeFps`` Hz. When ``count`` the pipeline returns exactly
+  // ``maxSnapshots`` frames uniformly spaced across the video.
+  nativeMode: NativeSelectionMode;
+  nativeFps: string;
+  maxSnapshots: string;        // number of frames to keep
+  // ``outputCategory`` (hazard severity filter) and ``s3BucketPath``
+  // are post-run concerns; they live on the results page, not the
+  // pre-run Configure panel. Kept here as optional state so the UI
+  // provider stays backward-compatible.
+  s3BucketPath: string;
   outputCategory: OutputCategory;
 };
 

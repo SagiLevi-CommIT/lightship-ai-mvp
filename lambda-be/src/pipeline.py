@@ -525,6 +525,14 @@ class Pipeline:
                f"Running CV detection on {len(snapshots)} frames")
         all_frame_objects: Dict[int, List[ObjectLabel]] = {}
 
+        # Preprocessed frames are written to a parallel directory so the
+        # original raw frames remain untouched on disk. The pipeline
+        # feeds the preprocessed image to CV detection but the S3
+        # ``raw_url`` and the annotator always see the real unmodified
+        # frame (fixing the "uniform grey with boxes" regression).
+        prepped_dir = Path(OUTPUT_DIR) / "temp_preprocessed"
+        prepped_dir.mkdir(parents=True, exist_ok=True)
+
         def process_frame(snapshot):
             """Process a single frame with optional preprocessing + CV labeler."""
             frame_path = extracted_frames.get(snapshot.frame_idx)
@@ -532,15 +540,17 @@ class Pipeline:
                 logger.warning(f"Frame not found for snapshot at {snapshot.timestamp_ms}ms")
                 return snapshot.frame_idx, []
 
+            cv_path = frame_path
             if ENABLE_FRAME_PREPROCESSING:
                 import cv2 as _cv2
                 raw = _cv2.imread(frame_path)
                 if raw is not None:
                     preprocessed = preprocess_frame(raw)
-                    _cv2.imwrite(frame_path, preprocessed)
+                    cv_path = str(prepped_dir / Path(frame_path).name)
+                    _cv2.imwrite(cv_path, preprocessed)
 
             objects = self.cv_labeler.label_frame(
-                frame_path,
+                cv_path,
                 snapshot.timestamp_ms,
                 video_metadata.width,
                 video_metadata.height
@@ -588,6 +598,28 @@ class Pipeline:
 
         selected_indices: List[int] = []
 
+        if chosen_strategy == "uniform_count":
+            # Explicit "give me exactly N frames spread evenly" mode.
+            # Uses the extracted frame pool (already validated, already
+            # filtered through _is_real_frame) so black codec preambles
+            # never sneak into the final selection.
+            valid_pool = sorted(
+                idx for idx in extracted_frames.keys()
+                if os.path.exists(extracted_frames[idx])
+            )
+            if valid_pool:
+                if len(valid_pool) <= max_snapshots:
+                    selected_indices = list(valid_pool)
+                else:
+                    step = len(valid_pool) / max_snapshots
+                    selected_indices = [
+                        valid_pool[int(i * step)] for i in range(max_snapshots)
+                    ]
+                logger.info(
+                    "uniform_count selected %d/%d frames",
+                    len(selected_indices), max_snapshots,
+                )
+
         if chosen_strategy == "scene_change":
             try:
                 sc_snaps = self.snapshot_selector._select_scene_change(video_metadata)
@@ -630,14 +662,60 @@ class Pipeline:
                 remaining = [idx for idx in all_frame_objects.keys() if idx not in selected_indices]
                 selected_indices.extend(remaining[: max_snapshots - len(selected_indices)])
 
-        # Always sort selected frames chronologically for UI/render coherence,
-        # drop indices whose extracted image is missing/unreadable — this
-        # protects the annotator from feeding it frames that never made it
-        # through ``FrameExtractor`` validation.
+        # Drop indices whose extracted image is missing/unreadable —
+        # this protects the annotator from feeding it frames that never
+        # made it through ``FrameExtractor`` validation (grey codec
+        # preambles, etc.).
         selected_indices = [
             idx for idx in sorted(set(selected_indices))
             if idx in extracted_frames and os.path.exists(extracted_frames[idx])
-        ][:max_snapshots]
+        ]
+
+        # Top-up rule (Bug 2): when the strategy returns fewer frames
+        # than the user asked for (short video, strict scene-change
+        # threshold, collapsed dense-grid buckets, etc.), pad with
+        # uniformly-spaced candidates from the pool of extracted
+        # frames until we hit ``max_snapshots``. This keeps the
+        # cardinality contract the UI relies on (requested == returned
+        # whenever the pool has enough frames).
+        if len(selected_indices) < max_snapshots:
+            pool = sorted(
+                idx for idx in extracted_frames.keys()
+                if idx not in selected_indices
+                and os.path.exists(extracted_frames[idx])
+            )
+            if pool:
+                needed = max_snapshots - len(selected_indices)
+                if needed >= len(pool):
+                    fill = pool
+                else:
+                    step = len(pool) / needed
+                    fill = [pool[int(i * step)] for i in range(needed)]
+                selected_indices = sorted(set(selected_indices + fill))
+                logger.info(
+                    "Topped up selection with %d uniformly-spaced frames "
+                    "(requested=%d, strategy=%s)",
+                    len(fill), max_snapshots, chosen_strategy,
+                )
+
+        selected_indices = sorted(set(selected_indices))[:max_snapshots]
+
+        # Validation beacon: if we still have fewer frames than
+        # requested, log loudly so operators can see exactly when the
+        # extracted pool was the bottleneck (short video, strict
+        # decoder rejection) vs. a selector bug.
+        if len(selected_indices) < max_snapshots:
+            logger.warning(
+                "Selection contract unmet: selected=%d requested=%d "
+                "pool_size=%d strategy=%s — pool was exhausted",
+                len(selected_indices), max_snapshots,
+                len(extracted_frames), chosen_strategy,
+            )
+        else:
+            logger.info(
+                "Selection contract met: %d/%d frames (strategy=%s)",
+                len(selected_indices), max_snapshots, chosen_strategy,
+            )
 
         report(0.55, "rekognition",
                f"Running AWS Rekognition on {len(selected_indices)} selected frames")

@@ -133,13 +133,23 @@ export default function RunPage() {
 
       const parsedMax = Number.parseInt(runConfig.pipelineConfig.maxSnapshots, 10);
       const maxSnapshots = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 5;
-      const strategy =
-        runConfig.pipelineConfig.frameSelectionMethod === 'scene-change'
-          ? 'scene_change'
-          : 'naive';
       const parsedFps = Number.parseFloat(runConfig.pipelineConfig.nativeFps);
       const nativeFps =
         Number.isFinite(parsedFps) && parsedFps > 0 ? parsedFps : undefined;
+
+      // Map the explicit UI selection onto the backend's snapshot_strategy
+      // contract. ``uniform_count`` is the unambiguous "give me exactly N
+      // frames spread evenly" mode; ``naive`` samples at nativeFps Hz and
+      // ranks candidates; ``scene_change`` picks distinctive frames.
+      const strategy = (() => {
+        if (runConfig.pipelineConfig.frameSelectionMethod === 'scene-change') {
+          return 'scene_change';
+        }
+        if (runConfig.pipelineConfig.nativeMode === 'count') {
+          return 'uniform_count';
+        }
+        return 'naive';
+      })();
 
       setRunProgress({
         phase: 'queued',

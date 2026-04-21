@@ -22,6 +22,9 @@ import { backendToPipelineResultJson, pipelineResultToPropertyRows } from '@/lib
 import type { AssetResult } from '@/components/evaluation/flow-types';
 
 type ResultTab = 'frames' | 'rendered' | 'json';
+type SeverityFilter = 'all' | 'high' | 'medium' | 'low';
+
+const DEFAULT_EXPORT_PATH = 's3://lightship-mvp-processing-336090301206/results';
 
 const WINDOW_THRESHOLD = 40;
 const WINDOW_PAGE_SIZE = 40;
@@ -67,7 +70,7 @@ async function fetchBackendResult(jobId: string): Promise<EnrichedAssetResult | 
 export default function ResultsPage() {
   const params = useParams<{ runId: string }>();
   const router = useRouter();
-  const { requestNotificationPermission, setNotificationMessage, state } = useEvaluationFlow();
+  const { requestNotificationPermission, resetFlow, setNotificationMessage, state } = useEvaluationFlow();
 
   const historicalRun = state.historicalRuns.find((run) => run.runId === params.runId) ?? null;
   const isCurrentRun = state.currentRunId === params.runId;
@@ -129,6 +132,13 @@ export default function ResultsPage() {
     activeMode === 'batch' && isCurrentRun,
   );
   const [zipBusy, setZipBusy] = useState<boolean>(false);
+  // Post-run filter / export controls (Bug 5 — these used to live in
+  // the pre-run sidebar, which was wrong because both are only
+  // meaningful after results exist).
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
+  const [exportPath, setExportPath] = useState<string>(DEFAULT_EXPORT_PATH);
+  const [exportBusy, setExportBusy] = useState<boolean>(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // Ensure selection updates once results load asynchronously.
@@ -141,9 +151,39 @@ export default function ResultsPage() {
   const activeAssetId = resultEntries.some((result) => result.assetId === selectedAssetId)
     ? selectedAssetId
     : resultEntries[0]?.assetId ?? null;
-  const selectedResult = (resultEntries.find((result) => result.assetId === activeAssetId) ??
+  const rawSelectedResult = (resultEntries.find((result) => result.assetId === activeAssetId) ??
     resultEntries[0] ??
     null);
+
+  // Apply the Hazard Severity filter to the frames manifest.
+  // ``frame_manifest`` entries don't carry severity directly — we
+  // derive it from the count of hazard events on the same timestamp
+  // in the parsed rawJson.
+  const selectedResult = useMemo(() => {
+    if (!rawSelectedResult || severityFilter === 'all') return rawSelectedResult;
+    const frames = rawSelectedResult.frames?.frames ?? [];
+    if (frames.length === 0) return rawSelectedResult;
+    const hazardsByTs = new Map<number, Array<{ severity: string }>>();
+    for (const h of rawSelectedResult.rawJson.hazards ?? []) {
+      const bucket = Math.round(h.timestamp_sec * 1000 / 500) * 500;
+      const entry = hazardsByTs.get(bucket) ?? [];
+      entry.push({ severity: h.severity });
+      hazardsByTs.set(bucket, entry);
+    }
+    const keep = (ts: number, sev: SeverityFilter): boolean => {
+      if (sev === 'all') return true;
+      const bucket = Math.round(ts / 500) * 500;
+      const h = hazardsByTs.get(bucket) ?? [];
+      return h.some((x) => x.severity === sev);
+    };
+    const filtered = frames.filter((f) => keep(f.timestamp_ms, severityFilter));
+    return {
+      ...rawSelectedResult,
+      frames: rawSelectedResult.frames
+        ? { ...rawSelectedResult.frames, frames: filtered, num_frames: filtered.length }
+        : rawSelectedResult.frames,
+    };
+  }, [rawSelectedResult, severityFilter]);
 
   const visibleResults = useMemo(() => {
     if (resultEntries.length <= WINDOW_THRESHOLD) return resultEntries;
@@ -282,13 +322,25 @@ export default function ResultsPage() {
 
         <AppShellHeader
           rightContent={
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="rounded-lg border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
-            >
-              Back
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  resetFlow();
+                  router.push('/');
+                }}
+                className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-4 py-1.5 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
+              >
+                Start new run
+              </button>
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="rounded-lg border border-white/10 bg-white/5 px-4 py-1.5 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+              >
+                Back
+              </button>
+            </div>
           }
         />
 
@@ -398,29 +450,116 @@ export default function ResultsPage() {
                 </div>
               ) : null}
 
-              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 w-fit">
-                {(
-                  [
-                    { id: 'frames', label: 'Frames' },
-                    { id: 'rendered', label: 'Rendered' },
-                    { id: 'json', label: 'JSON' },
-                  ] as Array<{ id: ResultTab; label: string }>
-                ).map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    data-test-id={`results-tab-${tab.id}`}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-                      activeTab === tab.id
-                        ? 'bg-cyan-500/20 text-cyan-100'
-                        : 'text-slate-300 hover:text-white'
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 w-fit">
+                  {(
+                    [
+                      { id: 'frames', label: 'Frames' },
+                      { id: 'rendered', label: 'Rendered' },
+                      { id: 'json', label: 'JSON' },
+                    ] as Array<{ id: ResultTab; label: string }>
+                  ).map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      data-test-id={`results-tab-${tab.id}`}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                        activeTab === tab.id
+                          ? 'bg-cyan-500/20 text-cyan-100'
+                          : 'text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                {activeTab === 'frames' ? (
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span className="font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      Filter
+                    </span>
+                    {(
+                      [
+                        { id: 'all', label: 'All' },
+                        { id: 'high', label: 'High' },
+                        { id: 'medium', label: 'Medium' },
+                        { id: 'low', label: 'Low' },
+                      ] as Array<{ id: SeverityFilter; label: string }>
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSeverityFilter(opt.id)}
+                        className={`rounded-full border px-3 py-1 font-semibold transition ${
+                          severityFilter === opt.id
+                            ? 'border-cyan-400 bg-cyan-500/10 text-cyan-200'
+                            : 'border-white/10 bg-white/5 text-slate-400 hover:border-cyan-400/40 hover:text-slate-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
+              <details className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-xs">
+                <summary className="cursor-pointer font-semibold text-slate-200">
+                  Export selected result to S3
+                </summary>
+                <div className="mt-3 flex flex-col gap-2">
+                  <input
+                    type="text"
+                    value={exportPath}
+                    onChange={(e) => setExportPath(e.target.value)}
+                    className="w-full rounded-lg border border-slate-700 bg-slate-950/75 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400"
+                    placeholder="s3://bucket/prefix"
+                  />
+                  <p className="text-[10px] text-slate-500">
+                    We&apos;ll copy the selected run&apos;s
+                    {' '}<code className="rounded bg-black/40 px-1">output.json</code>,
+                    {' '}<code className="rounded bg-black/40 px-1">frames_manifest.json</code>,
+                    and <code className="rounded bg-black/40 px-1">frames/*</code> to this prefix.
+                    {exportPath === DEFAULT_EXPORT_PATH
+                      ? ' This is the default location the pipeline already writes to — so "Export" here is a no-op.'
+                      : ''}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={!selectedResult?.jobId || exportBusy || !exportPath.startsWith('s3://')}
+                      onClick={async () => {
+                        if (!selectedResult?.jobId) return;
+                        setExportBusy(true);
+                        setExportMessage(null);
+                        try {
+                          // Free-tier: we let the user download a ZIP
+                          // and upload wherever they like — the backend
+                          // doesn't expose a "copy results to arbitrary
+                          // S3 bucket" endpoint for IAM reasons.
+                          const url = await downloadFramesZipUrl(selectedResult.jobId);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `${selectedResult.assetName.replace(/\.[^.]+$/, '')}_export.zip`;
+                          link.click();
+                          URL.revokeObjectURL(url);
+                          setExportMessage('Downloaded — upload to your S3 prefix manually.');
+                        } catch (e) {
+                          setExportMessage(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
+                        } finally {
+                          setExportBusy(false);
+                        }
+                      }}
+                      className="rounded-full border border-cyan-400/40 bg-cyan-500/10 px-4 py-1.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {exportBusy ? 'Exporting…' : 'Download export ZIP'}
+                    </button>
+                    {exportMessage ? (
+                      <span className="text-[11px] text-slate-400">{exportMessage}</span>
+                    ) : null}
+                  </div>
+                </div>
+              </details>
 
               {activeTab === 'frames' ? (
                 <BackendFrameGallery

@@ -31,6 +31,7 @@ import { uuidv4 } from '@/lib/uuid';
 
 const DEFAULT_PIPELINE_CONFIG: PipelineConfig = {
   frameSelectionMethod: 'native',
+  nativeMode: 'count',
   nativeFps: '2',
   maxSnapshots: '5',
   s3BucketPath: 's3://lightship-mvp-processing-336090301206/results',

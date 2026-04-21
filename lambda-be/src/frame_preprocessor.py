@@ -68,20 +68,31 @@ def sharpen(frame: np.ndarray, sigma: float = 1.0, strength: float = 1.5) -> np.
 # Brightness normalisation
 # ---------------------------------------------------------------------------
 
-def normalize_brightness(frame: np.ndarray, target_mean: float = 127.0) -> np.ndarray:
+def normalize_brightness(
+    frame: np.ndarray,
+    target_mean: float = 127.0,
+    min_usable_mean: float = 12.0,
+) -> np.ndarray:
     """Normalise frame to a consistent mean brightness.
 
     Args:
         frame: BGR image (uint8).
         target_mean: Desired mean luminance value.
+        min_usable_mean: Below this luminance the frame is considered
+            "dark / no signal" and we return it unchanged. Without this
+            guard, a near-black frame (mean≈1) scales up by ~127× and
+            becomes a uniform mid-grey image — the exact "gray frame
+            with detections on top" symptom we saw in production on
+            Lytx / Pace cameras whose first frames are all-black before
+            the decoder hits a keyframe.
 
     Returns:
         Brightness-adjusted BGR image.
     """
     lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
     l_channel = lab[:, :, 0].astype(np.float32)
-    current_mean = l_channel.mean()
-    if current_mean == 0:
+    current_mean = float(l_channel.mean())
+    if current_mean < min_usable_mean:
         return frame
 
     scale = target_mean / current_mean

@@ -552,7 +552,12 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref FrontendTargetGroup
 
-  # ALB Listener Rule for Backend API paths (priority 100 - core routes)
+  # ALB Listener Rule for Backend API paths (priority 100 - core routes).
+  # NOTE: ``/results/*`` is intentionally routed to the FRONTEND target
+  # group (via the default action) because the Next.js app owns that
+  # URL space (/results/[runId]). Without this, navigating to
+  # /results/<runId> hit the backend FastAPI endpoint and returned
+  # raw JSON ("Job not found"), breaking the run->results flow.
   BackendListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
@@ -564,7 +569,6 @@ Resources:
             - '/health'
             - '/process-video'
             - '/status/*'
-            - '/results/*'
             - '/download/*'
       Actions:
         - Type: forward

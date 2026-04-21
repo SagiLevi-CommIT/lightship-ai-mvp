@@ -29,13 +29,20 @@ export default function EvalReport() {
   } = useEvaluationFlow();
   const selectedAsset = state.assets.find((asset) => asset.id === state.selectedAssetId) ?? null;
   const maxSnapshotsNum = Number.parseInt(state.pipelineConfig.maxSnapshots, 10);
+  const nativeFpsNum = Number.parseFloat(state.pipelineConfig.nativeFps);
+  const needsCount =
+    state.pipelineConfig.frameSelectionMethod === 'scene-change' ||
+    (state.pipelineConfig.frameSelectionMethod === 'native' &&
+      state.pipelineConfig.nativeMode === 'count');
+  const needsFps =
+    state.pipelineConfig.frameSelectionMethod === 'native' &&
+    state.pipelineConfig.nativeMode === 'interval';
   const canRun =
     state.mode === 'evaluation'
       ? true
       : state.assets.length > 0 &&
-        maxSnapshotsNum > 0 &&
-        (state.pipelineConfig.frameSelectionMethod !== 'native' ||
-          state.pipelineConfig.nativeFps.trim().length > 0);
+        (!needsCount || maxSnapshotsNum > 0) &&
+        (!needsFps || (Number.isFinite(nativeFpsNum) && nativeFpsNum > 0));
 
   return (
     <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#163b84_0%,#08142e_34%,#020814_100%)] text-white">
@@ -88,16 +95,12 @@ export default function EvalReport() {
                 return;
               }
 
-              if (
-                state.mode !== 'evaluation' &&
-                state.pipelineConfig.frameSelectionMethod === 'native' &&
-                state.pipelineConfig.nativeFps.trim().length === 0
-              ) {
-                setNotificationMessage('Please provide the FPS value for native frame selection.');
+              if (state.mode !== 'evaluation' && needsFps && !(nativeFpsNum > 0)) {
+                setNotificationMessage('Please provide a positive FPS value for Native (by FPS).');
                 return;
               }
 
-              if (state.mode !== 'evaluation' && !(maxSnapshotsNum > 0)) {
+              if (state.mode !== 'evaluation' && needsCount && !(maxSnapshotsNum > 0)) {
                 setNotificationMessage('Please set "Number of frames to keep" to a positive integer.');
                 return;
               }

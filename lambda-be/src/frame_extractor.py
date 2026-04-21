@@ -35,11 +35,15 @@ from src.config import TEMP_FRAMES_DIR, FRAME_FORMAT, FRAME_QUALITY
 logger = logging.getLogger(__name__)
 
 # Linear-walk budget when the requested frame index is unreadable.
-FRAME_READ_FALLBACK_STEPS = 6
-# Minimum per-frame pixel standard deviation we accept. Pure-grey or
-# fully-black frames have ``std < 1.0`` — they are almost certainly
-# codec artefacts at seek points and must be rejected before annotation.
-MIN_FRAME_STD = 1.0
+FRAME_READ_FALLBACK_STEPS = 24
+# Thresholds for ``_is_real_frame``. Calibrated against the production
+# dashcam corpus: genuine content frames have ``std >= 8`` and
+# ``mean >= 10`` even on dark/foggy scenes. Below those the frame is
+# almost always either pure-black codec preamble (the first 3-5 % of
+# every recorded clip) or a grey "no-signal" placeholder emitted by
+# the demuxer when a seek lands mid-GOP.
+MIN_FRAME_STD = 8.0
+MIN_FRAME_MEAN = 10.0
 
 
 @dataclass
@@ -68,12 +72,16 @@ class ExtractionResult:
 
 
 def _is_real_frame(frame: Optional[np.ndarray]) -> bool:
-    """Reject ``None`` / empty / uniform-colour decoded frames.
+    """Reject ``None`` / empty / uniform-colour / codec-preamble frames.
 
-    OpenCV sometimes returns "success" with a frame that is fully
-    grey/black when the demuxer hits a missing keyframe. Those frames
-    must never reach the annotator: they render as grey placeholders
-    and silently corrupt downstream analytics.
+    Two failure modes we've seen in production:
+
+    * ``std < MIN_FRAME_STD`` → uniform grey/black codec placeholder.
+    * ``mean < MIN_FRAME_MEAN`` → pitch-black preamble. Even if std is
+      a bit elevated (because of a crosshair or HUD glyph), a
+      pitch-black frame carries no scene information and, when fed to
+      ``normalize_brightness``, gets scaled into a uniform grey —
+      exactly the "grey frame with detections" bug.
     """
     if frame is None or not hasattr(frame, "size") or frame.size == 0:
         return False
@@ -84,9 +92,10 @@ def _is_real_frame(frame: Optional[np.ndarray]) -> bool:
         return False
     try:
         std = float(frame.std())
+        mean = float(frame.mean())
     except Exception:
         return False
-    return std >= MIN_FRAME_STD
+    return std >= MIN_FRAME_STD and mean >= MIN_FRAME_MEAN
 
 
 class FrameExtractor:
