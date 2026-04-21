@@ -791,63 +791,73 @@ class Pipeline:
 
         total_sel = max(1, len(selected_frame_indices))
         for refine_i, frame_idx in enumerate(selected_frame_indices):
+            # Keep a stable reference to the *requested* frame — the
+            # downstream code (annotator, manifest, UI) is keyed by this
+            # value, so when the refinement path bounces to a fallback
+            # frame we must still end up writing into ``frame_idx`` so
+            # the cardinality contract holds (one requested frame =
+            # one result).
             current_frame_idx = frame_idx
             success = False
+            refined_objects_for_frame = frames_with_objects.get(frame_idx, [])
 
-            # Try to refine this frame (with fallback to nearest unused frame if needed)
             while not success:
                 frame_path = extracted_frames[current_frame_idx]
-                objects = frames_with_objects[current_frame_idx]
+                objects = frames_with_objects.get(current_frame_idx, [])
 
-                # Find corresponding snapshot for timestamp
                 timestamp_ms = None
                 for snapshot in snapshots:
                     if snapshot.frame_idx == current_frame_idx:
                         timestamp_ms = snapshot.timestamp_ms
                         break
-
                 if timestamp_ms is None:
                     logger.warning(f"Could not find timestamp for frame {current_frame_idx}, using index as ms")
                     timestamp_ms = float(current_frame_idx * 1000)
 
-                # Attempt refinement with retries
                 refined_objects, success = self._refine_frame_with_retries(
                     current_frame_idx,
                     frame_path,
                     objects,
                     timestamp_ms,
-                    output_dir
+                    output_dir,
                 )
 
                 if success:
-                    refined_frame_objects[current_frame_idx] = refined_objects
+                    refined_objects_for_frame = refined_objects
                     used_frames.add(current_frame_idx)
-                    logger.info(f"Frame {current_frame_idx}: {len(objects)} -> {len(refined_objects)} objects")
+                    logger.info(
+                        "Frame %s (requested=%s): %d -> %d objects",
+                        current_frame_idx, frame_idx,
+                        len(objects), len(refined_objects),
+                    )
                     break
 
-                # Refinement failed - mark this frame as used (so it isn't
-                # picked as its own nearest neighbor) and try fallback if enabled.
                 used_frames.add(current_frame_idx)
                 if FRAME_REFINER_FALLBACK_ENABLED:
-                    nearest_frame = self._find_nearest_unused_frame(
-                        current_frame_idx,
-                        frames_with_objects,
-                        used_frames
+                    nearest = self._find_nearest_unused_frame(
+                        current_frame_idx, frames_with_objects, used_frames,
                     )
+                    if nearest is not None and nearest != current_frame_idx:
+                        logger.info(
+                            "Falling back from frame %s to frame %s "
+                            "(for requested=%s)",
+                            current_frame_idx, nearest, frame_idx,
+                        )
+                        current_frame_idx = nearest
+                        continue
 
-                    if nearest_frame is not None and nearest_frame != current_frame_idx:
-                        logger.info(f"Falling back from frame {current_frame_idx} to frame {nearest_frame}")
-                        current_frame_idx = nearest_frame
-                        continue  # Try again with fallback frame
-                    else:
-                        logger.warning(f"No fallback frames available for frame {current_frame_idx}")
-
-                # No success and no fallback available - keep CV-only results
-                logger.warning(f"Using CV-only results for frame {current_frame_idx}")
-                refined_frame_objects[current_frame_idx] = objects
+                logger.warning(
+                    "Using CV-only results for requested frame %s "
+                    "(last tried=%s)",
+                    frame_idx, current_frame_idx,
+                )
+                refined_objects_for_frame = frames_with_objects.get(frame_idx, [])
                 break
 
-            # Report refine progress monotonically in [0.65, 0.80].
+            # Always write into the originally-requested frame_idx so
+            # the output manifest contains exactly len(selected) frames.
+            refined_frame_objects[frame_idx] = refined_objects_for_frame
+
             frac = (refine_i + 1) / total_sel
             report(
                 0.65 + 0.15 * frac,
