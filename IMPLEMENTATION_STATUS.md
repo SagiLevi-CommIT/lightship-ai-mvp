@@ -27,6 +27,31 @@ Test status:
 - Backend: `pytest tests/test_08_progress_tracking.py tests/test_09_frame_extractor.py tests/test_10_frame_selection.py tests/test_11_rekognition_audit.py -v` → **21 passed**.
 - Frontend: `cd ui-fe && npm run build` → green (5 routes).
 
+### Production round 2 — 2026-04-21 (six additional reported bugs)
+
+Each bug was reproduced against live production jobs before a line of
+code was written; the code is fixed, deployed, and re-verified against
+fresh live jobs.
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| 1. Gray frames | `normalize_brightness` amplified pitch-black preamble frames (mean≈0) into uniform mid-grey via `target_mean=127` scaling; `_is_real_frame(std>=1)` too permissive | `normalize_brightness(min_usable_mean=12)` early-return; `_is_real_frame` now requires `std>=8 AND mean>=10`; extractor fallback walks up to 24 frames forward; preprocessed frame written to a parallel dir instead of overwriting `raw_url` on disk |
+| 2. Wrong frame count | `scene_change` returned 2-3 snapshots on short videos; dense-grid dedupe collapsed nearby scene changes; no top-up | Pipeline tops-up with uniformly-spaced indices from the validated extracted-frame pool; new `uniform_count` strategy returns exactly N evenly-spaced frames; `_refine_frame_with_retries` fallback no longer loses frames by chasing the fallback idx through the output dict |
+| 3. UI → raw JSON page | ALB listener rule priority 100 matched `/results/*` → backend Lambda; Next.js `/results/[runId]` never hit the frontend | Removed `/results/*` from BackendListenerRule in CFN + live via `modify-rule`; `/results/*` now falls through to frontend target group |
+| 4. No reset | Only provider-level `resetFlow()` existed | Added "Start new run" button to Results header; "Clear local history" on History page |
+| 5. Hazard severity + S3 path on Run page | Pre-run sidebar conflated pre- and post-run concerns | Removed both from `WorkspaceSidebar`; hazard severity now filters the Results frame gallery; S3 path now drives the Results "Export to S3" accordion |
+| 6. Ambiguous Native mode | UI mixed `nativeFps` and `maxSnapshots` as if both were required | New `nativeMode: 'count' \| 'interval'` sub-mode picker. "By count" → backend `uniform_count`. "By FPS" → backend `naive` with provided Hz |
+
+Validation: sent `scene_change` max=10 at pace_AASLP87058-C.mp4 (21 s,
+previously 10→2). Result: **10/10**. Sent `uniform_count` max=10 at
+same video: **10/10**. Sent `naive` max=5 at plr_snow_4818293461-C.mp4
+(22 s, previously gray frames): **5/5 frames**, std 47–59, mean ~92 —
+all real content. Direct HTTP smoke on `/results/*` returns HTML
+(Next.js app) with `content-type: text/html` for every ID shape.
+
+Tests: 29 pytest pass (`test_08..12` cover progress, extractor,
+selection, Rekognition audit, gray-frame guard, top-up).
+
 ### Production deploy — verified 2026-04-20 (smoke on live ALB)
 
 Deployed via CodeBuild (`lightship-mvp-backend` + `lightship-mvp-frontend`)
