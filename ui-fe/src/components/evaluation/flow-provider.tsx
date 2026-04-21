@@ -9,6 +9,12 @@ import {
   useReducer,
   useRef,
 } from 'react';
+import {
+  clearPersistedHistory as lsClearHistory,
+  loadPersistedHistory,
+  persistHistory,
+  type PersistedRun,
+} from '@/lib/history-persist';
 import type { ReactNode } from 'react';
 import type {
   AssetResult,
@@ -25,6 +31,7 @@ import { uuidv4 } from '@/lib/uuid';
 
 const DEFAULT_PIPELINE_CONFIG: PipelineConfig = {
   frameSelectionMethod: 'native',
+  nativeMode: 'count',
   nativeFps: '2',
   maxSnapshots: '5',
   s3BucketPath: 's3://lightship-mvp-processing-336090301206/results',
@@ -96,6 +103,8 @@ type FlowAction =
     }
   | { type: 'SET_NOTIFICATION_PERMISSION'; payload: NotificationState }
   | { type: 'SET_NOTIFICATION_MESSAGE'; payload: string | null }
+  | { type: 'HYDRATE_HISTORY'; payload: Array<HistoricalRun> }
+  | { type: 'CLEAR_HISTORY' }
   | { type: 'RESET_FLOW' };
 
 type EvaluationFlowContextValue = {
@@ -118,6 +127,7 @@ type EvaluationFlowContextValue = {
   requestNotificationPermission: () => Promise<void>;
   setNotificationMessage: (message: string | null) => void;
   resetFlow: () => void;
+  clearHistory: () => void;
 };
 
 const EvaluationFlowContext = createContext<EvaluationFlowContextValue | null>(null);
@@ -292,6 +302,20 @@ const flowReducer = (state: EvaluationFlowState, action: FlowAction): Evaluation
         historicalRuns: [nextRun, ...state.historicalRuns.filter((run) => run.runId !== action.payload.runId)],
       };
 
+    case 'HYDRATE_HISTORY':
+      return {
+        ...state,
+        historicalRuns: action.payload,
+      };
+
+    case 'CLEAR_HISTORY':
+      return {
+        ...state,
+        historicalRuns: [],
+        currentRunId: null,
+        resultsByAssetId: {},
+      };
+
     case 'SET_NOTIFICATION_PERMISSION':
       return {
         ...state,
@@ -334,6 +358,20 @@ export function FlowProvider({
       revokePreviewUrls(assetsRef.current);
     };
   }, []);
+
+  // Hydrate historical runs from localStorage once on mount so reloads
+  // keep prior runs visible (and results navigation can fall back to
+  // local history when the in-memory reducer state has been lost).
+  useEffect(() => {
+    const persisted = loadPersistedHistory();
+    if (persisted.length > 0) {
+      dispatch({ type: 'HYDRATE_HISTORY', payload: persisted });
+    }
+  }, []);
+
+  useEffect(() => {
+    persistHistory(state.historicalRuns);
+  }, [state.historicalRuns]);
 
   const setMode = useCallback(
     (mode: ProcessingMode) => {
@@ -493,6 +531,11 @@ export function FlowProvider({
     dispatch({ type: 'RESET_FLOW' });
   }, [state.assets]);
 
+  const clearHistory = useCallback(() => {
+    lsClearHistory();
+    dispatch({ type: 'CLEAR_HISTORY' });
+  }, []);
+
   const contextValue = useMemo<EvaluationFlowContextValue>(
     () => ({
       state,
@@ -509,10 +552,12 @@ export function FlowProvider({
       requestNotificationPermission,
       setNotificationMessage,
       resetFlow,
+      clearHistory,
     }),
     [
       addFiles,
       addS3Uri,
+      clearHistory,
       completeRun,
       removeAsset,
       requestNotificationPermission,

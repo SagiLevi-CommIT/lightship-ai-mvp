@@ -87,13 +87,50 @@ export type BackendJobRow = {
   error_message?: string;
 };
 
+export class ApiError extends Error {
+  readonly status: number;
+  readonly path: string;
+  constructor(status: number, path: string, message: string) {
+    super(message);
+    this.status = status;
+    this.path = path;
+  }
+}
+
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, init);
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`API ${res.status} ${path}: ${body || res.statusText}`);
+    throw new ApiError(res.status, path, `API ${res.status} ${path}: ${body || res.statusText}`);
   }
   return (await res.json()) as T;
+}
+
+/**
+ * Retry a promise-returning operation while it raises a 404 (or any
+ * transient error). Used when a job has just completed but the worker's
+ * S3 writes haven't reached read-after-write consistency for the
+ * particular key yet, or while Dynamo writes are still catching up on a
+ * cold Lambda.
+ */
+export async function retry404<T>(
+  fn: () => Promise<T>,
+  attempts = 5,
+  delayMs = 1500,
+): Promise<T> {
+  let lastErr: unknown = null;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      const isRetryable =
+        e instanceof ApiError ? e.status === 404 || e.status >= 500 : true;
+      if (!isRetryable || i === attempts - 1) break;
+      await new Promise((r) => setTimeout(r, delayMs * (i + 1)));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
 
 export async function health(): Promise<{ status: string }> {
@@ -120,9 +157,15 @@ export async function uploadToS3(
   }
 }
 
+export type JobOptions = {
+  max_snapshots?: number;
+  snapshot_strategy?: string;
+  native_fps?: number;
+};
+
 export async function startVideoJob(
   s3Key: string,
-  options: { max_snapshots?: number; snapshot_strategy?: string } = {},
+  options: JobOptions = {},
 ): Promise<ProcessVideoResponse> {
   const form = new FormData();
   form.append('s3_key', s3Key);
@@ -132,7 +175,7 @@ export async function startVideoJob(
 
 export async function startS3VideoJob(
   s3Uri: string,
-  options: { max_snapshots?: number; snapshot_strategy?: string } = {},
+  options: JobOptions = {},
 ): Promise<ProcessVideoResponse & { input_type: string }> {
   return json('/process-s3-video', {
     method: 'POST',
@@ -177,7 +220,7 @@ export async function processImage(file: File): Promise<{
  */
 export async function presignUploadAndStart(
   file: File,
-  options: { max_snapshots?: number; snapshot_strategy?: string } = {},
+  options: JobOptions = {},
 ): Promise<string> {
   const { presign_url, s3_key, required_headers } = await presign(
     file.name,
@@ -195,6 +238,10 @@ export type FrameManifestEntry = {
   annotated_url: string | null;
   raw_url: string | null;
   json_url: string | null;
+  extraction_source?: string | null;
+  extraction_status?: string | null;
+  width?: number | null;
+  height?: number | null;
 };
 
 export type FrameManifest = {
@@ -297,7 +344,7 @@ export type BatchItemInput = {
   s3_key?: string;
   s3_prefix?: string;
   filename?: string;
-  config?: { max_snapshots?: number; snapshot_strategy?: string };
+  config?: JobOptions;
 };
 
 export type BatchProcessResponse = {

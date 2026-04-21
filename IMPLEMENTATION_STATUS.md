@@ -2,7 +2,86 @@
 
 ## Complete System Implementation — Status
 
-Last updated: 2026-04-19
+Last updated: 2026-04-20
+
+### MVP fix pass — 2026-04-20 (branch `cursor/lightship-mvp-fixes-6abf`)
+
+Eight-task "misleading progress + flaky results + frame reliability"
+fix pass. What landed:
+
+| Task | Status | Files |
+|---|---|---|
+| Restore missing backend modules | DONE | `lambda-be/src/job_status.py`, `lambda-be/src/utils/metrics.py`, `ui-fe/src/lib/uuid.ts` |
+| Task 1 — granular pipeline progress | DONE | `lambda-be/src/pipeline.py`, `lambda-be/src/api_server.py`, `ui-fe/src/app/run/page.tsx` |
+| Task 2/3 — reliable Run→Results | DONE | `ui-fe/src/lib/api.ts` (`retry404`, `ApiError`), `ui-fe/src/app/results/[runId]/page.tsx`, `ui-fe/src/lib/history-persist.ts`, `ui-fe/src/components/evaluation/flow-provider.tsx` |
+| Task 4 — frame extraction reliability | DONE | `lambda-be/src/frame_extractor.py`, `tests/test_09_frame_extractor.py` |
+| Task 5 — selection logic | DONE | `lambda-be/src/pipeline.py` (dedup + path existence check), `tests/test_10_frame_selection.py` |
+| Task 6 — Rekognition audit + clean RGB input | DONE | `tests/test_11_rekognition_audit.py` (pre-existing pipeline already sends raw frames; new tests assert the contract) |
+| Task 7 — frame viewer UX | DONE | `ui-fe/src/components/evaluation/backend-frame-gallery.tsx` (open-full-size, fallback, substituted-frame annotation) |
+| Task 8 — Clear History + dedup header nav | DONE | `ui-fe/src/app/history/page.tsx`, flow provider |
+| Smoke-discovered: Float → Decimal for Dynamo writes | DONE | `lambda-be/src/job_status.py` |
+| Smoke-discovered: /status must read Dynamo first (HTTP vs worker Lambdas are different containers) | DONE | `lambda-be/src/job_status.py` |
+
+Test status:
+
+- Backend: `pytest tests/test_08_progress_tracking.py tests/test_09_frame_extractor.py tests/test_10_frame_selection.py tests/test_11_rekognition_audit.py -v` → **21 passed**.
+- Frontend: `cd ui-fe && npm run build` → green (5 routes).
+
+### Production round 2 — 2026-04-21 (six additional reported bugs)
+
+Each bug was reproduced against live production jobs before a line of
+code was written; the code is fixed, deployed, and re-verified against
+fresh live jobs.
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| 1. Gray frames | `normalize_brightness` amplified pitch-black preamble frames (mean≈0) into uniform mid-grey via `target_mean=127` scaling; `_is_real_frame(std>=1)` too permissive | `normalize_brightness(min_usable_mean=12)` early-return; `_is_real_frame` now requires `std>=8 AND mean>=10`; extractor fallback walks up to 24 frames forward; preprocessed frame written to a parallel dir instead of overwriting `raw_url` on disk |
+| 2. Wrong frame count | `scene_change` returned 2-3 snapshots on short videos; dense-grid dedupe collapsed nearby scene changes; no top-up | Pipeline tops-up with uniformly-spaced indices from the validated extracted-frame pool; new `uniform_count` strategy returns exactly N evenly-spaced frames; `_refine_frame_with_retries` fallback no longer loses frames by chasing the fallback idx through the output dict |
+| 3. UI → raw JSON page | ALB listener rule priority 100 matched `/results/*` → backend Lambda; Next.js `/results/[runId]` never hit the frontend | Removed `/results/*` from BackendListenerRule in CFN + live via `modify-rule`; `/results/*` now falls through to frontend target group |
+| 4. No reset | Only provider-level `resetFlow()` existed | Added "Start new run" button to Results header; "Clear local history" on History page |
+| 5. Hazard severity + S3 path on Run page | Pre-run sidebar conflated pre- and post-run concerns | Removed both from `WorkspaceSidebar`; hazard severity now filters the Results frame gallery; S3 path now drives the Results "Export to S3" accordion |
+| 6. Ambiguous Native mode | UI mixed `nativeFps` and `maxSnapshots` as if both were required | New `nativeMode: 'count' \| 'interval'` sub-mode picker. "By count" → backend `uniform_count`. "By FPS" → backend `naive` with provided Hz |
+
+Validation: sent `scene_change` max=10 at pace_AASLP87058-C.mp4 (21 s,
+previously 10→2). Result: **10/10**. Sent `uniform_count` max=10 at
+same video: **10/10**. Sent `naive` max=5 at plr_snow_4818293461-C.mp4
+(22 s, previously gray frames): **5/5 frames**, std 47–59, mean ~92 —
+all real content. Direct HTTP smoke on `/results/*` returns HTML
+(Next.js app) with `content-type: text/html` for every ID shape.
+
+Tests: 29 pytest pass (`test_08..12` cover progress, extractor,
+selection, Rekognition audit, gray-frame guard, top-up).
+
+### Production deploy — verified 2026-04-20 (smoke on live ALB)
+
+Deployed via CodeBuild (`lightship-mvp-backend` + `lightship-mvp-frontend`)
+from branch `cursor/lightship-mvp-fixes-6abf` at commit `ee7f5e3`.
+Lambda env vars (`PIPELINE_STATE_MACHINE_ARN`, `PROCESSING_QUEUE_URL`,
+`BEDROCK_MODEL_ID=us.anthropic.claude-sonnet-4-20250514-v1:0`,
+`LOG_FORMAT=json`, `EMIT_METRICS=true`, `METRICS_NAMESPACE`) were
+re-applied after the backend buildspec's `update-function-configuration`
+call (which intentionally resets to a minimal set).
+
+ECS: `lightship-mvp-frontend-svc` (TaskDef:22) and
+`lightship-mvp-frontend-service` (TaskDef:23) both rolled over to
+the new `lightship-frontend:latest` image. Both 1/1 running.
+
+Live smoke against
+`http://lightship-mvp-alb-140533025.us-east-1.elb.amazonaws.com`:
+
+- `/health` → `{"status":"healthy"}` (17 s cold, < 100 ms warm).
+- `POST /process-s3-video` with `plr_snow_4818293461-C.mp4` returned
+  `{"dispatch":"sqs"}`.
+- `/status/<id>` polled at 4 s — progress stream visible:
+  `0.15 extracting_frames → 0.22-0.49 detecting_objects (46 frames)
+  → 0.65 refining_frames → 1.0 completed`. **No more 30 %
+  plateau, no more jump to 90 %.**
+- `/frames/<id>` returned real 1280×720 annotated frames with
+  `extraction_source=requested`, `status=ok`.
+- `/download/json/<id>` includes `rekognition_audit.frames_evaluated=3`.
+- `/video-class/<id>` returns `{ display_label: "Driving" }`.
+
+### Production-Ready End-to-End Plan (in progress)
 
 ### Production-Ready End-to-End Plan (in progress)
 

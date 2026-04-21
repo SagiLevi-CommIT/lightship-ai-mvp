@@ -14,6 +14,7 @@ import {
   getVideoClass,
   pollBatchToTerminal,
   presign,
+  retry404,
   startS3VideoJob,
   startVideoJob,
   uploadToS3,
@@ -24,8 +25,19 @@ import type { AssetResult, UploadedAsset } from '@/components/evaluation/flow-ty
 
 const STAGE_LABELS: Record<string, string> = {
   init: 'Initializing pipeline',
-  processing: 'Running detection',
-  finalize: 'Finalizing results',
+  queued: 'Queued',
+  loading_video: 'Loading video',
+  sampling_frames: 'Sampling frames',
+  extracting_frames: 'Extracting frames',
+  detecting_objects: 'Detecting objects',
+  selecting_frames: 'Selecting key frames',
+  rekognition: 'Running AWS Rekognition',
+  refining_frames: 'Refining frames with LLM',
+  annotating_frames: 'Annotating frames',
+  assessing_hazards: 'Assessing hazards',
+  writing_output: 'Writing output JSON',
+  finalizing: 'Finalizing results',
+  processing: 'Processing',
   completed: 'Completed',
   error: 'Failed',
 };
@@ -57,7 +69,7 @@ async function runWithConcurrency<T, R>(
 
 async function startJobForAsset(
   asset: UploadedAsset,
-  options: { max_snapshots: number; snapshot_strategy: string },
+  options: { max_snapshots: number; snapshot_strategy: string; native_fps?: number },
 ): Promise<string> {
   if (asset.source === 's3' && asset.s3Uri) {
     const resp = await startS3VideoJob(asset.s3Uri, options);
@@ -121,10 +133,23 @@ export default function RunPage() {
 
       const parsedMax = Number.parseInt(runConfig.pipelineConfig.maxSnapshots, 10);
       const maxSnapshots = Number.isFinite(parsedMax) && parsedMax > 0 ? parsedMax : 5;
-      const strategy =
-        runConfig.pipelineConfig.frameSelectionMethod === 'scene-change'
-          ? 'scene_change'
-          : 'naive';
+      const parsedFps = Number.parseFloat(runConfig.pipelineConfig.nativeFps);
+      const nativeFps =
+        Number.isFinite(parsedFps) && parsedFps > 0 ? parsedFps : undefined;
+
+      // Map the explicit UI selection onto the backend's snapshot_strategy
+      // contract. ``uniform_count`` is the unambiguous "give me exactly N
+      // frames spread evenly" mode; ``naive`` samples at nativeFps Hz and
+      // ranks candidates; ``scene_change`` picks distinctive frames.
+      const strategy = (() => {
+        if (runConfig.pipelineConfig.frameSelectionMethod === 'scene-change') {
+          return 'scene_change';
+        }
+        if (runConfig.pipelineConfig.nativeMode === 'count') {
+          return 'uniform_count';
+        }
+        return 'naive';
+      })();
 
       setRunProgress({
         phase: 'queued',
@@ -150,6 +175,7 @@ export default function RunPage() {
           const jobId = await startJobForAsset(asset, {
             max_snapshots: maxSnapshots,
             snapshot_strategy: strategy,
+            native_fps: nativeFps,
           });
           setAssetJobId(asset.id, jobId);
           jobIdByAssetId.set(asset.id, jobId);
@@ -239,10 +265,10 @@ export default function RunPage() {
           }
         }
 
+        const stepLabel = STAGE_LABELS[activeRow?.current_step ?? ''] ?? null;
+        const humanStage = stepLabel ?? activeRow?.message ?? 'Processing';
         const currentStage = activeRow
-          ? `${
-              activeRow.message || STAGE_LABELS[activeRow.current_step ?? ''] || 'Processing'
-            }${activeAssetId ? ` · ${runConfig.assets.find((a) => a.id === activeAssetId)?.name ?? ''}` : ''}`
+          ? `${humanStage}${activeAssetId ? ` · ${runConfig.assets.find((a) => a.id === activeAssetId)?.name ?? ''}` : ''}`
           : `${completed}/${runConfig.assets.length} completed`;
 
         setRunProgress({
@@ -271,11 +297,15 @@ export default function RunPage() {
           if (!jobId) return;
 
           try {
+            // The worker persists output.json + frames manifest to S3 at
+            // different points; after the job flips to COMPLETED the
+            // objects may not be immediately readable on a cold Lambda,
+            // so retry 404s a handful of times before declaring failure.
             const [bv, configs, frames, videoClass] = await Promise.all([
-              getOutputJson(jobId),
-              getClientConfigs(jobId).catch(() => null),
-              getFrames(jobId).catch(() => null),
-              getVideoClass(jobId).catch(() => null),
+              retry404(() => getOutputJson(jobId)),
+              retry404(() => getClientConfigs(jobId)).catch(() => null),
+              retry404(() => getFrames(jobId)).catch(() => null),
+              retry404(() => getVideoClass(jobId)).catch(() => null),
             ]);
 
             const result = buildAssetResultFromBackend(asset, bv, configs);
@@ -301,7 +331,14 @@ export default function RunPage() {
       const completed = Object.keys(resultsByAssetId).length;
       const failed = totalAssets - completed;
 
-      const runId = createRunId();
+      // For a single-asset run we use the backend job_id directly as the
+      // runId so the /results/<id> URL is bookmarkable and survives a
+      // full page reload. For multi-asset runs we keep the original
+      // synthetic id and rely on persisted historicalRuns.
+      const onlyAsset = runConfig.assets.length === 1 ? runConfig.assets[0] : null;
+      const onlyJobId = onlyAsset ? jobIdByAssetId.get(onlyAsset.id) : undefined;
+      const runId =
+        onlyJobId && resultsByAssetId[onlyAsset!.id] ? onlyJobId : createRunId();
       setRunProgress({
         phase: failed > 0 && completed === 0 ? 'failed' : 'completed',
         percent: 100,
