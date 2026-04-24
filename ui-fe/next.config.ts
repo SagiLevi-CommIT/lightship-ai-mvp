@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
   // Standalone output so the Docker runtime image stays small and doesn't
   // need the full node_modules tree.
   output: 'standalone',
@@ -28,6 +29,22 @@ const nextConfig: NextConfig = {
       { source: '/cleanup/:path*', destination: `${apiBase}/cleanup/:path*` },
       { source: '/client-configs/:path*', destination: `${apiBase}/client-configs/:path*` },
       { source: '/batch/:path*', destination: `${apiBase}/batch/:path*` },
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'X-DNS-Prefetch-Control', value: 'off' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+        ],
+      },
     ];
   },
 };

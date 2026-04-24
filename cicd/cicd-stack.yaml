@@ -94,31 +94,25 @@ Resources:
                   - codecommit:GitPull
                 Resource:
                   - !Sub 'arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepoName}'
-        - PolicyName: ECSDeployPolicy
+        - PolicyName: CloudFormationDeployPolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - ecs:DescribeServices
-                  - ecs:DescribeTaskDefinition
-                  - ecs:RegisterTaskDefinition
-                  - ecs:UpdateService
-                  - ecs:CreateService
-                  - ecs:DescribeClusters
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:ListChangeSets
+                  - cloudformation:ValidateTemplate
                 Resource: '*'
               - Effect: Allow
                 Action:
                   - iam:PassRole
-                Resource:
-                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-execution-role-arn'
-                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-task-role-arn'
-              - Effect: Allow
-                Action:
-                  - cloudformation:DescribeStacks
-                Resource:
-                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AppStackName}/*'
-                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${VPCStackName}/*'
+                Resource: !GetAtt AppCloudFormationDeploymentRole.Arn
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-codebuild-frontend-role'
@@ -163,44 +157,148 @@ Resources:
                   - codecommit:GitPull
                 Resource:
                   - !Sub 'arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepoName}'
-        - PolicyName: LambdaDeployPolicy
+        - PolicyName: CloudFormationDeployPolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - lambda:GetFunction
-                  - lambda:UpdateFunctionCode
-                  - lambda:UpdateFunctionConfiguration
-                  - lambda:CreateFunction
-                  - lambda:AddPermission
-                  - lambda:RemovePermission
-                  - lambda:GetFunctionConfiguration
-                Resource:
-                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-${Environment}-backend'
-              - Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource:
-                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-role-arn'
-              - Effect: Allow
-                Action:
-                  - elasticloadbalancing:DescribeTargetGroups
-                  - elasticloadbalancing:RegisterTargets
-                  - elasticloadbalancing:DeregisterTargets
-                  - elasticloadbalancing:DescribeTargetHealth
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:ListChangeSets
+                  - cloudformation:ValidateTemplate
                 Resource: '*'
               - Effect: Allow
                 Action:
-                  - cloudformation:DescribeStacks
-                Resource:
-                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AppStackName}/*'
-                  - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${VPCStackName}/*'
+                  - iam:PassRole
+                Resource: !GetAtt AppCloudFormationDeploymentRole.Arn
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-codebuild-backend-role'
         - Key: Environment
           Value: !Ref Environment
+
+  AppCloudFormationDeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-cfn-app-deploy-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AppStackImageDeploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:RegisterTaskDefinition
+                  - ecs:TagResource
+                  - ecs:UntagResource
+                  - ecs:UpdateService
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - application-autoscaling:DeleteScalingPolicy
+                  - application-autoscaling:DeregisterScalableTarget
+                  - application-autoscaling:DescribeScalingPolicies
+                  - application-autoscaling:DescribeScalableTargets
+                  - application-autoscaling:PutScalingPolicy
+                  - application-autoscaling:RegisterScalableTarget
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - lambda:AddPermission
+                  - lambda:CreateFunction
+                  - lambda:DeleteFunction
+                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:GetPolicy
+                  - lambda:ListTags
+                  - lambda:RemovePermission
+                  - lambda:TagResource
+                  - lambda:UntagResource
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-${Environment}-backend'
+              - Effect: Allow
+                Action:
+                  - elasticloadbalancing:DeregisterTargets
+                  - elasticloadbalancing:DescribeListeners
+                  - elasticloadbalancing:DescribeRules
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - elasticloadbalancing:DescribeTargetHealth
+                  - elasticloadbalancing:RegisterTargets
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - events:DeleteRule
+                  - events:DescribeRule
+                  - events:ListTargetsByRule
+                  - events:PutRule
+                  - events:PutTargets
+                  - events:RemoveTargets
+                Resource: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${ProjectName}-${Environment}-lambda-warmup'
+              - Effect: Allow
+                Action:
+                  - states:CreateStateMachine
+                  - states:DeleteStateMachine
+                  - states:DescribeStateMachine
+                  - states:TagResource
+                  - states:UntagResource
+                  - states:UpdateStateMachine
+                Resource: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ProjectName}-${Environment}-pipeline'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogDelivery
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DeleteLogDelivery
+                  - logs:DeleteLogGroup
+                  - logs:DescribeLogGroups
+                  - logs:DescribeResourcePolicies
+                  - logs:GetLogDelivery
+                  - logs:ListLogDeliveries
+                  - logs:PutLogEvents
+                  - logs:PutResourcePolicy
+                  - logs:PutRetentionPolicy
+                  - logs:UpdateLogDelivery
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-execution-role-arn'
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-task-role-arn'
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-role-arn'
+                  - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-sfn-execution-role-arn'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-cfn-app-deploy-role'
+        - Key: Environment
+          Value: !Ref Environment
+
+  FrontendCodeBuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/codebuild/${ProjectName}-${Environment}-frontend'
+      RetentionInDays: 30
+
+  BackendCodeBuildLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/codebuild/${ProjectName}-${Environment}-backend'
+      RetentionInDays: 30
 
   # CodeBuild Project - Frontend
   FrontendCodeBuildProject:
@@ -225,20 +323,25 @@ Resources:
             Value: !Ref ProjectName
           - Name: ENVIRONMENT
             Value: !Ref Environment
+          - Name: APP_STACK_NAME
+            Value: !Ref AppStackName
+          - Name: VPC_STACK_NAME
+            Value: !Ref VPCStackName
+          - Name: APP_TEMPLATE_FILE
+            Value: infrastructure/app-stack.yaml
+          - Name: CLOUDFORMATION_DEPLOY_ROLE_ARN
+            Value: !GetAtt AppCloudFormationDeploymentRole.Arn
           - Name: ECR_REPOSITORY_URI
             Value:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-frontend-ecr-uri'
-          - Name: ECS_CLUSTER_NAME
-            Value:
-              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-cluster'
-          - Name: ECS_SERVICE_NAME
-            Value: !Sub '${ProjectName}-${Environment}-frontend-service'
-          - Name: TASK_DEFINITION_FAMILY
-            Value: !Sub '${ProjectName}-${Environment}-frontend'
       Source:
         Type: CODECOMMIT
         Location: !Sub 'https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${CodeCommitRepoName}'
         BuildSpec: ui-fe/buildspec.yml
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref FrontendCodeBuildLogGroup
+          Status: ENABLED
       TimeoutInMinutes: 30
       Tags:
         - Key: Name
@@ -269,18 +372,25 @@ Resources:
             Value: !Ref ProjectName
           - Name: ENVIRONMENT
             Value: !Ref Environment
+          - Name: APP_STACK_NAME
+            Value: !Ref AppStackName
+          - Name: VPC_STACK_NAME
+            Value: !Ref VPCStackName
+          - Name: APP_TEMPLATE_FILE
+            Value: infrastructure/app-stack.yaml
+          - Name: CLOUDFORMATION_DEPLOY_ROLE_ARN
+            Value: !GetAtt AppCloudFormationDeploymentRole.Arn
           - Name: ECR_REPOSITORY_URI
             Value:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-backend-ecr-uri'
-          - Name: LAMBDA_FUNCTION_NAME
-            Value: !Sub '${ProjectName}-${Environment}-backend'
-          - Name: LAMBDA_ROLE_ARN
-            Value:
-              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-lambda-role-arn'
       Source:
         Type: CODECOMMIT
         Location: !Sub 'https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${CodeCommitRepoName}'
         BuildSpec: lambda-be/buildspec.yml
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref BackendCodeBuildLogGroup
+          Status: ENABLED
       TimeoutInMinutes: 30
       Tags:
         - Key: Name
@@ -318,3 +428,7 @@ Outputs:
     Value: !Ref ArtifactsBucket
     Export:
       Name: !Sub '${ProjectName}-${Environment}-artifacts-bucket'
+
+  AppCloudFormationDeploymentRoleArn:
+    Description: CloudFormation deployment role used by CodeBuild
+    Value: !GetAtt AppCloudFormationDeploymentRole.Arn

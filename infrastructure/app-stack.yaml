@@ -27,9 +27,28 @@ Parameters:
     Default: ""
     Description: ACM Certificate ARN for HTTPS (optional)
 
+  AllowedAlbIngressCidr:
+    Type: String
+    Default: 176.228.16.138/32
+    Description: Single operator CIDR allowed to reach the ALB
+
+  FrontendImageUri:
+    Type: String
+    Description: Full ECR image URI for the active frontend task definition
+
+  BackendImageUri:
+    Type: String
+    Description: Full ECR image URI for the backend Lambda container
+
+  LambdaWarmupScheduleExpression:
+    Type: String
+    Default: rate(5 minutes)
+    Description: EventBridge schedule expression for backend Lambda warmup
+
 Conditions:
   HasDomain: !Not [!Equals [!Ref DomainName, ""]]
   HasCertificate: !Not [!Equals [!Ref CertificateArn, ""]]
+  NoCertificate: !Equals [!Ref CertificateArn, ""]
 
 Resources:
   # ECR Repositories
@@ -152,21 +171,7 @@ Resources:
       GroupDescription: Security group for internet-facing Application Load Balancer
       VpcId:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 87.70.177.112/32
-          Description: HTTP from authorized IP only
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 87.70.177.112/32
-          Description: HTTPS from authorized IP only
-      SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 0.0.0.0/0
-          Description: All outbound traffic
+      SecurityGroupEgress: []
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-alb-sg'
@@ -180,12 +185,6 @@ Resources:
       GroupDescription: Security group for ECS tasks
       VpcId:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 3000
-          ToPort: 3000
-          SourceSecurityGroupId: !Ref ALBSecurityGroup
-          Description: Next.js frontend from ALB
       SecurityGroupEgress:
         - IpProtocol: -1
           CidrIp: 0.0.0.0/0
@@ -213,16 +212,46 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # Allow ECS frontend tasks to call backend via ALB (avoids hairpin block)
-  ALBIngressFromECS:
+  ALBIngressHTTPFromOperator:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       GroupId: !Ref ALBSecurityGroup
       IpProtocol: tcp
       FromPort: 80
       ToPort: 80
-      SourceSecurityGroupId: !Ref ECSSecurityGroup
-      Description: HTTP from ECS frontend tasks (Streamlit server-side backend calls)
+      CidrIp: !Ref AllowedAlbIngressCidr
+      Description: HTTP from the single allowed operator CIDR
+
+  ALBIngressHTTPSFromOperator:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasCertificate
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: !Ref AllowedAlbIngressCidr
+      Description: HTTPS from the single allowed operator CIDR
+
+  ALBEgressToFrontend:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3000
+      ToPort: 3000
+      DestinationSecurityGroupId: !Ref ECSSecurityGroup
+      Description: Forward traffic only to the frontend task SG
+
+  ECSIngressFromALB:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref ECSSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3000
+      ToPort: 3000
+      SourceSecurityGroupId: !Ref ALBSecurityGroup
+      Description: Next.js frontend from ALB
 
   # IAM Roles
   ECSTaskExecutionRole:
@@ -347,6 +376,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
       Policies:
         - PolicyName: ECRAccess
           PolicyDocument:
@@ -535,6 +565,8 @@ Resources:
       Name: !Sub '${ProjectName}-${Environment}-backend-tg'
       TargetType: lambda
       HealthCheckEnabled: false
+      Targets:
+        - Id: !GetAtt BackendLambdaFunction.Arn
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-backend-tg'
@@ -544,6 +576,7 @@ Resources:
   # ALB HTTP Listener
   ALBListenerHTTP:
     Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: NoCertificate
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Protocol: HTTP
@@ -552,11 +585,38 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref FrontendTargetGroup
 
+  ALBListenerHTTPRedirect:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: HasCertificate
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: '443'
+            StatusCode: HTTP_301
+
+  ALBListenerHTTPS:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: HasCertificate
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Protocol: HTTPS
+      Port: 443
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref FrontendTargetGroup
+
   # ALB Listener Rule for Backend API paths (priority 100 - core routes)
   BackendListenerRule:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !Ref ALBListenerHTTP
+      ListenerArn: !If [HasCertificate, !Ref ALBListenerHTTPS, !Ref ALBListenerHTTP]
       Priority: 100
       Conditions:
         - Field: path-pattern
@@ -574,7 +634,7 @@ Resources:
   BackendListenerRuleUpload:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !Ref ALBListenerHTTP
+      ListenerArn: !If [HasCertificate, !Ref ALBListenerHTTPS, !Ref ALBListenerHTTP]
       Priority: 99
       Conditions:
         - Field: path-pattern
@@ -592,7 +652,7 @@ Resources:
   BackendListenerRuleExtra:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !Ref ALBListenerHTTP
+      ListenerArn: !If [HasCertificate, !Ref ALBListenerHTTPS, !Ref ALBListenerHTTP]
       Priority: 98
       Conditions:
         - Field: path-pattern
@@ -610,7 +670,7 @@ Resources:
   BackendListenerRuleBatch:
     Type: AWS::ElasticLoadBalancingV2::ListenerRule
     Properties:
-      ListenerArn: !Ref ALBListenerHTTP
+      ListenerArn: !If [HasCertificate, !Ref ALBListenerHTTPS, !Ref ALBListenerHTTP]
       Priority: 97
       Conditions:
         - Field: path-pattern
@@ -879,25 +939,6 @@ Resources:
                 Action:
                   - lambda:InvokeFunction
                 Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-*'
-        - PolicyName: StepFunctionsECSRunTask
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - ecs:RunTask
-                  - ecs:StopTask
-                  - ecs:DescribeTasks
-                Resource: '*'
-                Condition:
-                  ArnEquals:
-                    ecs:cluster: !GetAtt ECSCluster.Arn
-              - Effect: Allow
-                Action:
-                  - iam:PassRole
-                Resource:
-                  - !GetAtt ECSTaskExecutionRole.Arn
-                  - !GetAtt ECSTaskRole.Arn
         - PolicyName: StepFunctionsAIServices
           PolicyDocument:
             Version: '2012-10-17'
@@ -978,6 +1019,17 @@ Resources:
                   - logs:DescribeResourcePolicies
                   - logs:DescribeLogGroups
                 Resource: '*'
+        - PolicyName: StepFunctionsTracing
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                Resource: '*'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-sfn-execution-role'
@@ -1011,12 +1063,383 @@ Resources:
       LogGroupName: !Sub '/ecs/${ProjectName}-${Environment}-worker'
       RetentionInDays: 7
 
-  # Step Functions Log Group
   StepFunctionsLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/states/${ProjectName}-${Environment}'
       RetentionInDays: 7
+
+  VPCEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub 'sgr-${Environment}-vpc-endpoints'
+      GroupDescription: Security group for VPC Interface Endpoints - allows HTTPS from private and data subnets
+      VpcId:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
+      Tags:
+        - Key: Name
+          Value: !Sub 'sgr-${Environment}-vpc-endpoints'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  VPCEndpointIngressFromECS:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref VPCEndpointSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref ECSSecurityGroup
+      Description: HTTPS from the frontend ECS service
+
+  VPCEndpointIngressFromLambda:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref VPCEndpointSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
+      Description: HTTPS from the backend Lambda
+
+  VPCEndpointIngressFromWorker:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref VPCEndpointSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref WorkerSecurityGroup
+      Description: HTTPS from worker tasks
+
+  ECRApiEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-1'
+        - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-2'
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub 'vpce-${Environment}-ecr-api'
+        - Key: Environment
+          Value: !Ref Environment
+
+  ECRDkrEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-1'
+        - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-2'
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub 'vpce-${Environment}-ecr-dkr'
+        - Key: Environment
+          Value: !Ref Environment
+
+  CloudWatchLogsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-vpc-id'
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-1'
+        - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-2'
+      SecurityGroupIds:
+        - !Ref VPCEndpointSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub 'vpce-${Environment}-cloudwatch-logs'
+        - Key: Environment
+          Value: !Ref Environment
+
+  FrontendTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub '${ProjectName}-${Environment}-frontend'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: 512
+      Memory: 1024
+      ExecutionRoleArn: !GetAtt ECSTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt ECSTaskRole.Arn
+      ContainerDefinitions:
+        - Name: frontend
+          Image: !Ref FrontendImageUri
+          PortMappings:
+            - ContainerPort: 3000
+              Protocol: tcp
+          Environment:
+            - Name: PORT
+              Value: '3000'
+            - Name: NODE_ENV
+              Value: production
+            - Name: NEXT_PUBLIC_API_BASE
+              Value: ''
+            - Name: ALLOWED_HOSTS
+              Value: !If
+                - HasDomain
+                - !Sub '${ApplicationLoadBalancer.DNSName},${DomainName}'
+                - !GetAtt ApplicationLoadBalancer.DNSName
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref FrontendLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+          Essential: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-frontend-task'
+        - Key: Environment
+          Value: !Ref Environment
+
+  FrontendECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub '${ProjectName}-${Environment}-frontend-service'
+      Cluster:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-cluster'
+      TaskDefinition: !Ref FrontendTaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      HealthCheckGracePeriodSeconds: 60
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          SecurityGroups:
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-sg-id'
+          Subnets:
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-1'
+            - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-2'
+          AssignPublicIp: DISABLED
+      LoadBalancers:
+        - ContainerName: frontend
+          ContainerPort: 3000
+          TargetGroupArn:
+            Fn::ImportValue: !Sub '${ProjectName}-${Environment}-frontend-target-group-arn'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-frontend-service'
+        - Key: Environment
+          Value: !Ref Environment
+
+  ECSServiceAutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 4
+      MinCapacity: 1
+      ResourceId: !Sub 'service/${ProjectName}-${Environment}-cluster/${FrontendECSService.Name}'
+      RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService'
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  ECSServiceScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-${Environment}-ecs-scaling-policy'
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ECSServiceAutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 70.0
+        ScaleOutCooldown: 300
+        ScaleInCooldown: 300
+
+  BackendLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-backend'
+      PackageType: Image
+      Code:
+        ImageUri: !Ref BackendImageUri
+      Role: !GetAtt LambdaExecutionRole.Arn
+      MemorySize: 3008
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      VpcConfig:
+        SubnetIds:
+          - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-1'
+          - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-2'
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          LOG_LEVEL: INFO
+          LOG_FORMAT: json
+          EMIT_METRICS: 'true'
+          METRICS_NAMESPACE: Lightship/Backend
+          DYNAMODB_TABLE: !Ref JobsTable
+          PROCESSING_BUCKET: !Ref ProcessingBucket
+          LANCEDB_BUCKET: !Ref LanceDBBucket
+          CONVERSATIONS_BUCKET: !Ref ConversationResultsBucket
+          DATA_SOURCE_BUCKET: !Sub 's3-${ProjectName}-custom-datasources-${AWS::Region}'
+          CUSTOM_DATASOURCES_BUCKET: !Sub 's3-${ProjectName}-custom-datasources-${AWS::Region}'
+          PROCESSING_QUEUE_URL: !Ref ProcessingQueue
+          PIPELINE_STATE_MACHINE_ARN: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ProjectName}-${Environment}-pipeline'
+          BEDROCK_MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-backend'
+        - Key: Environment
+          Value: !Ref Environment
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref BackendLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: elasticloadbalancing.amazonaws.com
+      SourceArn: !Ref BackendTargetGroup
+
+  LambdaWarmupRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-lambda-warmup'
+      Description: Keep the backend Lambda warm for ALB health traffic
+      ScheduleExpression: !Ref LambdaWarmupScheduleExpression
+      State: ENABLED
+      Targets:
+        - Id: LambdaWarmup
+          Arn: !GetAtt BackendLambdaFunction.Arn
+          Input: >-
+            {"requestContext":{"elb":{"targetGroupArn":"warmup"}},"httpMethod":"GET","path":"/health","queryStringParameters":null,"headers":{"host":"warmup"},"body":null,"isBase64Encoded":false}
+
+  LambdaWarmupInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref BackendLambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt LambdaWarmupRule.Arn
+
+  PipelineStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/vendedlogs/states/${ProjectName}-${Environment}-pipeline'
+      RetentionInDays: 30
+
+  LightshipPipelineStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-${Environment}-pipeline'
+      StateMachineType: STANDARD
+      RoleArn: !GetAtt StepFunctionsExecutionRole.Arn
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt PipelineStateMachineLogGroup.Arn
+        Level: ERROR
+        IncludeExecutionData: false
+      TracingConfiguration:
+        Enabled: true
+      DefinitionSubstitutions:
+        PipelineFunctionArn: !GetAtt BackendLambdaFunction.Arn
+      DefinitionString: !Sub |
+        {
+          "Comment": "Lightship video processing pipeline. SQS dispatcher enqueues a job, this state machine runs Pipeline.process_video as a Lambda task and catches failures to mark Dynamo FAILED.",
+          "StartAt": "RunPipeline",
+          "States": {
+            "RunPipeline": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${!PipelineFunctionArn}",
+                "Payload": {
+                  "action": "pipeline_stage",
+                  "job_id.$": "$.job_id",
+                  "s3_key.$": "$.s3_key",
+                  "filename.$": "$.filename",
+                  "config.$": "$.config"
+                }
+              },
+              "ResultSelector": {
+                "status.$": "$.Payload.status",
+                "job_id.$": "$.Payload.job_id"
+              },
+              "ResultPath": "$.pipeline_result",
+              "TimeoutSeconds": 870,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "MarkFailed"
+                }
+              ],
+              "Next": "Succeed"
+            },
+            "MarkFailed": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${!PipelineFunctionArn}",
+                "Payload": {
+                  "action": "mark_failed",
+                  "job_id.$": "$.job_id",
+                  "error.$": "$.error"
+                }
+              },
+              "ResultPath": "$.mark_failed_result",
+              "Next": "Fail"
+            },
+            "Succeed": {
+              "Type": "Succeed"
+            },
+            "Fail": {
+              "Type": "Fail",
+              "Error": "PipelineFailed",
+              "Cause": "See Dynamo job_id for error detail"
+            }
+          }
+        }
+
+  ProcessingQueueEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-processing-queue-arn'
+      FunctionName: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-${Environment}-backend'
+      BatchSize: 1
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      Enabled: true
 
   # =========================================
   # CloudWatch Alarms
@@ -1188,13 +1611,6 @@ Resources:
           ]
         }
 
-  # ECS Task Definition and Service live in ``frontend-service-stack.yaml``.
-  # The backend Lambda, the SQS EventSourceMapping, and the Step Functions
-  # state machine (``lightship-mvp-pipeline``) are defined in
-  # ``backend-lambda-stack.yaml`` so they can reference the Lambda ARN
-  # directly. This stack only provisions the queue, IAM role, and log group
-  # they depend on.
-
 Outputs:
   # Application Load Balancer
   LoadBalancerDNS:
@@ -1205,7 +1621,10 @@ Outputs:
 
   LoadBalancerURL:
     Description: URL of the Application Load Balancer
-    Value: !Sub 'http://${ApplicationLoadBalancer.DNSName}'
+    Value: !If
+      - HasCertificate
+      - !Sub 'https://${ApplicationLoadBalancer.DNSName}'
+      - !Sub 'http://${ApplicationLoadBalancer.DNSName}'
     Export:
       Name: !Sub '${ProjectName}-${Environment}-alb-url'
 
@@ -1227,6 +1646,24 @@ Outputs:
     Value: !Ref BackendTargetGroup
     Export:
       Name: !Sub '${ProjectName}-${Environment}-backend-target-group-arn'
+
+  FrontendServiceName:
+    Description: Frontend ECS Service Name
+    Value: !GetAtt FrontendECSService.Name
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-frontend-service-name'
+
+  FrontendServiceArn:
+    Description: Frontend ECS Service ARN
+    Value: !Ref FrontendECSService
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-frontend-service-arn'
+
+  FrontendTaskDefinitionArn:
+    Description: Frontend ECS task definition ARN
+    Value: !Ref FrontendTaskDefinition
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-frontend-task-arn'
 
   # ECR Repositories
   FrontendECRRepositoryUri:
@@ -1304,6 +1741,12 @@ Outputs:
     Export:
       Name: !Sub '${ProjectName}-${Environment}-lambda-sg-id'
 
+  VPCEndpointSecurityGroupId:
+    Description: VPC endpoint security group ID
+    Value: !Ref VPCEndpointSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-vpce-sg-id'
+
   # IAM Roles
   ECSTaskExecutionRoleArn:
     Description: ECS Task Execution Role ARN
@@ -1322,6 +1765,18 @@ Outputs:
     Value: !GetAtt LambdaExecutionRole.Arn
     Export:
       Name: !Sub '${ProjectName}-${Environment}-lambda-role-arn'
+
+  BackendLambdaFunctionArn:
+    Description: Backend Lambda function ARN
+    Value: !GetAtt BackendLambdaFunction.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-backend-lambda-arn'
+
+  BackendLambdaFunctionName:
+    Description: Backend Lambda function name
+    Value: !Ref BackendLambdaFunction
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-backend-lambda-name'
 
   # CloudWatch Log Groups
   FrontendLogGroupName:
@@ -1414,6 +1869,12 @@ Outputs:
     Value: !GetAtt StepFunctionsExecutionRole.Arn
     Export:
       Name: !Sub '${ProjectName}-${Environment}-sfn-execution-role-arn'
+
+  PipelineStateMachineArn:
+    Description: Step Functions pipeline ARN
+    Value: !Ref LightshipPipelineStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-pipeline-state-machine-arn'
 
   # Worker
   WorkerSecurityGroupId:
