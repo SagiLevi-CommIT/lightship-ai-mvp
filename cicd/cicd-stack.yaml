@@ -277,6 +277,14 @@ Resources:
                 Resource: '*'
               - Effect: Allow
                 Action:
+                  - dynamodb:DescribeTable
+                  - kms:DescribeKey
+                  - secretsmanager:DescribeSecret
+                  - sns:GetTopicAttributes
+                  - sqs:GetQueueAttributes
+                Resource: '*'
+              - Effect: Allow
+                Action:
                   - iam:GetRole
                   - iam:PassRole
                 Resource:
