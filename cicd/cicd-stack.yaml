@@ -329,6 +329,8 @@ Resources:
             Value: !Ref VPCStackName
           - Name: APP_TEMPLATE_FILE
             Value: infrastructure/app-stack.yaml
+          - Name: CLOUDFORMATION_TEMPLATE_BUCKET
+            Value: !Ref ArtifactsBucket
           - Name: CLOUDFORMATION_DEPLOY_ROLE_ARN
             Value: !GetAtt AppCloudFormationDeploymentRole.Arn
           - Name: ECR_REPOSITORY_URI
@@ -378,6 +380,8 @@ Resources:
             Value: !Ref VPCStackName
           - Name: APP_TEMPLATE_FILE
             Value: infrastructure/app-stack.yaml
+          - Name: CLOUDFORMATION_TEMPLATE_BUCKET
+            Value: !Ref ArtifactsBucket
           - Name: CLOUDFORMATION_DEPLOY_ROLE_ARN
             Value: !GetAtt AppCloudFormationDeploymentRole.Arn
           - Name: ECR_REPOSITORY_URI

@@ -9,6 +9,7 @@ VPC_STACK_NAME="${VPC_STACK_NAME:-lightship-mvp-vpc}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
 ALLOWED_ALB_INGRESS_CIDR_DEFAULT="176.228.16.138/32"
 LAMBDA_WARMUP_SCHEDULE_DEFAULT="rate(5 minutes)"
+CLOUDFORMATION_TEMPLATE_BUCKET="${CLOUDFORMATION_TEMPLATE_BUCKET:-}"
 
 describe_param() {
   local key="$1"
@@ -50,6 +51,17 @@ if [[ -z "$BACKEND_IMAGE_URI" ]]; then
   exit 1
 fi
 
+if [[ ! -f "$APP_TEMPLATE_FILE" ]]; then
+  echo "Template file not found: $APP_TEMPLATE_FILE" >&2
+  exit 1
+fi
+
+template_size_bytes="$(wc -c < "$APP_TEMPLATE_FILE")"
+if (( template_size_bytes > 51200 )) && [[ -z "$CLOUDFORMATION_TEMPLATE_BUCKET" ]]; then
+  echo "Template $APP_TEMPLATE_FILE is ${template_size_bytes} bytes. Set CLOUDFORMATION_TEMPLATE_BUCKET for cloudformation deploy." >&2
+  exit 1
+fi
+
 params=(
   "ProjectName=${PROJECT_NAME}"
   "Environment=${ENVIRONMENT}"
@@ -75,6 +87,10 @@ deploy_args+=("${params[@]}")
 
 if [[ -n "${CLOUDFORMATION_DEPLOY_ROLE_ARN:-}" ]]; then
   deploy_args+=(--role-arn "$CLOUDFORMATION_DEPLOY_ROLE_ARN")
+fi
+
+if [[ -n "$CLOUDFORMATION_TEMPLATE_BUCKET" ]]; then
+  deploy_args+=(--s3-bucket "$CLOUDFORMATION_TEMPLATE_BUCKET" --s3-prefix "cloudformation/${APP_STACK_NAME}")
 fi
 
 aws "${deploy_args[@]}"
