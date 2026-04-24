@@ -276,6 +276,7 @@ Resources:
                 Resource: '*'
               - Effect: Allow
                 Action:
+                  - iam:GetRole
                   - iam:PassRole
                 Resource:
                   - Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-execution-role-arn'
