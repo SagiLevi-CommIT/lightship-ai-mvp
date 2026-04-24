@@ -201,6 +201,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - ecs:DescribeServices
+                  - ecs:DescribeClusters
                   - ecs:DescribeTaskDefinition
                   - ecs:RegisterTaskDefinition
                   - ecs:TagResource
