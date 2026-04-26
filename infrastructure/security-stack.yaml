@@ -1,0 +1,447 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Security Stack for Lightship AI MVP - AWS WAFv2 WebACL with managed rule groups, rate limiting, and logging, associated to the ALB.'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: lightship
+    Description: Name of the project for resource naming
+
+  Environment:
+    Type: String
+    Default: mvp
+    AllowedValues: [mvp, dev, staging, production]
+    Description: Deployment environment
+
+  AppStackName:
+    Type: String
+    Default: lightship-mvp-app
+    Description: Unused - kept for backwards compatibility. ALB ARN resolved via ProjectName/Environment.
+
+  DefaultAction:
+    Type: String
+    Default: ALLOW
+    AllowedValues: [ALLOW, BLOCK]
+    Description: WebACL default action when no rule matches
+
+  RateLimitPer5Min:
+    Type: Number
+    Default: 3000
+    MinValue: 100
+    MaxValue: 2000000000
+    Description: Max requests per 5 minutes per source IP before BLOCK
+
+  EnableAnonymousIpList:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Toggle AWSManagedRulesAnonymousIpList managed rule group
+
+  EnableAdminProtection:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Toggle AWSManagedRulesAdminProtectionRuleSet managed rule group
+
+  EnableSqliRuleSet:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Toggle AWSManagedRulesSQLiRuleSet (DynamoDB-based but defense in depth)
+
+  EnableLinuxRuleSet:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Toggle AWSManagedRulesLinuxRuleSet (containers run on Linux)
+
+  GeoBlockCountryCodes:
+    Type: CommaDelimitedList
+    Default: ''
+    Description: Optional ISO country codes to BLOCK (e.g. CN,RU,KP). Leave empty to disable.
+
+  LogRetentionInDays:
+    Type: Number
+    Default: 30
+    AllowedValues: [1, 3, 7, 14, 30, 60, 90, 180, 365]
+    Description: Retention for WAF CloudWatch log group
+
+  SecurityAlertEmail:
+    Type: String
+    Default: ''
+    Description: Email address to receive CRITICAL/HIGH Inspector findings (leave empty to skip subscription)
+
+Conditions:
+  HasSecurityAlertEmail: !Not [!Equals [!Ref SecurityAlertEmail, '']]
+  AnonymousIpEnabled: !Equals [!Ref EnableAnonymousIpList, 'true']
+  AdminProtectionEnabled: !Equals [!Ref EnableAdminProtection, 'true']
+  SqliEnabled: !Equals [!Ref EnableSqliRuleSet, 'true']
+  LinuxEnabled: !Equals [!Ref EnableLinuxRuleSet, 'true']
+  GeoBlockEnabled: !Not [!Equals [!Join [',', !Ref GeoBlockCountryCodes], '']]
+  DefaultBlock: !Equals [!Ref DefaultAction, 'BLOCK']
+
+Resources:
+
+  # CloudWatch Logs group for WAF logging.
+  # WAF requires log group name prefix "aws-waf-logs-".
+  WafLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub 'aws-waf-logs-${ProjectName}-${Environment}'
+      RetentionInDays: !Ref LogRetentionInDays
+      Tags:
+        - Key: Name
+          Value: !Sub 'lgr-${Environment}-waf'
+        - Key: Description
+          Value: 'WAF access logs for Lightship ALB WebACL'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-alb-webacl'
+      Description: 'Lightship ALB WebACL - managed rules per AWS-WAF-Handoff guidance'
+      Scope: REGIONAL
+      DefaultAction: !If
+        - DefaultBlock
+        - Block: {}
+        - Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub '${ProjectName}-${Environment}-alb-webacl'
+      Rules:
+
+        # Priority 0: Rate limiting (cheap, runs early to shed scanners)
+        - Name: RateLimitPerIP
+          Priority: 0
+          Action:
+            Block: {}
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref RateLimitPer5Min
+              AggregateKeyType: IP
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimitPerIP
+
+        # Priority 1: Amazon IP Reputation List (capacity 25) - BLOCK (known malicious IPs, safe to block immediately)
+        - Name: AWS-AWSManagedRulesAmazonIpReputationList
+          Priority: 1
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesAmazonIpReputationList
+
+        # Priority 2: Anonymous IP List (capacity 50) - COUNT during tuning
+        - !If
+          - AnonymousIpEnabled
+          - Name: AWS-AWSManagedRulesAnonymousIpList
+            Priority: 2
+            OverrideAction:
+              Count: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesAnonymousIpList
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: AWSManagedRulesAnonymousIpList
+          - !Ref AWS::NoValue
+
+        # Priority 3: Known Bad Inputs (capacity 200) - COUNT during tuning
+        - Name: AWS-AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 3
+          OverrideAction:
+            Count: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRuleSet
+
+        # Priority 4: Admin Protection (capacity 100) - COUNT during tuning
+        - !If
+          - AdminProtectionEnabled
+          - Name: AWS-AWSManagedRulesAdminProtectionRuleSet
+            Priority: 4
+            OverrideAction:
+              Count: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesAdminProtectionRuleSet
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: AWSManagedRulesAdminProtectionRuleSet
+          - !Ref AWS::NoValue
+
+        # Priority 5: SQLi rule set (capacity 200) - COUNT during tuning
+        - !If
+          - SqliEnabled
+          - Name: AWS-AWSManagedRulesSQLiRuleSet
+            Priority: 5
+            OverrideAction:
+              Count: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesSQLiRuleSet
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: AWSManagedRulesSQLiRuleSet
+          - !Ref AWS::NoValue
+
+        # Priority 6: Linux OS rule set (capacity 200) - COUNT during tuning
+        - !If
+          - LinuxEnabled
+          - Name: AWS-AWSManagedRulesLinuxRuleSet
+            Priority: 6
+            OverrideAction:
+              Count: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesLinuxRuleSet
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: AWSManagedRulesLinuxRuleSet
+          - !Ref AWS::NoValue
+
+        # Priority 7: Core Rule Set (capacity 700) - COUNT during tuning
+        - Name: AWS-AWSManagedRulesCommonRuleSet
+          Priority: 7
+          OverrideAction:
+            Count: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSet
+
+        # Priority 8: GeoBlock (optional, capacity 1)
+        - !If
+          - GeoBlockEnabled
+          - Name: GeoBlockCountries
+            Priority: 8
+            Action:
+              Block: {}
+            Statement:
+              GeoMatchStatement:
+                CountryCodes: !Ref GeoBlockCountryCodes
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: GeoBlockCountries
+          - !Ref AWS::NoValue
+
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-alb-webacl'
+        - Key: Description
+          Value: 'Regional WAFv2 WebACL protecting the Lightship ALB'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # ── AWS Inspector v2 ──────────────────────────────────────────────────────
+  # Inspector2 has no native CF resource. Custom Lambda enables/disables it.
+
+  InspectorEnablerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'role-${Environment}-inspector-enabler'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: InspectorEnableDisable
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - inspector2:Enable
+                  - inspector2:Disable
+                  - inspector2:BatchGetAccountStatus
+                  - iam:CreateServiceLinkedRole
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub 'role-${Environment}-inspector-enabler'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  InspectorEnablerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-${Environment}-inspector-enabler'
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt InspectorEnablerRole.Arn
+      Timeout: 120
+      Code:
+        ZipFile: |
+          import boto3, json
+          import cfnresponse
+
+          def handler(event, context):
+              client = boto3.client('inspector2')
+              req = event['RequestType']
+              try:
+                  if req in ('Create', 'Update'):
+                      client.enable(
+                          accountIds=[context.invoked_function_arn.split(':')[4]],
+                          resourceTypes=['ECR', 'LAMBDA']
+                      )
+                  elif req == 'Delete':
+                      client.disable(
+                          accountIds=[context.invoked_function_arn.split(':')[4]],
+                          resourceTypes=['ECR', 'LAMBDA']
+                      )
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as e:
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {'Error': str(e)})
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-inspector-enabler'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  InspectorEnabler:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt InspectorEnablerFunction.Arn
+
+  # Dedicated SNS topic so Inspector alerts don't mix with app notifications.
+  SecurityAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-${Environment}-security-alerts'
+      Tags:
+        - Key: Name
+          Value: !Sub 'sns-${Environment}-security-alerts'
+        - Key: Description
+          Value: 'Inspector CRITICAL/HIGH finding alerts for Lightship'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  # Allow EventBridge to publish to the security alerts topic.
+  SecurityAlertsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref SecurityAlertsTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowEventBridgePublish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref SecurityAlertsTopic
+
+  # Optional email subscription — skipped when SecurityAlertEmail is empty.
+  SecurityAlertsEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasSecurityAlertEmail
+    Properties:
+      TopicArn: !Ref SecurityAlertsTopic
+      Protocol: email
+      Endpoint: !Ref SecurityAlertEmail
+
+  # EventBridge rule: forward CRITICAL and HIGH Inspector findings to SNS.
+  InspectorFindingsRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub 'ebr-${Environment}-inspector-findings'
+      Description: 'Route CRITICAL/HIGH Inspector v2 findings to security alerts SNS'
+      EventPattern:
+        source:
+          - aws.inspector2
+        detail-type:
+          - Inspector2 Finding
+        detail:
+          severity:
+            - CRITICAL
+            - HIGH
+      State: ENABLED
+      Targets:
+        - Id: SecurityAlertsSNS
+          Arn: !Ref SecurityAlertsTopic
+
+  # ── Wire WAF logs to CloudWatch Logs ─────────────────────────────────────
+  # Wire WAF logs to CloudWatch Logs.
+  WebACLLoggingConfiguration:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Properties:
+      ResourceArn: !GetAtt WebACL.Arn
+      LogDestinationConfigs:
+        - !GetAtt WafLogGroup.Arn
+
+  # Associate the WebACL to the ALB exported by the app stack.
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-alb-arn'
+      WebACLArn: !GetAtt WebACL.Arn
+
+Outputs:
+  WebACLArn:
+    Description: WAFv2 WebACL ARN
+    Value: !GetAtt WebACL.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-webacl-arn'
+
+  WebACLId:
+    Description: WAFv2 WebACL ID
+    Value: !GetAtt WebACL.Id
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-webacl-id'
+
+  WafLogGroupName:
+    Description: CloudWatch Logs group name for WAF
+    Value: !Ref WafLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-waf-log-group'
+
+  SecurityAlertsTopicArn:
+    Description: SNS topic ARN for Inspector CRITICAL/HIGH findings
+    Value: !Ref SecurityAlertsTopic
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-security-alerts-topic-arn'

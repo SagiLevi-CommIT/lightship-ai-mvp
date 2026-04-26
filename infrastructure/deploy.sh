@@ -76,6 +76,8 @@ get_user_input() {
     
     read -p "Domain name (optional): " DOMAIN_NAME
     read -p "ACM Certificate ARN (optional): " CERT_ARN
+    read -p "Rate limit per IP per 5 min [3000]: " WAF_RATE_LIMIT
+    WAF_RATE_LIMIT=${WAF_RATE_LIMIT:-3000}
     
     print_status "Configuration:"
     echo "  Project: $PROJECT_NAME"
@@ -84,6 +86,7 @@ get_user_input() {
     echo "  VPC CIDR: $VPC_CIDR"
     echo "  Domain: ${DOMAIN_NAME:-None}"
     echo "  Certificate: ${CERT_ARN:-None}"
+    echo "  WAF rate limit: $WAF_RATE_LIMIT req/5min"
     echo ""
     
     read -p "Continue with this configuration? (y/n): " -n 1 -r
@@ -119,6 +122,34 @@ deploy_vpc_stack() {
         print_success "VPC stack deployed successfully: $VPC_STACK_NAME"
     else
         print_error "Failed to deploy VPC stack"
+        exit 1
+    fi
+}
+
+# Function to deploy security stack (WAF)
+deploy_security_stack() {
+    print_status "Deploying security stack (WAF)..."
+
+    SECURITY_STACK_NAME="${PROJECT_NAME}-${ENVIRONMENT}-security"
+    APP_STACK_NAME="${PROJECT_NAME}-${ENVIRONMENT}-app"
+
+    aws cloudformation deploy \
+        --template-file infrastructure/security-stack.yaml \
+        --stack-name $SECURITY_STACK_NAME \
+        --parameter-overrides \
+            ProjectName=$PROJECT_NAME \
+            Environment=$ENVIRONMENT \
+            RateLimitPer5Min=$WAF_RATE_LIMIT \
+        --region $REGION \
+        --tags \
+            Project=$PROJECT_NAME \
+            Environment=$ENVIRONMENT
+
+    if [ $? -eq 0 ]; then
+        print_success "Security stack deployed successfully: $SECURITY_STACK_NAME"
+        print_warning "WAF: Pri 0 (rate limit) + Pri 1 (IP reputation) are BLOCK. Pri 2-7 are COUNT. Review CloudWatch WAF metrics before promoting to BLOCK."
+    else
+        print_error "Failed to deploy security stack"
         exit 1
     fi
 }
@@ -262,6 +293,7 @@ show_deployment_results() {
     echo "  • Frontend ECS:   ${PROJECT_NAME}-${ENVIRONMENT}-frontend (frontend-service-stack.yaml)"
     echo "  • Backend Lambda: ${PROJECT_NAME}-${ENVIRONMENT}-backend (backend-lambda-stack.yaml)"
     echo "  • Step Functions: ${PROJECT_NAME}-${ENVIRONMENT}-pipeline (provisioned by backend stack)"
+    echo "  • Security (WAF): ${PROJECT_NAME}-${ENVIRONMENT}-security (security-stack.yaml)"
     echo ""
     print_status "📱 Next Steps:"
     echo "1. Wait for ECS service to stabilize (~5-10 minutes)"
@@ -285,7 +317,8 @@ main() {
     # Deploy infrastructure
     deploy_vpc_stack
     deploy_app_stack
-    
+    deploy_security_stack
+
     # Build and deploy applications
     build_and_push_images
     update_lambda_function

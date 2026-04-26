@@ -28,6 +28,12 @@ Parameters:
     Default: lightship-ai-mvp
     Description: Name of the existing CodeCommit repository (not managed by this stack)
 
+  SecurityFailBuild:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Fail the build when CRITICAL CVEs or HIGH severity findings are detected. Set to false during initial rollout to observe without blocking.
+
 Resources:
   # S3 Bucket for CodeBuild Artifacts
   ArtifactsBucket:
@@ -94,6 +100,17 @@ Resources:
                   - codecommit:GitPull
                 Resource:
                   - !Sub 'arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepoName}'
+        - PolicyName: SecurityScanPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - inspector2:ListFindings
+                  - inspector2:ListCoverage
+                  - ecr:StartImageScan
+                  - ecr:DescribeImageScanFindings
+                Resource: '*'
         - PolicyName: CloudFormationDeployPolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -157,6 +174,17 @@ Resources:
                   - codecommit:GitPull
                 Resource:
                   - !Sub 'arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepoName}'
+        - PolicyName: SecurityScanPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - inspector2:ListFindings
+                  - inspector2:ListCoverage
+                  - ecr:StartImageScan
+                  - ecr:DescribeImageScanFindings
+                Resource: '*'
         - PolicyName: CloudFormationDeployPolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -346,6 +374,8 @@ Resources:
           - Name: ECR_REPOSITORY_URI
             Value:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-frontend-ecr-uri'
+          - Name: SECURITY_FAIL_BUILD
+            Value: !Ref SecurityFailBuild
       Source:
         Type: CODECOMMIT
         Location: !Sub 'https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${CodeCommitRepoName}'
@@ -397,6 +427,8 @@ Resources:
           - Name: ECR_REPOSITORY_URI
             Value:
               Fn::ImportValue: !Sub '${ProjectName}-${Environment}-backend-ecr-uri'
+          - Name: SECURITY_FAIL_BUILD
+            Value: !Ref SecurityFailBuild
       Source:
         Type: CODECOMMIT
         Location: !Sub 'https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${CodeCommitRepoName}'
@@ -411,6 +443,183 @@ Resources:
           Value: !Sub '${ProjectName}-${Environment}-backend-build'
         - Key: Environment
           Value: !Ref Environment
+
+  # ── Dedicated security scan CodeBuild project ─────────────────────────────
+  # Runs on every push independently of build/deploy. Scans the full repo:
+  # checkov (all IaC), detect-secrets, and trivy on both ECR images post-push.
+  # Does NOT build or deploy — pure security gate.
+
+  SecurityScanCodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-${Environment}-codebuild-security-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SecurityScanBasePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-${Environment}-security-scan'
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}-${Environment}-security-scan:*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub '${ArtifactsBucket.Arn}/*'
+              - Effect: Allow
+                Action:
+                  - codecommit:GitPull
+                Resource: !Sub 'arn:aws:codecommit:${AWS::Region}:${AWS::AccountId}:${CodeCommitRepoName}'
+              - Effect: Allow
+                Action:
+                  - inspector2:ListFindings
+                  - inspector2:ListCoverage
+                  - ecr:DescribeImageScanFindings
+                  - ecr:DescribeImages
+                  - ecr:BatchGetImage
+                Resource: '*'
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-codebuild-security-role'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
+
+  SecurityScanLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/codebuild/${ProjectName}-${Environment}-security-scan'
+      RetentionInDays: 30
+
+  SecurityScanCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-${Environment}-security-scan'
+      Description: 'Full-repo security scan: IaC (checkov), secrets (detect-secrets), Inspector2 findings, trivy image CVEs. No build or deploy.'
+      ServiceRole: !GetAtt SecurityScanCodeBuildRole.Arn
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        PrivilegedMode: false
+        EnvironmentVariables:
+          - Name: AWS_REGION
+            Value: !Ref AWS::Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: PROJECT_NAME
+            Value: !Ref ProjectName
+          - Name: ENVIRONMENT
+            Value: !Ref Environment
+          - Name: SECURITY_FAIL_BUILD
+            Value: !Ref SecurityFailBuild
+          - Name: BACKEND_ECR_REPO
+            Value:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-backend-ecr-name'
+          - Name: FRONTEND_ECR_REPO
+            Value:
+              Fn::ImportValue: !Sub '${ProjectName}-${Environment}-frontend-ecr-name'
+      Source:
+        Type: CODECOMMIT
+        Location: !Sub 'https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/${CodeCommitRepoName}'
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                python: 3.12
+              commands:
+                - pip install --quiet checkov detect-secrets
+                - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+            build:
+              commands:
+                - FAIL=${SECURITY_FAIL_BUILD:-true}
+                - mkdir -p reports
+
+                # ── IaC misconfiguration scan ──────────────────────────────
+                - echo "=== checkov: full infrastructure scan ==="
+                - checkov -d . --framework cloudformation dockerfile --compact --quiet
+                  --output json --output-file-path reports/ 2>&1 || true
+                - checkov -d . --framework cloudformation dockerfile --compact --quiet 2>&1
+                  && echo "checkov PASSED"
+                  || { echo "checkov FAILED"; [ "$FAIL" = "true" ] && exit 1 || true; }
+
+                # ── Secret / credential leak scan ──────────────────────────
+                - echo "=== detect-secrets: full repo scan ==="
+                - detect-secrets scan --all-files
+                  --exclude-files '\.git/.*'
+                  --exclude-files 'package-lock\.json'
+                  --exclude-files 'reports/.*' > reports/detect-secrets.json 2>&1
+                - python3 -c "
+                  import json,sys
+                  r=json.load(open('reports/detect-secrets.json'))
+                  results=r.get('results',{})
+                  count=sum(len(v) for v in results.values())
+                  if count:
+                      print(f'detect-secrets: {count} potential secret(s)')
+                      [print(f'  {f}: line {s[\"line_number\"]}') for f,secrets in results.items() for s in secrets]
+                      sys.exit(1 if '${FAIL}'=='true' else 0)
+                  else:
+                      print('detect-secrets PASSED')
+                  "
+
+                # ── Trivy CVE scan on latest ECR images ────────────────────
+                # Pull and scan the most recently pushed image from each repo.
+                - echo "=== trivy: ECR image CVE scan (latest tags) ==="
+                - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+                - BACKEND_DIGEST=$(aws ecr describe-images --repository-name "$BACKEND_ECR_REPO" --region "$AWS_REGION" --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageDigest' --output text)
+                - BACKEND_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$BACKEND_ECR_REPO@$BACKEND_DIGEST"
+                - trivy image --no-progress --format json --output reports/trivy-backend-latest.json "$BACKEND_URI" 2>&1 || true
+                - trivy image --exit-code 1 --severity CRITICAL --no-progress "$BACKEND_URI" 2>&1
+                  && echo "trivy backend PASSED"
+                  || { echo "trivy backend FAILED - CRITICAL CVEs"; [ "$FAIL" = "true" ] && exit 1 || true; }
+                - FRONTEND_DIGEST=$(aws ecr describe-images --repository-name "$FRONTEND_ECR_REPO" --region "$AWS_REGION" --query 'sort_by(imageDetails,&imagePushedAt)[-1].imageDigest' --output text)
+                - FRONTEND_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_ECR_REPO@$FRONTEND_DIGEST"
+                - trivy image --no-progress --format json --output reports/trivy-frontend-latest.json "$FRONTEND_URI" 2>&1 || true
+                - trivy image --exit-code 1 --severity CRITICAL --no-progress "$FRONTEND_URI" 2>&1
+                  && echo "trivy frontend PASSED"
+                  || { echo "trivy frontend FAILED - CRITICAL CVEs"; [ "$FAIL" = "true" ] && exit 1 || true; }
+
+                # ── Inspector2 findings summary ────────────────────────────
+                - echo "=== Inspector2: current CRITICAL/HIGH findings ==="
+                - aws inspector2 list-findings --region "$AWS_REGION"
+                  --filter-criteria '{"severity":[{"comparison":"EQUALS","value":"CRITICAL"},{"comparison":"EQUALS","value":"HIGH"}]}'
+                  --query 'findings[*].{Sev:severity,CVE:packageVulnerabilityDetails.vulnerabilityId,Pkg:packageVulnerabilityDetails.vulnerablePackages[0].name,Fix:packageVulnerabilityDetails.vulnerablePackages[0].fixedInVersion}'
+                  --output table 2>&1 || true
+          reports:
+            SecurityReports:
+              files:
+                - reports/detect-secrets.json
+                - reports/trivy-backend-latest.json
+                - reports/trivy-frontend-latest.json
+              discard-paths: yes
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref SecurityScanLogGroup
+          Status: ENABLED
+      TimeoutInMinutes: 20
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-${Environment}-security-scan'
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: !Ref ProjectName
 
 Outputs:
   CodeCommitRepositoryName:
@@ -446,3 +655,9 @@ Outputs:
   AppCloudFormationDeploymentRoleArn:
     Description: CloudFormation deployment role used by CodeBuild
     Value: !GetAtt AppCloudFormationDeploymentRole.Arn
+
+  SecurityScanCodeBuildProjectName:
+    Description: Dedicated security scan CodeBuild project name
+    Value: !Ref SecurityScanCodeBuildProject
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-security-scan-codebuild'

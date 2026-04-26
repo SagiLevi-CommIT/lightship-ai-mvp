@@ -1,26 +1,91 @@
 version: 0.2
 
+# Security gates (controlled via SECURITY_FAIL_BUILD env var set in CodeBuild project):
+#   npm audit    — Node.js dependency CVEs           → fails on CRITICAL
+#   detect-secrets — secret/credential leak scan    → fails on new verified secrets
+#   checkov      — CloudFormation IaC misconfiguration → fails on HIGH
+#   trivy        — container image CVE scan           → fails on CRITICAL (pre-push gate)
+
 phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+      python: 3.12
+    commands:
+      - pip install --quiet checkov detect-secrets
+      - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       - IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual-$(date +%Y%m%d%H%M%S)}
       - export FRONTEND_IMAGE_URI="$ECR_REPOSITORY_URI:$IMAGE_TAG"
+      - FAIL=${SECURITY_FAIL_BUILD:-true}
+      - mkdir -p reports
+
+      # ── Node.js dependency CVE scan ────────────────────────────────────────
+      - echo "=== npm audit: Node.js dependency CVE scan ==="
+      - cd ui-fe
+      - npm audit --json > ../reports/npm-audit.json 2>&1 || true
+      - npm audit --audit-level=critical 2>&1
+        && echo "npm audit PASSED"
+        || { echo "npm audit FAILED - CRITICAL CVEs in Node deps"; [ "$FAIL" = "true" ] && exit 1 || true; }
+      - cd ..
+
+      # ── Secret / credential leak scan ─────────────────────────────────────
+      - echo "=== detect-secrets: secret scan ==="
+      - detect-secrets scan --all-files --exclude-files '\.git/.*' --exclude-files 'package-lock\.json' > reports/detect-secrets.json 2>&1
+      - python3 -c "
+      import json,sys
+      r=json.load(open('reports/detect-secrets.json'))
+      results=r.get('results',{})
+      count=sum(len(v) for v in results.values())
+      if count:
+          print(f'detect-secrets: {count} potential secret(s) found:')
+          [print(f'  {f}: {s}') for f,secrets in results.items() for s in secrets]
+          sys.exit(1 if '${FAIL}'=='true' else 0)
+      else:
+          print('detect-secrets PASSED - no secrets found')
+      "
+
+      # ── CloudFormation IaC misconfiguration scan ───────────────────────────
+      - echo "=== checkov: CloudFormation IaC scan ==="
+      - checkov -d infrastructure/ --framework cloudformation --compact --quiet
+        --output json --output-file-path reports/ 2>&1 || true
+      - checkov -d infrastructure/ --framework cloudformation --compact --quiet
+        --check HIGH 2>&1
+        && echo "checkov PASSED"
+        || { echo "checkov FAILED - HIGH severity IaC misconfigurations"; [ "$FAIL" = "true" ] && exit 1 || true; }
 
   build:
     commands:
       - echo Build started on `date`
       - cd ui-fe
       - docker build -t "$FRONTEND_IMAGE_URI" .
+      - cd ..
+
+      # ── Container image CVE scan (pre-push gate) ───────────────────────────
+      - echo "=== trivy: container image CVE scan ==="
+      - trivy image --no-progress --format json --output reports/trivy-frontend.json "$FRONTEND_IMAGE_URI" 2>&1 || true
+      - trivy image --exit-code 1 --severity CRITICAL --no-progress "$FRONTEND_IMAGE_URI" 2>&1
+        && echo "trivy PASSED"
+        || { echo "trivy FAILED - CRITICAL CVEs in container image"; [ "$FAIL" = "true" ] && exit 1 || true; }
 
   post_build:
     commands:
       - echo Build completed on `date`
       - echo Pushing Docker image $FRONTEND_IMAGE_URI
       - docker push "$FRONTEND_IMAGE_URI"
-      - cd ..
       - bash scripts/deploy_app_stack.sh
+
+reports:
+  SecurityReports:
+    files:
+      - reports/npm-audit.json
+      - reports/trivy-frontend.json
+      - reports/detect-secrets.json
+    discard-paths: yes
 
 artifacts:
   files:

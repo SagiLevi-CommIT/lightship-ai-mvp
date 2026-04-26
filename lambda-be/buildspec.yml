@@ -1,6 +1,20 @@
 version: 0.2
 
+# Security gates (controlled via SECURITY_FAIL_BUILD env var set in CodeBuild project):
+#   pip-audit  — Python dependency CVEs             → fails on CRITICAL
+#   bandit     — Python SAST (hardcoded creds, etc) → fails on HIGH+
+#   detect-secrets — secret/credential leak scan    → fails on new verified secrets
+#   checkov    — CloudFormation IaC misconfiguration → fails on HIGH
+#   trivy      — container image CVE scan            → fails on CRITICAL (pre-push gate)
+
 phases:
+  install:
+    runtime-versions:
+      python: 3.12
+    commands:
+      - pip install --quiet pip-audit bandit checkov detect-secrets
+      - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
@@ -8,12 +22,67 @@ phases:
       - IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual-$(date +%Y%m%d%H%M%S)}
       - export BACKEND_IMAGE_URI="$ECR_REPOSITORY_URI:$IMAGE_TAG"
       - export DOCKER_BUILDKIT=0
+      - FAIL=${SECURITY_FAIL_BUILD:-true}
+
+      # ── Python dependency CVE scan ─────────────────────────────────────────
+      - echo "=== pip-audit: Python dependency CVE scan ==="
+      - mkdir -p reports
+      - pip-audit -r lambda-be/requirements.txt --format json -o reports/pip-audit.json 2>&1 || true
+      - pip-audit -r lambda-be/requirements.txt --severity critical 2>&1
+        && echo "pip-audit PASSED"
+        || { echo "pip-audit FAILED - CRITICAL CVEs in Python deps"; [ "$FAIL" = "true" ] && exit 1 || true; }
+
+      # ── Python SAST ────────────────────────────────────────────────────────
+      # bandit -ll = only HIGH severity and above; -iii = only HIGH confidence
+      - echo "=== bandit: Python SAST ==="
+      - bandit -r lambda-be/src -ll -iii -f json -o reports/bandit.json 2>&1 || true
+      - bandit -r lambda-be/src -ll -iii -q 2>&1
+        && echo "bandit PASSED"
+        || { echo "bandit FAILED - HIGH severity findings in source"; [ "$FAIL" = "true" ] && exit 1 || true; }
+
+      # ── Secret / credential leak scan ─────────────────────────────────────
+      # detect-secrets scans for hardcoded passwords, API keys, tokens, etc.
+      - echo "=== detect-secrets: secret scan ==="
+      - detect-secrets scan --all-files --exclude-files '\.git/.*' --exclude-files 'package-lock\.json' > reports/detect-secrets.json 2>&1
+      - python3 -c "
+      import json,sys
+      r=json.load(open('reports/detect-secrets.json'))
+      results=r.get('results',{})
+      count=sum(len(v) for v in results.values())
+      if count:
+          print(f'detect-secrets: {count} potential secret(s) found:')
+          [print(f'  {f}: {s}') for f,secrets in results.items() for s in secrets]
+          sys.exit(1 if '${FAIL}'=='true' else 0)
+      else:
+          print('detect-secrets PASSED - no secrets found')
+      "
+
+      # ── CloudFormation IaC misconfiguration scan ───────────────────────────
+      # checkov checks for open security groups, unencrypted storage, missing
+      # logging, overly permissive IAM, etc.
+      - echo "=== checkov: CloudFormation IaC scan ==="
+      - checkov -d infrastructure/ --framework cloudformation --compact --quiet
+        --output json --output-file-path reports/ 2>&1 || true
+      - checkov -d infrastructure/ --framework cloudformation --compact --quiet
+        --check HIGH 2>&1
+        && echo "checkov PASSED"
+        || { echo "checkov FAILED - HIGH severity IaC misconfigurations"; [ "$FAIL" = "true" ] && exit 1 || true; }
 
   build:
     commands:
       - echo Build started on `date`
       - cd lambda-be
       - docker build --platform linux/amd64 -t "$BACKEND_IMAGE_URI" .
+      - cd ..
+
+      # ── Container image CVE scan (pre-push gate) ───────────────────────────
+      # Trivy scans OS packages and language deps inside the built image.
+      # Runs BEFORE docker push so a vulnerable image is never stored in ECR.
+      - echo "=== trivy: container image CVE scan ==="
+      - trivy image --no-progress --format json --output reports/trivy-backend.json "$BACKEND_IMAGE_URI" 2>&1 || true
+      - trivy image --exit-code 1 --severity CRITICAL --no-progress "$BACKEND_IMAGE_URI" 2>&1
+        && echo "trivy PASSED"
+        || { echo "trivy FAILED - CRITICAL CVEs in container image"; [ "$FAIL" = "true" ] && exit 1 || true; }
 
   post_build:
     commands:
@@ -22,6 +91,15 @@ phases:
       - docker push "$BACKEND_IMAGE_URI"
       - cd ..
       - bash scripts/deploy_app_stack.sh
+
+reports:
+  SecurityReports:
+    files:
+      - reports/pip-audit.json
+      - reports/bandit.json
+      - reports/trivy-backend.json
+      - reports/detect-secrets.json
+    discard-paths: yes
 
 artifacts:
   files:
