@@ -12,6 +12,13 @@ Region: **us-east-1**. Account: **336090301206**. VPC CIDR:
 
 ## 1. Architecture (actual, as deployed)
 
+Last verified against AWS on 2026-04-26. The live environment is in
+`us-east-1`; there is no deployed Route 53 hosted zone or regional WAF Web ACL
+for this MVP at the time of verification. See
+[`docs/aws-architecture-audit-2026-04-26.md`](docs/aws-architecture-audit-2026-04-26.md)
+for the full comparison with the external architecture sketch and the current
+Cost Explorer estimate.
+
 ```mermaid
 flowchart TB
   subgraph Clients

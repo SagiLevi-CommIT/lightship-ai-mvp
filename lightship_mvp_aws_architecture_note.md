@@ -1,5 +1,13 @@
 # LightShip MVP – AWS Services & Responsibilities Architecture Note
 
+> Deployment audit, 2026-04-26: the live AWS environment differs from parts of
+> this earlier target note. The actual deployed diagram, drift notes, and Cost
+> Explorer estimate are in
+> [`docs/aws-architecture-audit-2026-04-26.md`](docs/aws-architecture-audit-2026-04-26.md).
+> In particular, Step Functions is deployed and active; Route 53 and WAF are not
+> deployed; and the current processing path runs in the backend Lambda container,
+> not a dedicated ECS worker service.
+
 > Purpose: A concise, implementation-ready architecture note for an AWS MVP that performs **dashcam video upload → frame extraction & selection → object detection (motorcycles, lanes, signs, construction) → LLM-powered video classification (4 types) → config JSON generation → annotated output storage**, deployed as an async batch-processing pipeline with a web UI.
 
 ---
