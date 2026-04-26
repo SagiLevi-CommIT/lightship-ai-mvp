@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Phase 3 SQS + Step Functions add-on for the existing Lightship backend
+  Lambda. Deployed separately from the Lambda itself so it can be applied
+  to an already-live function without replacing it.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: lightship
+  Environment:
+    Type: String
+    Default: mvp
+    AllowedValues: [mvp, dev, staging, production]
+  BackendFunctionName:
+    Type: String
+    Default: lightship-mvp-backend
+    Description: Name of the already-deployed backend Lambda.
+
+Resources:
+  # CloudWatch log group for state machine execution history.
+  PipelineStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/vendedlogs/states/${ProjectName}-${Environment}-pipeline'
+      RetentionInDays: 30
+
+  # Standard workflow; Lambda task wraps the whole Pipeline.process_video
+  # run and reports back. A terminal Catch routes any error (including
+  # Lambda timeouts and unhandled exceptions in the backend) to the
+  # MarkFailed task which updates the Dynamo row.
+  LightshipPipelineStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub '${ProjectName}-${Environment}-pipeline'
+      StateMachineType: STANDARD
+      RoleArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-sfn-execution-role-arn'
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt PipelineStateMachineLogGroup.Arn
+        Level: ERROR
+        IncludeExecutionData: false
+      DefinitionSubstitutions:
+        PipelineFunctionArn: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${BackendFunctionName}'
+      DefinitionString: !Sub |
+        {
+          "Comment": "Lightship video processing pipeline. SQS dispatcher enqueues a job, this state machine runs Pipeline.process_video as a Lambda task and catches failures to mark Dynamo FAILED.",
+          "StartAt": "RunPipeline",
+          "States": {
+            "RunPipeline": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${!PipelineFunctionArn}",
+                "Payload": {
+                  "action": "pipeline_stage",
+                  "job_id.$": "$.job_id",
+                  "s3_key.$": "$.s3_key",
+                  "filename.$": "$.filename",
+                  "config.$": "$.config"
+                }
+              },
+              "ResultSelector": {
+                "status.$": "$.Payload.status",
+                "job_id.$": "$.Payload.job_id"
+              },
+              "ResultPath": "$.pipeline_result",
+              "TimeoutSeconds": 870,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 5,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "MarkFailed"
+                }
+              ],
+              "Next": "Succeed"
+            },
+            "MarkFailed": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${!PipelineFunctionArn}",
+                "Payload": {
+                  "action": "mark_failed",
+                  "job_id.$": "$.job_id",
+                  "error.$": "$.error"
+                }
+              },
+              "ResultPath": "$.mark_failed_result",
+              "Next": "Fail"
+            },
+            "Succeed": {
+              "Type": "Succeed"
+            },
+            "Fail": {
+              "Type": "Fail",
+              "Error": "PipelineFailed",
+              "Cause": "See Dynamo job_id for error detail"
+            }
+          }
+        }
+
+  # SQS → backend Lambda event source. BatchSize=1 keeps retry semantics
+  # simple (one job per state-machine execution); ReportBatchItemFailures
+  # lets the dispatcher return per-record failures so only the records
+  # that actually failed get redelivered.
+  ProcessingQueueEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-processing-queue-arn'
+      FunctionName: !Ref BackendFunctionName
+      BatchSize: 1
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      MaximumBatchingWindowInSeconds: 0
+      Enabled: true
+
+Outputs:
+  PipelineStateMachineArn:
+    Description: ARN of the Step Functions state machine.
+    Value: !Ref LightshipPipelineStateMachine
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-pipeline-state-machine-arn'
+
+  ProcessingQueueEventSourceId:
+    Description: UUID of the SQS → Lambda event source mapping.
+    Value: !Ref ProcessingQueueEventSource
