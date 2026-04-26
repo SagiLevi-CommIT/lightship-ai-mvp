@@ -162,16 +162,18 @@ deploy_app_stack() {
 build_and_push_images() {
     print_status "Building and pushing Docker images..."
     
-    # Get ECR repository URIs from CloudFormation outputs
+    # Get ECR repository URIs from CloudFormation outputs.
+    # The exported output keys are FrontendECRRepositoryUri / BackendECRRepositoryUri
+    # (see infrastructure/app-stack.yaml:Outputs).
     FRONTEND_ECR=$(aws cloudformation describe-stacks \
         --stack-name "${PROJECT_NAME}-${ENVIRONMENT}-app" \
-        --query 'Stacks[0].Outputs[?OutputKey==`FrontendECRRepository`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==`FrontendECRRepositoryUri`].OutputValue' \
         --output text \
         --region $REGION)
-    
+
     BACKEND_ECR=$(aws cloudformation describe-stacks \
         --stack-name "${PROJECT_NAME}-${ENVIRONMENT}-app" \
-        --query 'Stacks[0].Outputs[?OutputKey==`BackendECRRepository`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==`BackendECRRepositoryUri`].OutputValue' \
         --output text \
         --region $REGION)
     
@@ -181,8 +183,8 @@ build_and_push_images() {
     
     # Build and push frontend image
     print_status "Building frontend image..."
-    cd s3-ui-fe
-    docker build -t $FRONTEND_ECR:latest .
+    cd ui-fe
+    docker build --build-arg NEXT_PUBLIC_API_BASE="" -t $FRONTEND_ECR:latest .
     docker push $FRONTEND_ECR:latest
     cd ..
     
@@ -190,8 +192,8 @@ build_and_push_images() {
     
     # Build and push backend image
     print_status "Building backend image..."
-    cd s3-lambda-be
-    docker build -f Dockerfile.lambda -t $BACKEND_ECR:latest .
+    cd lambda-be
+    docker build -t $BACKEND_ECR:latest .
     docker push $BACKEND_ECR:latest
     cd ..
     
@@ -205,7 +207,7 @@ update_lambda_function() {
     LAMBDA_FUNCTION_NAME="${PROJECT_NAME}-${ENVIRONMENT}-backend"
     BACKEND_ECR=$(aws cloudformation describe-stacks \
         --stack-name "${PROJECT_NAME}-${ENVIRONMENT}-app" \
-        --query 'Stacks[0].Outputs[?OutputKey==`BackendECRRepository`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==`BackendECRRepositoryUri`].OutputValue' \
         --output text \
         --region $REGION)
     
@@ -247,21 +249,26 @@ show_deployment_results() {
         --output text \
         --region $REGION 2>/dev/null || echo "Not available")
     
-    echo "🌐 Frontend URL: $ALB_URL"
-    echo "🔗 Backend API (via ALB): ${ALB_URL}/chat"
-    echo "📊 Environment: $ENVIRONMENT"
-    echo "🏗️ Region: $REGION"
+    echo "🌐 Frontend URL:       $ALB_URL"
+    echo "🔗 Backend health:     ${ALB_URL}/health"
+    echo "🔗 Jobs API:           ${ALB_URL}/jobs"
+    echo "🔗 Batch API:          ${ALB_URL}/batch/process (POST)"
+    echo "📊 Environment:        $ENVIRONMENT"
+    echo "🏗️ Region:            $REGION"
     echo ""
     print_status "🔍 CloudFormation Stacks:"
-    echo "  • VPC: ${PROJECT_NAME}-${ENVIRONMENT}-vpc"
-    echo "  • App: ${PROJECT_NAME}-${ENVIRONMENT}-app"
+    echo "  • VPC:            ${PROJECT_NAME}-${ENVIRONMENT}-vpc"
+    echo "  • App:            ${PROJECT_NAME}-${ENVIRONMENT}-app"
+    echo "  • Frontend ECS:   ${PROJECT_NAME}-${ENVIRONMENT}-frontend (frontend-service-stack.yaml)"
+    echo "  • Backend Lambda: ${PROJECT_NAME}-${ENVIRONMENT}-backend (backend-lambda-stack.yaml)"
+    echo "  • Step Functions: ${PROJECT_NAME}-${ENVIRONMENT}-pipeline (provisioned by backend stack)"
     echo ""
     print_status "📱 Next Steps:"
     echo "1. Wait for ECS service to stabilize (~5-10 minutes)"
     echo "2. Access frontend at: $ALB_URL"
-    echo "3. Test backend health: $API_URL/health"
-    echo "4. Configure domain/SSL if provided"
-    echo "5. Upload data to LanceDB bucket for RAG functionality"
+    echo "3. Test backend health: ${ALB_URL}/health"
+    echo "4. Submit a test job: curl -X POST ${ALB_URL}/process-s3-video -H 'Content-Type: application/json' -d '{\"s3_uri\":\"s3://.../clip.mp4\"}'"
+    echo "5. Watch pipeline executions: aws stepfunctions list-executions --state-machine-arn \$(aws cloudformation describe-stacks --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-backend --query 'Stacks[0].Outputs[?OutputKey==\`PipelineStateMachineArn\`].OutputValue' --output text)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 }
 

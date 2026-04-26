@@ -1,467 +1,199 @@
-# Lightship AWS Deployment Guide
+# Lightship MVP — Deployment Guide
 
-Complete deployment guide for the Lightship Financial Assistant on AWS infrastructure.
+Target AWS account: **336090301206** (`role-commit-lightship-devops`).
+Region: **us-east-1**. Authorized operator IP: **87.70.177.112/32**.
 
-## Architecture Overview
+This guide covers the deployment phases referenced in the plan and matches
+the real CloudFormation templates in `infrastructure/`:
 
-The deployment architecture consists of:
+1. VPC + networking (`infrastructure/vpc-stack.yaml`)
+2. App stack — IAM, ECR, S3, DynamoDB, SQS, SNS, ALB, KMS, Secrets Manager
+   (`infrastructure/app-stack.yaml`)
+3. Frontend — Next.js on ECS Fargate (`infrastructure/frontend-service-stack.yaml`)
+4. Backend — FastAPI on Lambda container + Step Functions pipeline state
+   machine + SQS dispatcher (`infrastructure/backend-lambda-stack.yaml`)
 
+The backend stack is where Phase 3 lives: it provisions the **dispatcher
+EventSourceMapping**, the **`lightship-mvp-pipeline` state machine**, and
+the `PROCESSING_QUEUE_URL` / `PIPELINE_STATE_MACHINE_ARN` env vars on the
+backend Lambda.
+
+```mermaid
+flowchart LR
+  Client[Next.js UI] -->|presign, /process-video| ALB
+  ALB -->|/* frontend/| ECS[ECS Fargate]
+  ALB -->|/health, /jobs, /batch/*, /download/*, ...| Lambda[Backend Lambda]
+  Lambda -->|send_message| SQS[(SQS)]
+  SQS -->|EventSourceMapping| Lambda
+  Lambda -->|StartExecution| SFN[Step Functions lightship-mvp-pipeline]
+  SFN --> Lambda
+  Lambda -->|put job/update status| DDB[(DynamoDB lightship_jobs)]
+  Lambda -->|put output.json + frames| S3[(S3 processing)]
+  Lambda -->|DetectLabels| Rekognition
+  Lambda -->|InvokeModel| Bedrock
 ```
-Internet
-   ↓
-Application Load Balancer (Internet-Facing)
-   ├─ / → ECS Fargate (Streamlit Frontend)
-   └─ /chat, /health, /sessions/* → Lambda (Backend AI)
-           ↓
-   AWS Bedrock + S3 Data Sources
-```
 
-### Components
+---
 
-1. **VPC Infrastructure**
-   - VPC with public and private subnets across 2 AZs
-   - NAT Gateway for private subnet internet access
-   - Security groups for ALB, ECS, and Lambda
-
-2. **Application Load Balancer (ALB)**
-   - Internet-facing load balancer
-   - Routes traffic to frontend (ECS) and backend (Lambda)
-   - HTTP/HTTPS support
-
-3. **Frontend (ECS Fargate)**
-   - Streamlit UI running in Docker containers
-   - Deployed in private subnets
-   - Auto-scaling capabilities
-
-4. **Backend (Lambda)**
-   - AI processing with AWS Bedrock integration
-   - Container-based Lambda function
-   - Integrated with ALB target group
-
-5. **Storage (S3)**
-   - cd ~B vector storage
-   - Conversation results
-   - Custom data sources
-
-6. **Logging (CloudWatch)**
-   - Frontend logs: `/ecs/lightship-mvp-frontend`
-   - Backend logs: `/aws/lambda/lightship-mvp-backend`
-   - 7-day retention policy
-
-## Prerequisites
-
-- AWS Account with appropriate permissions
-- AWS CLI configured (`aws configure`)
-- Docker installed and running
-- Access to AWS Bedrock in us-east-1
-- Git for repository management
-
-## Deployment Steps
-
-### 1. Deploy VPC Stack
+## 0. Prerequisites
 
 ```bash
-# Set your AWS profile (if needed)
-export AWS_PROFILE=lightship-dev
-
-# Deploy VPC infrastructure
-cd infrastructure
-aws cloudformation create-stack \
-  --stack-name lightship-mvp-vpc \
-  --template-body file://vpc-stack.yaml \
-  --parameters \
-    ParameterKey=ProjectName,ParameterValue=lightship \
-    ParameterKey=Environment,ParameterValue=mvp \
-    ParameterKey=VpcCIDR,ParameterValue=10.145.16.0/20 \
-  --region us-east-1
-
-# Wait for stack creation
-aws cloudformation wait stack-create-complete \
-  --stack-name lightship-mvp-vpc \
-  --region us-east-1
+aws --version                     # v2
+aws sts get-caller-identity       # should show role-commit-lightship-devops
+export AWS_REGION=us-east-1
+export PROJECT_NAME=lightship
+export ENVIRONMENT=mvp
 ```
 
-### 2. Deploy Application Stack
+## 1. VPC stack
 
 ```bash
-# Deploy app infrastructure (ALB, ECS, Lambda, ECR, S3, IAM)
-aws cloudformation create-stack \
-  --stack-name lightship-mvp-app \
-  --template-body file://app-stack.yaml \
-  --parameters \
-    ParameterKey=ProjectName,ParameterValue=lightship \
-    ParameterKey=Environment,ParameterValue=mvp \
-    ParameterKey=VPCStackName,ParameterValue=lightship-mvp-vpc \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --region us-east-1
-
-# Wait for stack creation
-aws cloudformation wait stack-create-complete \
-  --stack-name lightship-mvp-app \
-  --region us-east-1
+aws cloudformation deploy \
+  --template-file infrastructure/vpc-stack.yaml \
+  --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-vpc \
+  --parameter-overrides \
+      ProjectName=${PROJECT_NAME} Environment=${ENVIRONMENT} \
+      VpcCidr=10.145.16.0/20 \
+      AvailabilityZone1=us-east-1a AvailabilityZone2=us-east-1b \
+  --capabilities CAPABILITY_NAMED_IAM
 ```
 
-### 3. Upload Data to S3
+Produces VPC `vpc-mvp-lightship` with six /24 subnets (two public, two
+private-app, two private-data), one NAT gateway, shared private route
+table, S3/DynamoDB gateway endpoints, and ECR + CloudWatch Logs interface
+endpoints.
 
-Upload your financial data to the custom datasources bucket:
+## 2. App stack
 
 ```bash
-# Get bucket name from CloudFormation outputs
-BUCKET_NAME=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`CustomDatasourcesBucketName`].OutputValue' \
-  --output text)
-
-echo "Data bucket: $BUCKET_NAME"
-
-# Upload your data files
-aws s3 sync ./data/ s3://${BUCKET_NAME}/data/ --region us-east-1
+aws cloudformation deploy \
+  --template-file infrastructure/app-stack.yaml \
+  --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+  --parameter-overrides \
+      ProjectName=${PROJECT_NAME} Environment=${ENVIRONMENT} \
+      VPCStackName=${PROJECT_NAME}-${ENVIRONMENT}-vpc \
+  --capabilities CAPABILITY_NAMED_IAM
 ```
 
-**Expected file structure:**
-- `accounts.csv` - Chart of accounts
-- `transactions.csv` - Transaction history
-- `trial_balances.csv` - Trial balance data
-- `account_subtypes.csv` - Account classifications
+Creates:
 
-### 4. Deploy Frontend (Streamlit on ECS)
+- ECR repos: `lightship-mvp-frontend`, `lightship-mvp-backend`.
+- S3 buckets (KMS SSE via the `alias/lightship-mvp` CMK):
+  - `lightship-mvp-processing-<account>` (video ingest + results)
+  - `lightship-mvp-lancedb-<account>`
+  - `lightship-mvp-conversations-<account>`
+  - External: `s3-lightship-custom-datasources-us-east-1` (referenced by IAM).
+- DynamoDB `lightship_jobs` (`job_id` PK, `user_id`+`created_at` GSI).
+- SQS `lightship-mvp-processing-queue` + DLQ `lightship-mvp-processing-dlq`.
+- SNS topic `lightship-mvp-notifications` + alarms on DLQ depth, ALB 5xx, ECS CPU.
+- ALB `lightship-mvp-alb` (internet-facing, authorized IP only) with listener rules covering every API path the frontend calls: `/health`, `/process-video`, `/status/*`, `/results/*`, `/download/*`, `/presign-upload`, `/jobs`, `/cleanup/*`, `/process-image`, `/client-configs/*`, `/process-s3-video`, `/process-s3-prefix`, `/video-class/*`, `/frames/*`, `/batch/*`.
+- IAM roles: `lightship-mvp-ecs-execution-role`, `lightship-mvp-ecs-task-role`, `lightship-mvp-lambda-role`, `lightship-mvp-sfn-execution-role`.
+- Secrets Manager `lightship/mvp/config` (detection thresholds, Bedrock model ID).
+- CloudWatch log groups: `/ecs/lightship-mvp-frontend`, `/aws/lambda/lightship-mvp-backend`, `/ecs/lightship-mvp-worker`, `/aws/states/lightship-mvp`.
+- CloudWatch dashboard `lightship-mvp-dashboard` with six widgets: ALB RequestCount/5xx, SQS queue depth, ECS CPU/memory, DynamoDB throughput, and — added in Phase 2 — Pipeline Throughput, Rekognition Activity, and Stage Duration p50/p95 (Lightship/Backend EMF namespace).
+
+## 3. Frontend ECS service
 
 ```bash
-# Get ECR repository URI
-FRONTEND_ECR=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`FrontendECRRepositoryUri`].OutputValue' \
-  --output text)
-
-# Authenticate Docker to ECR
-aws ecr get-login-password --region us-east-1 | \
-  docker login --username AWS --password-stdin ${FRONTEND_ECR}
-
-# Build and push frontend image
-cd s3-ui-fe
-docker build -t ${FRONTEND_ECR}:latest .
-docker push ${FRONTEND_ECR}:latest
-
-# Create ECS task definition
-aws ecs register-task-definition \
-  --cli-input-json file://ecs-task-definition.json \
-  --region us-east-1
-
-# Create ECS service
-ECS_CLUSTER=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`ECSClusterName`].OutputValue' \
-  --output text)
-
-TARGET_GROUP=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`FrontendTargetGroupArn`].OutputValue' \
-  --output text)
-
-PRIVATE_SUBNETS=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-vpc \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`PrivateAppSubnets`].OutputValue' \
-  --output text)
-
-SECURITY_GROUP=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`ECSSecurityGroupId`].OutputValue' \
-  --output text)
-
-aws ecs create-service \
-  --cluster ${ECS_CLUSTER} \
-  --service-name lightship-mvp-frontend-service \
-  --task-definition lightship-mvp-frontend:1 \
-  --desired-count 1 \
-  --launch-type FARGATE \
-  --network-configuration "awsvpcConfiguration={subnets=[${PRIVATE_SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=DISABLED}" \
-  --load-balancers "targetGroupArn=${TARGET_GROUP},containerName=lightship-frontend,containerPort=8501" \
-  --health-check-grace-period-seconds 60 \
-  --region us-east-1
+aws cloudformation deploy \
+  --template-file infrastructure/frontend-service-stack.yaml \
+  --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-frontend \
+  --parameter-overrides \
+      ProjectName=${PROJECT_NAME} Environment=${ENVIRONMENT} \
+  --capabilities CAPABILITY_NAMED_IAM
 ```
 
-### 5. Deploy Backend (Lambda)
+Creates the Fargate task definition + service `lightship-mvp-frontend-service` in `lightship-mvp-cluster`. Image URI should point at the `lightship-mvp-frontend` ECR repo from the app stack.
+
+## 4. Backend Lambda + Step Functions
 
 ```bash
-# Get ECR repository URI for backend
-BACKEND_ECR=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`BackendECRRepositoryUri`].OutputValue' \
-  --output text)
-
-# Build and push backend image
-cd ../s3-lambda-be
-export DOCKER_BUILDKIT=0
-docker build -t ${BACKEND_ECR}:latest .
-docker push ${BACKEND_ECR}:latest
-
-# Get Lambda role and bucket names
-LAMBDA_ROLE=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`LambdaExecutionRoleArn`].OutputValue' \
-  --output text)
-
-DATA_BUCKET=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`CustomDatasourcesBucketName`].OutputValue' \
-  --output text)
-
-LANCEDB_BUCKET=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`LanceDBBucketName`].OutputValue' \
-  --output text)
-
-CONVERSATIONS_BUCKET=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`ConversationResultsBucketName`].OutputValue' \
-  --output text)
-
-# Create Lambda function
-aws lambda create-function \
-  --function-name lightship-mvp-backend \
-  --package-type Image \
-  --code ImageUri=${BACKEND_ECR}:latest \
-  --role ${LAMBDA_ROLE} \
-  --timeout 300 \
-  --memory-size 2048 \
-  --environment "Variables={LOG_LEVEL=INFO,DATA_SOURCE_BUCKET=${DATA_BUCKET},CUSTOM_DATASOURCES_BUCKET=${DATA_BUCKET},LANCEDB_BUCKET=${LANCEDB_BUCKET},CONVERSATIONS_BUCKET=${CONVERSATIONS_BUCKET}}" \
-  --region us-east-1
-
-# Add permission for ALB to invoke Lambda
-aws lambda add-permission \
-  --function-name lightship-mvp-backend \
-  --statement-id AllowELBInvoke \
-  --action lambda:InvokeFunction \
-  --principal elasticloadbalancing.amazonaws.com \
-  --region us-east-1
-
-# Register Lambda with ALB target group
-BACKEND_TARGET_GROUP=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`BackendTargetGroupArn`].OutputValue' \
-  --output text)
-
-LAMBDA_ARN=$(aws lambda get-function \
-  --function-name lightship-mvp-backend \
-  --region us-east-1 \
-  --query 'Configuration.FunctionArn' \
-  --output text)
-
-aws elbv2 register-targets \
-  --target-group-arn ${BACKEND_TARGET_GROUP} \
-  --targets Id=${LAMBDA_ARN} \
-  --region us-east-1
+aws cloudformation deploy \
+  --template-file infrastructure/backend-lambda-stack.yaml \
+  --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-backend \
+  --parameter-overrides \
+      ProjectName=${PROJECT_NAME} Environment=${ENVIRONMENT} \
+      ImageUri=336090301206.dkr.ecr.us-east-1.amazonaws.com/lightship-mvp-backend:latest \
+  --capabilities CAPABILITY_NAMED_IAM
 ```
 
-### 6. Get Application URL
+Creates:
+
+- Lambda `lightship-mvp-backend` (Container, 3008 MB, 900 s timeout, VPC-attached).
+  - Env vars include `PROCESSING_QUEUE_URL`, `PIPELINE_STATE_MACHINE_ARN`, `LOG_FORMAT=json`, `EMIT_METRICS=true`.
+- `AWS::Lambda::EventSourceMapping` from `lightship-mvp-processing-queue` → this Lambda (`BatchSize: 1`, `ReportBatchItemFailures`).
+- `AWS::StepFunctions::StateMachine` `lightship-mvp-pipeline` (STANDARD type, 870 s inner timeout, Retry on Lambda transient errors, Catch → MarkFailed → Fail).
+- `AWS::Logs::LogGroup` `/aws/vendedlogs/states/lightship-mvp-pipeline` (30 day retention).
+
+Verify:
 
 ```bash
-# Get ALB DNS name
-ALB_URL=$(aws cloudformation describe-stacks \
-  --stack-name lightship-mvp-app \
-  --region us-east-1 \
-  --query 'Stacks[0].Outputs[?OutputKey==`LoadBalancerURL`].OutputValue' \
-  --output text)
-
-echo "Application URL: ${ALB_URL}"
-echo "Frontend: ${ALB_URL}/"
-echo "Backend API: ${ALB_URL}/chat"
+aws lambda get-function --function-name lightship-mvp-backend \
+  --query 'Configuration.{Env:Environment.Variables,Runtime:Runtime,Memory:MemorySize}'
+aws stepfunctions list-state-machines \
+  --query "stateMachines[?name=='lightship-mvp-pipeline'].stateMachineArn"
+curl -s http://<alb-dns>/health
 ```
 
-## Testing the Deployment
-
-### Test Backend API
+## 5. CI/CD (optional)
 
 ```bash
-# Test the chat endpoint
-curl -X POST ${ALB_URL}/chat \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is the current cash balance?", "conversation_history": {}}'
+aws cloudformation deploy \
+  --template-file cicd/cicd-stack.yaml \
+  --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-cicd \
+  --capabilities CAPABILITY_NAMED_IAM
 ```
 
-### Access Frontend
+Creates two CodeBuild projects — `lightship-mvp-frontend` (uses `ui-fe/buildspec.yml`) and `lightship-mvp-backend` (uses `lambda-be/buildspec.yml`). **Note:** the stack does *not* create the CodeCommit repo; it expects `lightship-ai-mvp` to already exist.
 
-Open your browser and navigate to the ALB URL to access the Streamlit interface.
-
-## Monitoring and Logs
-
-### View Lambda Logs
+Kick off a build:
 
 ```bash
-# Tail Lambda logs
-aws logs tail /aws/lambda/lightship-mvp-backend \
-  --region us-east-1 \
-  --follow
-
-# View recent logs
-aws logs tail /aws/lambda/lightship-mvp-backend \
-  --region us-east-1 \
-  --since 1h
+aws codebuild start-build --project-name lightship-mvp-frontend
+aws codebuild start-build --project-name lightship-mvp-backend
 ```
 
-### View Frontend Logs
+## 6. End-to-end smoke
 
 ```bash
-# Tail ECS logs
-aws logs tail /ecs/lightship-mvp-frontend \
-  --region us-east-1 \
-  --follow
-
-# View recent logs
-aws logs tail /ecs/lightship-mvp-frontend \
-  --region us-east-1 \
-  --since 1h
+pytest tests/ -v                  # offline contract + metrics + batch tests
+TEST_VIDEO_S3_KEY=input/videos/sample/clip.mp4 \
+  pytest tests/test_e2e_live.py -v -k "not skipif"
 ```
 
-### Monitor ECS Service
+Or manually via the ALB URL:
 
-```bash
-# Check service status
-aws ecs describe-services \
-  --cluster ${ECS_CLUSTER} \
-  --services lightship-mvp-frontend-service \
-  --region us-east-1
-```
+1. Upload: `curl "http://<alb-dns>/presign-upload?filename=clip.mp4"`, then PUT the bytes to the returned URL.
+2. Start: `curl -X POST http://<alb-dns>/process-video -F s3_key=<key>`.
+3. Poll: `curl http://<alb-dns>/status/<job_id>` — expect `progress` to climb through `0.1 → 0.3 → 0.9 → 1.0`.
+4. Inspect:
+   - `GET /download/json/<job_id>` — core output JSON, includes `rekognition_audit`.
+   - `GET /client-configs/<job_id>` — four client config families.
+   - `GET /frames/<job_id>` — annotated frame manifest with presigned URLs.
+   - `GET /download/frames-zip/<job_id>` — ZIP bundle of annotated frames + JSON.
+5. Confirm pipeline path: `aws stepfunctions list-executions --state-machine-arn arn:aws:states:us-east-1:336090301206:stateMachine:lightship-mvp-pipeline --max-items 5` — every COMPLETED job should have a SUCCEEDED execution.
 
-### Monitor Lambda Function
+## 7. Updates
 
-```bash
-# Get Lambda function details
-aws lambda get-function \
-  --function-name lightship-mvp-backend \
-  --region us-east-1
-```
+Re-run CodeBuild, or push a new image and update the Lambda / ECS service directly (see `infrastructure/deploy.sh`).
 
-## Updating the Application
+## 8. Appendix — known stack-name / service-name matrix
 
-### Update Frontend
+| Resource | Name | Stack |
+|---|---|---|
+| VPC stack | `lightship-mvp-vpc` | `vpc-stack.yaml` |
+| App stack | `lightship-mvp-app` | `app-stack.yaml` |
+| Frontend stack | `lightship-mvp-frontend` | `frontend-service-stack.yaml` |
+| Backend stack | `lightship-mvp-backend` | `backend-lambda-stack.yaml` |
+| CICD stack | `lightship-mvp-cicd` | `cicd-stack.yaml` |
+| ECS cluster | `lightship-mvp-cluster` | app |
+| ECS service | **`lightship-mvp-frontend-service`** | frontend |
+| Backend Lambda | `lightship-mvp-backend` | backend |
+| State machine | `lightship-mvp-pipeline` | backend |
+| SQS queue | `lightship-mvp-processing-queue` | app |
+| SQS DLQ | `lightship-mvp-processing-dlq` | app |
+| DynamoDB | `lightship_jobs` | app |
 
-```bash
-# Rebuild and push new image
-cd s3-ui-fe
-docker build -t ${FRONTEND_ECR}:latest .
-docker push ${FRONTEND_ECR}:latest
-
-# Force new deployment
-aws ecs update-service \
-  --cluster ${ECS_CLUSTER} \
-  --service lightship-mvp-frontend-service \
-  --force-new-deployment \
-  --region us-east-1
-```
-
-### Update Backend
-
-```bash
-# Rebuild and push new image
-cd s3-lambda-be
-docker build -t ${BACKEND_ECR}:latest .
-docker push ${BACKEND_ECR}:latest
-
-# Update Lambda function code
-aws lambda update-function-code \
-  --function-name lightship-mvp-backend \
-  --image-uri ${BACKEND_ECR}:latest \
-  --region us-east-1
-```
-
-## Cleanup
-
-To remove all resources:
-
-```bash
-# Delete ECS service
-aws ecs delete-service \
-  --cluster ${ECS_CLUSTER} \
-  --service lightship-mvp-frontend-service \
-  --force \
-  --region us-east-1
-
-# Delete Lambda function
-aws lambda delete-function \
-  --function-name lightship-mvp-backend \
-  --region us-east-1
-
-# Delete application stack
-aws cloudformation delete-stack \
-  --stack-name lightship-mvp-app \
-  --region us-east-1
-
-# Wait for deletion
-aws cloudformation wait stack-delete-complete \
-  --stack-name lightship-mvp-app \
-  --region us-east-1
-
-# Delete VPC stack
-aws cloudformation delete-stack \
-  --stack-name lightship-mvp-vpc \
-  --region us-east-1
-
-aws cloudformation wait stack-delete-complete \
-  --stack-name lightship-mvp-vpc \
-  --region us-east-1
-
-# Empty and delete S3 buckets manually if needed
-```
-
-## Troubleshooting
-
-### Lambda 502 Errors
-
-If you encounter 502 errors from Lambda:
-1. Check Lambda logs for errors
-2. Verify Lambda has proper IAM permissions
-3. Ensure Lambda environment variables are set correctly
-4. Check Lambda timeout settings (should be 300 seconds)
-
-### ECS Tasks Not Starting
-
-If ECS tasks fail to start:
-1. Check ECS service events for error messages
-2. Verify ECR image was pushed successfully
-3. Check CloudWatch logs for container errors
-4. Ensure task definition has correct IAM roles
-
-### No Data Returned
-
-If queries return "No records found":
-1. Verify data files are uploaded to S3
-2. Check Lambda environment variable `DATA_SOURCE_BUCKET`
-3. Verify S3 bucket permissions in IAM role
-4. Check data file formats (CSV with correct headers)
-
-## Cost Optimization
-
-- **ECS**: Use Fargate Spot for non-production environments
-- **Lambda**: Adjust memory size based on actual usage
-- **S3**: Enable lifecycle policies for old data
-- **CloudWatch**: Reduce log retention period if needed
-- **NAT Gateway**: Consider NAT instances for dev/test environments
-
-## Security Considerations
-
-- ALB is internet-facing; consider adding WAF rules
-- ECS tasks run in private subnets
-- Lambda has minimal IAM permissions (principle of least privilege)
-- S3 buckets have encryption enabled
-- All communication uses VPC networking where possible
-
-## Support
-
-For issues or questions:
-- Check CloudWatch logs first
-- Review AWS CloudFormation events for deployment issues
-- Verify all prerequisites are met
-- Ensure AWS Bedrock access is enabled in us-east-1
+If your tooling references `lightship-mvp-frontend-svc` (a historical
+shortening), update it to `lightship-mvp-frontend-service` — the
+CloudFormation template names the ECS service with the full word.

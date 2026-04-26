@@ -15,7 +15,16 @@ RUN pip install --upgrade pip
 # Copy requirements
 COPY requirements.txt ${LAMBDA_TASK_ROOT}/
 
-# Install dependencies (use binary wheels to avoid compilation)
+# Install CPU-only torch first so the CUDA wheels (~3 GB aggregate) are
+# never pulled — Lambda runtime has no GPU. We use ``--extra-index-url`` so
+# pip still resolves everything else (numpy, pillow, etc.) from PyPI; the
+# ``+cpu`` pins force pip to pick the CPU-only torch wheel.
+# ``--only-binary`` avoids source-building numpy (the Lambda base image
+# ships GCC 7.3 which is too old for recent numpy from-source builds).
+RUN pip install --no-cache-dir --only-binary=:all: \
+      --extra-index-url https://download.pytorch.org/whl/cpu \
+      'torch==2.6.0+cpu' 'torchvision==0.21.0+cpu'
+
 RUN pip install --no-cache-dir --only-binary=:all: -r ${LAMBDA_TASK_ROOT}/requirements.txt || \
     pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt
 

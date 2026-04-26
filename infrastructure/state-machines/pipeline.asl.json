@@ -1,0 +1,72 @@
+{
+  "Comment": "Lightship video processing pipeline — SQS dispatcher enqueues a job, this state machine runs the full Pipeline.process_video workflow inside a single Lambda task and catches any terminal failure to mark the Dynamo row FAILED.",
+  "StartAt": "RunPipeline",
+  "States": {
+    "RunPipeline": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${PipelineFunctionArn}",
+        "Payload": {
+          "action": "pipeline_stage",
+          "job_id.$": "$.job_id",
+          "s3_key.$": "$.s3_key",
+          "filename.$": "$.filename",
+          "config.$": "$.config"
+        }
+      },
+      "ResultSelector": {
+        "status.$": "$.Payload.status",
+        "job_id.$": "$.Payload.job_id"
+      },
+      "ResultPath": "$.pipeline_result",
+      "TimeoutSeconds": 870,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "MarkFailed"
+        }
+      ],
+      "Next": "Succeed"
+    },
+
+    "MarkFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${PipelineFunctionArn}",
+        "Payload": {
+          "action": "mark_failed",
+          "job_id.$": "$.job_id",
+          "error.$": "$.error"
+        }
+      },
+      "ResultPath": "$.mark_failed_result",
+      "Next": "Fail"
+    },
+
+    "Succeed": {
+      "Type": "Succeed"
+    },
+
+    "Fail": {
+      "Type": "Fail",
+      "Error": "PipelineFailed",
+      "Cause": "See Dynamo job_id for error detail"
+    }
+  }
+}

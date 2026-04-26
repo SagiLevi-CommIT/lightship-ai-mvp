@@ -76,14 +76,153 @@ class HazardAssessor:
         Returns:
             Tuple of (hazard_events, objects_list, inferred_video_metadata)
         """
-        logger.info("Assessing hazards from pre-refined objects (hazard events only)")
+        total_objects = sum(len(v) for v in frame_objects.values())
+        logger.info(
+            "HAZARD ASSESSOR: Starting with %d frames, %d total objects",
+            len(frame_objects), total_objects,
+        )
 
-        # For now, use the existing assess_hazards method
-        # The objects are already refined, so LLM will mostly confirm them
-        # TODO: In future, create a simplified prompt that only asks for hazard events and metadata
-        # without redundant object validation/refinement tasks
+        try:
+            hazard_events, objects_list, inferred_meta = self.assess_hazards(
+                frame_objects, frame_images, video_metadata,
+            )
+        except Exception as e:
+            logger.error("HAZARD ASSESSOR: Primary assess_hazards failed: %s", e)
+            hazard_events, objects_list, inferred_meta = [], [], {}
 
-        return self.assess_hazards(frame_objects, frame_images, video_metadata)
+        logger.info(
+            "HAZARD ASSESSOR: Primary path returned %d hazards, %d objects",
+            len(hazard_events), len(objects_list),
+        )
+
+        # Check for high-priority objects with no hazards — possible LLM failure
+        high_priority_labels = {"pedestrian", "pedestrian(group)", "bicyclist",
+                                "motorcycle", "emergency_vehicle"}
+        has_high_priority = any(
+            obj.description in high_priority_labels
+            for objs in frame_objects.values()
+            for obj in objs
+        )
+
+        if len(hazard_events) == 0 and has_high_priority:
+            logger.warning(
+                "HAZARD ASSESSOR: High-priority objects detected but no hazards "
+                "extracted — retrying with simplified hazard prompt"
+            )
+            try:
+                fallback_hazards, fallback_meta = self.assess_hazards_simple(
+                    frame_objects, frame_images, video_metadata,
+                )
+                if fallback_hazards:
+                    hazard_events = fallback_hazards
+                    logger.info(
+                        "HAZARD ASSESSOR: Fallback extracted %d hazards",
+                        len(hazard_events),
+                    )
+                if not inferred_meta and fallback_meta:
+                    inferred_meta = fallback_meta
+            except Exception as e:
+                logger.error("HAZARD ASSESSOR: Fallback also failed: %s", e)
+
+        if not objects_list:
+            objects_list = [obj for objs in frame_objects.values() for obj in objs]
+
+        return hazard_events, objects_list, inferred_meta
+
+    def assess_hazards_simple(
+        self,
+        frame_objects: Dict[int, List[ObjectLabel]],
+        frame_images: Dict[int, str],
+        video_metadata: Dict,
+    ) -> Tuple[List[HazardEvent], Dict]:
+        """Simplified hazard-only prompt: send 3 images + object summary, ask only for hazards.
+
+        Returns:
+            Tuple of (hazard_events, video_metadata_dict)
+        """
+        frame_indices = sorted(frame_objects.keys())
+        # Pick up to 3 frames uniformly
+        if len(frame_indices) <= 3:
+            selected = frame_indices
+        else:
+            step = len(frame_indices) / 3
+            selected = [frame_indices[int(i * step)] for i in range(3)]
+
+        images_b64 = []
+        for idx in selected:
+            if idx in frame_images:
+                with open(frame_images[idx], "rb") as f:
+                    images_b64.append(base64.b64encode(f.read()).decode("utf-8"))
+
+        # Build concise object summary
+        summary_lines = []
+        for idx in selected:
+            objs = frame_objects.get(idx, [])
+            descs = [f"{o.description}({o.distance})" for o in objs]
+            summary_lines.append(f"Frame {idx}: {', '.join(descs) or 'no objects'}")
+        objects_summary = "\n".join(summary_lines)
+
+        prompt = f"""You are a dashcam safety analyst. Analyze these {len(images_b64)} frames and the detected objects below.
+
+DETECTED OBJECTS:
+{objects_summary}
+
+YOUR TASK: List ALL hazards visible in these dashcam frames. For each hazard, provide:
+- start_time_ms: timestamp in milliseconds
+- hazard_type: category (e.g., "pedestrian_proximity", "vehicle_conflict", "obstruction")
+- hazard_description: detailed description of the hazard
+- hazard_severity: Critical, High, Medium, Low, or None
+- road_conditions: current conditions (e.g., "dry", "wet", "construction")
+- duration_ms: estimated duration or null
+
+Also infer basic video metadata:
+- description: 1-2 sentence summary
+- traffic: light/moderate/heavy
+- weather: clear/rain/snow/fog
+- lighting: daylight/dusk/night
+- speed: approximate speed
+
+Return ONLY valid JSON:
+{{
+  "video_metadata": {{"description": "...", "traffic": "...", "weather": "...", "lighting": "...", "speed": "..."}},
+  "hazard_events": [
+    {{"start_time_ms": 0, "hazard_type": "...", "hazard_description": "...", "hazard_severity": "...", "road_conditions": "...", "duration_ms": null}}
+  ]
+}}
+
+CRITICAL: If you see pedestrians, cyclists, or vehicles near the camera path, those ARE hazards. Do NOT return an empty hazard_events array when VRUs are present."""
+
+        response_text = self._call_bedrock(images_b64, prompt)
+        logger.info(
+            "HAZARD ASSESSOR (simple): Bedrock returned %d chars", len(response_text),
+        )
+
+        try:
+            start_idx = response_text.find("{")
+            end_idx = response_text.rfind("}")
+            if start_idx == -1 or end_idx == -1:
+                return [], {}
+            data = json.loads(response_text[start_idx : end_idx + 1])
+
+            video_meta = data.get("video_metadata", {})
+            hazard_events = []
+            for h in data.get("hazard_events", []):
+                try:
+                    hazard_events.append(HazardEvent(
+                        start_time_ms=float(h["start_time_ms"]),
+                        hazard_type=h["hazard_type"],
+                        hazard_description=h["hazard_description"],
+                        hazard_severity=h["hazard_severity"],
+                        road_conditions=h.get("road_conditions", "Unknown"),
+                        duration_ms=h.get("duration_ms"),
+                    ))
+                except Exception as e:
+                    logger.warning("Failed to parse simple hazard: %s", e)
+            return hazard_events, video_meta
+
+        except Exception as e:
+            logger.error("HAZARD ASSESSOR (simple): Parse failed: %s", e)
+            return [], {}
 
     def assess_hazards(
         self,
@@ -452,6 +591,8 @@ CRITICAL RULES:
 - Return ONLY valid JSON, no explanations or markdown
 - If no hazards, use "hazard_events": []
 
+CRITICAL: Every single field in the JSON MUST have a real value. Do NOT return empty strings or 'unknown' for description, weather, traffic, or lighting. Make your best estimate based on the images. If you see a road, you MUST determine the weather and lighting from visual cues.
+
 Now analyze the frames and return the complete JSON:"""
 
         return prompt
@@ -514,7 +655,12 @@ Now analyze the frames and return the complete JSON:"""
                 response_body = json.loads(response['body'].read())
 
                 if 'content' in response_body and len(response_body['content']) > 0:
-                    return response_body['content'][0]['text']
+                    text = response_body['content'][0]['text']
+                    logger.info(
+                        "Hazard assessor raw response (%d chars): %.500s",
+                        len(text), text,
+                    )
+                    return text
                 else:
                     raise ValueError("No content in Bedrock response")
 
@@ -752,8 +898,24 @@ Return the corrected JSON now:"""
             json_text = response_text[start_idx:end_idx+1]
             data = json.loads(json_text)
 
-            # Parse video metadata
+            # Parse video metadata with empty-string coercion
             video_metadata = data.get('video_metadata', {})
+            _METADATA_DEFAULTS = {
+                "description": "Dashcam driving footage",
+                "traffic": "unknown",
+                "lighting": "unknown",
+                "weather": "clear",
+                "collision": "none",
+                "speed": "unknown",
+            }
+            for field, default in _METADATA_DEFAULTS.items():
+                val = video_metadata.get(field, "")
+                if not val or not str(val).strip():
+                    logger.warning(
+                        "Video metadata field '%s' was empty — defaulting to '%s'",
+                        field, default,
+                    )
+                    video_metadata[field] = default
 
             # Parse hazard events
             hazard_events = []
@@ -800,6 +962,45 @@ Return the corrected JSON now:"""
         except Exception as e:
             logger.error(f"Error parsing response: {e}")
             return [], {}, {}
+
+    # Map common out-of-enum distance/priority strings that the LLM sometimes
+    # returns onto the canonical schema enums.  This prevents validation errors
+    # downstream (e.g. legacy runs that emitted "mid" / "near" / "medium").
+    _DISTANCE_ALIASES = {
+        "mid": "moderate",
+        "medium": "moderate",
+        "mid-range": "moderate",
+        "midrange": "moderate",
+        "near": "close",
+        "very near": "very_close",
+        "very-near": "very_close",
+        "far-away": "far",
+        "very_distant": "very_far",
+        "not_applicable": "n/a",
+        "na": "n/a",
+        "unknown": "moderate",
+    }
+    _PRIORITY_ALIASES = {
+        "mid": "medium",
+        "moderate": "medium",
+        "info": "none",
+        "informational": "none",
+        "unknown": "none",
+    }
+
+    @classmethod
+    def _normalize_distance(cls, value: str) -> str:
+        if not value:
+            return "moderate"
+        key = str(value).strip().lower()
+        return cls._DISTANCE_ALIASES.get(key, key)
+
+    @classmethod
+    def _normalize_priority(cls, value: str) -> str:
+        if not value:
+            return "none"
+        key = str(value).strip().lower()
+        return cls._PRIORITY_ALIASES.get(key, key)
 
     def _apply_refinements(
         self,
@@ -849,10 +1050,12 @@ Return the corrected JSON now:"""
                         logger.info(f"LLM rejected false positive: frame {logical_frame_idx}, object {object_index} ({obj.description})")
                         continue
 
-                    # Apply LLM refinements (not a false positive)
+                    # Apply LLM refinements (not a false positive). Normalize
+                    # out-of-enum LLM outputs to canonical schema values so
+                    # the final VideoOutput always validates.
                     refined_obj = obj.model_copy(update={
-                        'distance': refinement['refined_distance'],
-                        'priority': refinement['refined_priority'],
+                        'distance': self._normalize_distance(refinement['refined_distance']),
+                        'priority': self._normalize_priority(refinement['refined_priority']),
                         'location_description': refinement.get('location_description', '')
                     })
                     refined_list.append(refined_obj)

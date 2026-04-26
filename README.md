@@ -1,405 +1,256 @@
-# Lightship MVP - Snapshot-Based Object & Hazard Labeling
+# Lightship MVP — Dashcam Video Analysis Platform
 
-Dashcam video analysis system using AWS Bedrock Claude Sonnet for object detection, threat assessment, and priority hazard identification.
+Production-ready AWS MVP for dashcam video ingestion, frame selection,
+object / hazard detection, video classification and client-ready config
+generation.
 
----
-
-## 🎯 Project Status: ✅ V3 COMPLETE + GEOMETRY TUNING NEEDED
-
-V3 pipeline with per-frame LLM refinement fully implemented and tested.
-
-### Quick Stats (V3 on lytx_1.mp4)
-- **Pipeline Version:** V3 (per-frame + temporal LLM)
-- **Processing Time:** ~2 minutes per video
-- **Traffic Object Recall:** 89% ✅ (excellent)
-- **Geometry Object Recall:** 4% ⚠️ (needs tuning)
-- **Pipeline Success Rate:** 100%
-- **Output Format:** Valid JSON per specification
-
-### Next Priority: Geometry Detection Improvement
-See [`GEOMETRY_DETECTION_BRIEFING.md`](GEOMETRY_DETECTION_BRIEFING.md) for details.
+Region: **us-east-1**. Account: **336090301206**. VPC CIDR:
+**10.145.16.0/20**. Naming follows
+[`AWS-NAMING-CONVENTION.md`](AWS-NAMING-CONVENTION.md).
 
 ---
 
-## 📁 Project Structure
+## 1. Architecture (actual, as deployed)
+
+Last verified against AWS on 2026-04-26. The live environment is in
+`us-east-1`; there is no deployed Route 53 hosted zone or regional WAF Web ACL
+for this MVP at the time of verification. See
+[`docs/aws-architecture-audit-2026-04-26.md`](docs/aws-architecture-audit-2026-04-26.md)
+for the full comparison with the external architecture sketch and the current
+Cost Explorer estimate.
+
+```mermaid
+flowchart TB
+  subgraph Clients
+    Browser[Next.js UI]
+  end
+
+  Browser -->|HTTPS / HTTP 80| ALB
+  ALB -->|"/, /history, /results/*"| ECS[ECS Fargate Next.js]
+  ALB -->|"/health, /jobs, /process-*, /status/*, /frames/*, /batch/*, /download/*, ..."| Lambda[lightship-mvp-backend Lambda FastAPI + Mangum]
+
+  Lambda -->|presigned PUT| S3Input[(S3 input/)]
+  Lambda -->|put_job / update_status| DDB[(DynamoDB lightship_jobs)]
+  Lambda -->|SendMessage| SQS[(lightship-mvp-processing-queue)]
+
+  SQS -->|EventSourceMapping| Lambda
+  Lambda -->|StartExecution| SFN[Step Functions lightship-mvp-pipeline]
+  SFN -->|invoke action=pipeline_stage| Lambda
+  Lambda -->|DetectLabels| Rekognition
+  Lambda -->|InvokeModel| Bedrock
+
+  Lambda -->|put results| S3Output[(S3 results/)]
+  Lambda -->|mark COMPLETED/FAILED| DDB
+
+  SFN -.error.-> DLQ[(lightship-mvp-processing-dlq)]
+```
+
+**Dispatch path (Phase 3):**
+
+1. UI calls `POST /process-video` (or `/process-s3-video`, or `/batch/process`).
+2. Backend Lambda puts the job row into DynamoDB (`status=QUEUED`) and
+   `SendMessage`s to SQS.
+3. The same backend Lambda doubles as the SQS consumer via an
+   `EventSourceMapping` (with `ReportBatchItemFailures`); the dispatcher
+   branch calls `StartExecution` on the `lightship-mvp-pipeline` state
+   machine.
+4. The state machine invokes the backend Lambda again with
+   `action: pipeline_stage`; that branch runs `Pipeline.process_video` end
+   to end.
+5. On failure, the state machine's `Catch` routes to a `MarkFailed` task
+   that updates DynamoDB, then the execution transitions to `Fail`.
+
+The legacy Lambda self-invoke path (`action: process_worker`) is still
+supported as a fallback when `PROCESSING_QUEUE_URL` is unset — local dev
+and un-migrated deployments keep working.
+
+---
+
+## 2. Repository layout
 
 ```
-Lightship/
-├── src/                          # Backend source code
-│   ├── config.py                 # Configuration & enums (V3 params added)
-│   ├── schemas.py                # Pydantic validation models
-│   ├── video_loader.py           # Video metadata extraction
-│   ├── snapshot_selector.py      # GT matching & scene detection
-│   ├── frame_extractor.py        # Frame extraction
-│   ├── cv_labeler.py             # CV detection (YOLO + geometry)
-│   ├── frame_annotator.py        # V3: Frame annotation utilities
-│   ├── frame_refiner.py          # V3: Per-frame LLM refinement
-│   ├── hazard_assessor.py        # V3: Temporal LLM (hazard events)
-│   ├── scene_labeler.py          # V1: Bedrock LLM integration (legacy)
-│   ├── merger.py                 # Output generation
-│   ├── pipeline.py               # V3: End-to-end orchestration
-│   ├── main.py                   # CLI entry point
-│   ├── api_server.py             # FastAPI REST API server
-│   ├── analysis_missing_objects.py    # Analysis script
-│   ├── evaluation_metrics.py          # Metrics calculation
-│   └── evaluation_flexible.py         # Threshold testing
+├── infrastructure/
+│   ├── vpc-stack.yaml                 # VPC, subnets, NAT, endpoints, flow logs
+│   ├── app-stack.yaml                 # IAM, ECR, S3, DDB, SQS, SNS, ALB, KMS, Dashboard
+│   ├── frontend-service-stack.yaml    # ECS Fargate task + service for the UI
+│   ├── backend-lambda-stack.yaml      # Lambda container + SQS consumer + Step Functions state machine
+│   ├── state-machines/pipeline.asl.json  # Readable ASL (CFN inlines the same definition)
+│   └── deploy.sh                      # One-shot deployment helper
 │
-├── ui/                           # Web UI (Streamlit)
-│   ├── src/
-│   │   ├── streamlit_app.py      # Main UI application
-│   │   ├── api_client.py         # API client
-│   │   └── visualization.py      # Frame annotation
-│   ├── requirements.txt          # UI dependencies
-│   └── README.md                 # UI documentation
+├── cicd/
+│   └── cicd-stack.yaml                # CodeBuild projects (expects pre-existing CodeCommit repo)
 │
-├── test_frame_refiner.py         # V3: Per-frame refiner test (with GT)
-├── test_pipeline_v3.py           # V3: Full pipeline test (with GT)
-├── test_cv_improvements.py       # V2: CV validation test (legacy)
-├── test_extended_cameras.py      # V2: Multi-camera test (legacy)
+├── ui-fe/                             # Next.js 15 App Router (TypeScript, Tailwind)
+│   ├── src/app/                       # /, /history, /run, /results/[runId]
+│   ├── src/components/                # evaluation/* + shared shell
+│   ├── src/lib/api.ts                 # Typed ALB client (presign, process, poll, batch, download zip)
+│   ├── src/lib/uuid.ts                # HTTP-safe UUID v4 with getRandomValues + Math.random fallback
+│   ├── playwright.config.ts           # e2e config (Chromium)
+│   ├── tests/e2e/*.spec.ts            # upload-flow, batch-flow, results
+│   └── Dockerfile                     # Standalone Next.js image on port 3000
 │
-├── data/                         # Input data
-│   ├── train/                    # 10 videos + GT annotations
-│   └── test/                     # 15 test videos
+├── lambda-be/                         # FastAPI Lambda container image
+│   ├── src/lambda_function.py         # Routes ALB / SFN / SQS / legacy events
+│   ├── src/api_server.py              # FastAPI routes + _enqueue_job dispatch helper
+│   ├── src/job_status.py              # Warm-cache + DynamoDB progress writes (reserved-word-safe)
+│   ├── src/pipeline.py                # V3 orchestrator (CV + Rekognition + Bedrock refine + hazard)
+│   ├── src/rekognition_labeler.py     # DetectLabels + per-frame audit for output.json
+│   ├── src/utils/logging_setup.py     # JSON-on-Lambda / text-locally
+│   ├── src/utils/metrics.py           # CloudWatch EMF emission (stage_timer, count, duration_ms)
+│   └── src/config_generator.py        # Four client-config families
 │
-├── output/                       # Generated JSON outputs
-│   ├── lytx_1.json
-│   ├── lytx_2.json
-│   └── ... (10 train outputs)
+├── tests/                             # pytest (offline + live)
+│   ├── test_api_contracts.py          # 17 offline contract tests (TestClient + stubs)
+│   ├── test_08_progress_tracking.py   # Phase 1 progress + reserved-word handling
+│   ├── test_metrics_and_logging.py    # Phase 2 EMF metrics + JSON formatter
+│   ├── test_dispatcher_and_sqs.py     # Phase 3 SQS enqueue + SFN dispatch
+│   ├── test_batch_endpoints.py        # Phase 4 batch + frames-zip
+│   ├── test_06_e2e_pipeline.py        # Live-AWS end-to-end (with Rekognition audit check)
+│   └── test_e2e_live.py               # Live-ALB smoke covering every new endpoint
 │
-├── references/                   # Specifications & examples
-│   ├── lightship_commit_po_c_solution_spec.md
-│   ├── lightship_commit_po_c_output_json_example_post_schema_update.json
-│   └── distance description list and object labels.md
-│
-├── start_api.ps1                 # API server startup script
-├── start_ui.ps1                  # UI startup script
-├── .env                          # AWS credentials & config
-├── requirements.txt              # Backend dependencies
-│
-├── AGENT_ONBOARDING.md           # ⭐ Comprehensive agent guide
-├── IMPLEMENTATION_STATUS.md      # ⭐ Current status + V3 results
-├── GEOMETRY_DETECTION_BRIEFING.md # ⭐ Geometry improvement task
-├── NEXT_AGENT_QUICK_START.md     # Quick reference for new agents
-├── V3_IMPLEMENTATION_SUMMARY.md  # V3 architecture details
-│
-└── Analysis Reports/             # Comprehensive analysis
-    ├── TRAIN_ANALYSIS_REPORT.md
-    ├── DETAILED_ANALYSIS_REPORT.md
-    ├── EVALUATION_SUMMARY.md
-    └── *.json (detailed results)
+├── scripts/smoke_browser.md           # Manual HTTP browser smoke checklist
+├── .env.example                       # Every env var the system reads
+├── .github/workflows/ci.yml           # Backend pytest + UI typecheck/build + Playwright
+└── IMPLEMENTATION_STATUS.md           # Phase-by-phase status, test command, and files touched
 ```
 
 ---
 
-## 🚀 Quick Start
+## 3. API contract
 
-### Option A: Use VS Code (Recommended for Development)
+All routes are served behind the ALB at the URL exposed by the app stack's
+`LoadBalancerURL` output.
 
-The easiest way for development and debugging:
+| Method | Path                                     | Purpose                                                                     |
+|--------|------------------------------------------|-----------------------------------------------------------------------------|
+| GET    | `/health`                                | Liveness                                                                    |
+| GET    | `/jobs?limit=N`                          | List recent jobs from DynamoDB                                              |
+| GET    | `/presign-upload?filename=&content_type=`| Presigned PUT + required headers                                            |
+| POST   | `/process-video`                         | Form `s3_key` (or direct `video` upload) + `config` JSON                    |
+| POST   | `/process-image`                         | Synchronous single-image detection (no job row)                             |
+| POST   | `/process-s3-video`                      | `{ s3_uri, config }` — copies into processing bucket if needed              |
+| POST   | `/process-s3-prefix`                     | `{ s3_prefix, config }` — one job per matching video object                 |
+| POST   | `/batch/process`                         | `{ items: [{ s3_uri \| s3_key \| s3_prefix, filename, config }] }`          |
+| GET    | `/batch/status?job_ids=a,b,c`            | One round-trip status for N jobs (unknown ids reported as `NOT_FOUND`)      |
+| GET    | `/status/{job_id}`                       | Single-job status + progress (warm cache, Dynamo fallback)                  |
+| GET    | `/results/{job_id}`                      | Summary (warm cache, S3 manifest fallback)                                  |
+| GET    | `/frames/{job_id}`                       | Annotated-frame manifest with presigned URLs                                |
+| GET    | `/video-class/{job_id}`                  | Driving vs Job Site class + metadata                                        |
+| GET    | `/client-configs/{job_id}`               | Four client config families                                                 |
+| GET    | `/download/json/{job_id}`                | Output JSON (includes `rekognition_audit`)                                  |
+| GET    | `/download/frame/{job_id}/{frame_idx}`   | Annotated frame PNG                                                         |
+| GET    | `/download/frames-zip/{job_id}`          | ZIP bundle of annotated frames + per-frame JSON + `output.json`             |
+| DELETE | `/cleanup/{job_id}`                      | Release warm-cache temp artifacts                                           |
 
-**1. Open in VS Code:**
-```
-File → Open Folder → C:\Asaf\Commit\MVPs\Lightship
-```
-
-**2. Select Python Interpreter:**
-- Bottom-left corner → Click Python version
-- Choose: `.venv\Scripts\python.exe`
-
-**3. Press F5:**
-- Select **🌐 Full Stack (API + UI)**
-- Both servers start in debug mode
-- Browser opens automatically to UI
-- Set breakpoints anywhere!
-
-See [VS Code Quick Start](VSCODE_QUICKSTART.md) for details.
-
----
-
-### Option B: Use Scripts (For Production)
-
-Use PowerShell scripts for quick deployment:
-
-**1. Start API Server** (Terminal 1):
-```powershell
-.\start_api.ps1
-# API will be at http://localhost:8000
-```
-
-**2. Start UI** (Terminal 2):
-```powershell
-.\start_ui.ps1
-# UI will open at http://localhost:8501
-```
-
-**3. Use the UI:**
-- Upload a dashcam video
-- Configure settings (snapshot strategy, max frames)
-- Click "Start Processing"
-- View annotated frames and results
-- Download JSON and images
-
-See [UI Documentation](ui/README.md) for details.
+Direct-to-S3 uploads are required in production because the ALB →
+Lambda integration has a hard 1 MB payload cap.
 
 ---
 
-### Option C: Use CLI
+## 4. Deploy
 
-For batch processing or automation:
+See [`DEPLOYMENT.md`](DEPLOYMENT.md) for the full four-stack walkthrough.
+Short version (requires AWS SSO login + `role-commit-lightship-devops`):
 
-**1. Setup Environment:**
-```powershell
-# Create virtual environment
-py -m venv .venv
+```bash
+export AWS_REGION=us-east-1 PROJECT_NAME=lightship ENVIRONMENT=mvp
 
-# Activate
-.\.venv\Scripts\Activate.ps1
+aws cloudformation deploy --template-file infrastructure/vpc-stack.yaml \
+  --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-vpc --capabilities CAPABILITY_NAMED_IAM
 
-# Install dependencies
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+aws cloudformation deploy --template-file infrastructure/app-stack.yaml \
+  --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-app \
+  --parameter-overrides VPCStackName=${PROJECT_NAME}-${ENVIRONMENT}-vpc \
+  --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation deploy --template-file infrastructure/frontend-service-stack.yaml \
+  --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-frontend --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation deploy --template-file infrastructure/backend-lambda-stack.yaml \
+  --stack-name ${PROJECT_NAME}-${ENVIRONMENT}-backend --capabilities CAPABILITY_NAMED_IAM
 ```
 
-**2. Configure AWS Credentials**
-
-Ensure `.env` contains:
-```
-AWS_REGION=eu-central-1
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
-BEDROCK_MODEL_ID=eu.anthropic.claude-sonnet-4-20250514-v1:0
-```
-
-**3. Run Pipeline:**
-
-**Process all train videos:**
-```powershell
-python -m src.main --mode train
-```
-
-**Process all test videos:**
-```powershell
-python -m src.main --mode test
-```
-
-**Process single video:**
-```powershell
-python -m src.main --mode single --video data/train/lytx_1.mp4
-```
-
-**Use scene change detection:**
-```powershell
-python -m src.main --mode train --strategy scene_change
-```
+Or run `bash infrastructure/deploy.sh` for an interactive walkthrough.
 
 ---
 
-## 📊 Run Analysis Scripts
+## 5. Local development
 
-### Analyze Missing Objects
-```powershell
-python src/analysis_missing_objects.py
-```
-**Outputs:** `analysis_missing_objects_results.json`
+```bash
+# Backend
+cd lambda-be
+python -m venv .venv && .venv/Scripts/activate   # Windows
+# source .venv/bin/activate                      # macOS/Linux
+pip install -r requirements.txt
+uvicorn src.api_server:app --host 0.0.0.0 --port 8000 --reload
 
-### Calculate Evaluation Metrics
-```powershell
-python src/evaluation_metrics.py
-```
-**Outputs:** `evaluation_metrics_results.json`
-
-### Test Different Thresholds
-```powershell
-python src/evaluation_flexible.py
-```
-**Shows:** Performance comparison at different IoU thresholds
-
----
-
-## 📈 Results Summary
-
-### Pipeline Performance
-- ✅ 100% success rate (10/10 videos)
-- ✅ All outputs schema-validated
-- ✅ Perfect GT timestamp matching
-- ✅ Appropriate threat level assignment
-
-### Object Detection Performance
-
-| Metric | Value | Notes |
-|--------|-------|-------|
-| **Recall (IoU=0.3)** | 10.3% | Too strict for visual estimation |
-| **Recall (IoU=0.2)** | 17.5% | +70% improvement |
-| **Recall (IoU=0.15)** | 21.8% | +112% improvement |
-| **Precision** | 9.5-20% | Varies with threshold |
-| **Distance Accuracy** | 58.8% | Moderate performance |
-| **Mean IoU** | 0.407 | Moderate bbox overlap |
-
-**Key Finding:** Low recall due to LLM bounding box approximation, not detection failure. System correctly identifies objects but generates approximate (not pixel-perfect) bounding boxes.
-
----
-
-## 🔍 Analysis Reports
-
-### 1. TRAIN_ANALYSIS_REPORT.md
-Initial qualitative analysis comparing outputs with ground truth. Identifies schema differences, object count discrepancy, and qualitative patterns.
-
-### 2. DETAILED_ANALYSIS_REPORT.md (⭐ Main Report)
-Comprehensive deep-dive analysis including:
-- Root cause analysis of 10% recall
-- Per-category performance breakdown
-- IoU distribution analysis
-- Distance accuracy evaluation
-- Bounding box precision investigation
-- Recommendations for improvement
-
-### 3. EVALUATION_SUMMARY.md
-Executive summary with conclusions, lessons learned, and actionable next steps.
-
----
-
-## 🎯 Key Findings
-
-### ✅ What's Working
-1. **Object Detection:** Correct object types identified
-2. **Threat Assessment:** Appropriate safety-focused levels
-3. **System Reliability:** 100% uptime, no crashes
-4. **Schema Compliance:** All outputs valid
-5. **Semantic Understanding:** Strong LLM performance
-
-### ⚠️ Known Limitations
-1. **Bounding Box Precision:** Approximate visual estimates, not pixel-perfect
-2. **Small Object Detection:** Traffic signals, signs sensitive to spatial offset
-3. **Distance Estimation:** 58.8% accuracy, tends to default to "moderate"
-
-### 💡 Root Cause
-LLM generates **approximate bounding boxes** (like human visual estimation) rather than precise pixel-level coordinates (like annotation tools). This causes spatial mismatch with GT, resulting in low IoU-based recall despite **correct semantic detection**.
-
----
-
-## 🔧 Configuration
-
-Edit `src/config.py` to customize:
-
-```python
-# Snapshot Selection
-SNAPSHOT_STRATEGY = "naive"  # or "scene_change"
-MAX_SNAPSHOTS_PER_VIDEO = 3
-EVAL_TOLERANCE_MS = 1000
-
-# Threat Levels
-THREAT_LEVEL_ENUM = ["none", "low", "medium", "high", "critical"]
-PRIORITY_THRESHOLD = "high"
-
-# Scene Change Detection
-SCENE_CHANGE_THRESHOLD = 0.3
-SCENE_CHANGE_MIN_INTERVAL_MS = 1000
+# Frontend
+cd ui-fe
+npm install
+NEXT_PUBLIC_API_BASE=http://localhost:8000 npm run dev
 ```
 
+Leave `PROCESSING_QUEUE_URL` and `PIPELINE_STATE_MACHINE_ARN` empty in
+local dev — `/process-video` will run the pipeline in a FastAPI background
+task rather than going through SQS/SFN.
+
 ---
 
-## 📖 Usage Examples
+## 6. Testing
 
-### Example Output Structure
-```json
-{
-  "filename": "lytx_1.mp4",
-  "camera": "lytx",
-  "fps": 10.0,
-  "duration_ms": 13500.0,
-  "objects": [
-    {
-      "description": "pedestrian",
-      "start_time_ms": 1830.58,
-      "distance": "close",
-      "threat_level": "high",
-      "center": {"x": 780, "y": 420},
-      "x_min": 750.0,
-      "y_min": 380.0,
-      "x_max": 810.0,
-      "y_max": 460.0,
-      "width": 60.0,
-      "height": 80.0
-    }
-  ]
-}
+```bash
+# Offline — no AWS credentials required
+python -m pytest \
+  tests/test_08_progress_tracking.py \
+  tests/test_api_contracts.py \
+  tests/test_metrics_and_logging.py \
+  tests/test_dispatcher_and_sqs.py \
+  tests/test_batch_endpoints.py -v
+
+# Frontend typecheck + build
+cd ui-fe && npx tsc --noEmit && npm run build
+
+# Playwright (starts next start automatically)
+cd ui-fe && npx playwright install --with-deps chromium && npx playwright test
+
+# Live ALB (needs AWS creds + optionally TEST_VIDEO_S3_KEY)
+AWS_PROFILE=commit-devops-role pytest tests/test_e2e_live.py -v
 ```
 
-### Threat Level Guidelines
-- **critical:** Immediate danger requiring urgent response
-- **high:** Plausible hazard requiring close monitoring
-- **medium:** Worth attention, may require monitoring
-- **low:** Relevant but unlikely to require action
-- **none:** Context-only, informational
-
-### Distance Categories
-- **very_close:** Dangerously close, immediate threat
-- **close:** Close range, requires careful watching
-- **moderate:** Moderate distance, safe but alert
-- **far:** Far distance, comfortably distant
-- **very_far:** Well beyond concern
-- **n/a:** Not applicable (e.g., lane markings)
+CI (`.github/workflows/ci.yml`) runs the offline suite + build + Playwright
+in parallel on every PR.
 
 ---
 
-## 🚨 Troubleshooting
+## 7. Observability
 
-### "No GT files found"
-- Ensure train data exists in `data/train/` with naming pattern `video_name-N.json`
+- **JSON structured logs** on Lambda — query via CloudWatch Logs Insights:
 
-### "Cannot open video"
-- Check video path and ensure OpenCV can read the format
-- Verify video is not corrupted
+  ```
+  fields @timestamp, level, message, job_id, stage, duration_ms
+  | filter level = "ERROR"
+  | stats count() by stage
+  ```
 
-### "Bedrock API error"
-- Check AWS credentials in `.env`
-- Ensure region and model ID are correct
-- Verify IAM permissions for Bedrock
+- **EMF metrics** under `Lightship/Backend`: `PipelineStarts`,
+  `PipelineCompletions`, `PipelineFailures`, `RekognitionCalls`,
+  `RekognitionLabelsReturned`, `RekognitionInstancesKept`,
+  `RekognitionCallMs`, `StageDurationMs` (dim `Stage`), `StageFailures`.
 
-### Low object detection count
-- This is expected - see DETAILED_ANALYSIS_REPORT.md
-- LLM generates approximate bboxes vs precise GT annotations
-- Consider lowering IoU threshold for evaluation
+- **Dashboard** `lightship-mvp-dashboard` — ALB, SQS, ECS, DynamoDB plus
+  three Phase 2 widgets (pipeline throughput, Rekognition activity, stage
+  duration p50/p95).
 
----
-
-## 📚 Dependencies
-
-- `opencv-python>=4.8.0` - Video processing
-- `boto3>=1.34.0` - AWS Bedrock integration
-- `python-dotenv>=1.0.0` - Environment variables
-- `pydantic>=2.0.0` - Schema validation
-- `numpy>=1.24.0` - Numerical operations
-- `scikit-image>=0.21.0` - Computer vision utilities
-- `Pillow>=10.0.0` - Image processing
+- **Rekognition audit** — every completed `output.json` carries a
+  `rekognition_audit` block with `frames_evaluated`, `total_instances_kept`
+  and one entry per frame (raw labels + confidence + latency). Verified by
+  `tests/test_06_e2e_pipeline.test_rekognition_audit_present_in_output_json`.
 
 ---
 
-## 🎓 Lessons Learned
+## 8. Status + history
 
-1. **Evaluation metrics must match system capabilities** - Strict spatial metrics inappropriate for visual estimation systems
-2. **LLM excels at semantic understanding** - Object types, threat assessment, context interpretation
-3. **LLM approximate at spatial precision** - Bounding boxes are visual estimates, not CAD-level accurate
-4. **Hybrid approaches recommended** - Combine LLM semantics with CV precision for production
-
----
-
-## 📞 Support
-
-For questions or issues:
-1. Review analysis reports in project root
-2. Check `IMPLEMENTATION_STATUS.md` for component status
-3. Examine `.logs/app.log` for detailed execution logs
-
----
-
-## 📝 License
-
-Proprietary - Commit AI / Lightship MVP
-
----
-
-**Last Updated:** 2025-12-25
-**Status:** ✅ All TODOs Complete
-**Next Steps:** Review with stakeholders, decide on deployment approach
-
+See [`IMPLEMENTATION_STATUS.md`](IMPLEMENTATION_STATUS.md) for the
+phase-by-phase record. The [`LIGHTSHIP_MVP_EXECUTION_PLAN.md`](LIGHTSHIP_MVP_EXECUTION_PLAN.md)
+captures KPI targets and historical gap analysis; the README above
+supersedes its architecture section.

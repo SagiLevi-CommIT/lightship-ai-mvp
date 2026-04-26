@@ -34,27 +34,15 @@ Resources:
         - Name: frontend
           Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ProjectName}-frontend:latest'
           PortMappings:
-            - ContainerPort: 8501
+            - ContainerPort: 3000
               Protocol: tcp
           Environment:
-            - Name: BACKEND_URL
-              Value:
-                Fn::Sub:
-                  - 'http://${ALBDns}'
-                  - ALBDns:
-                      Fn::ImportValue: !Sub '${ProjectName}-${Environment}-alb-dns'
-            - Name: BACKEND_TIMEOUT
-              Value: '300'
-            - Name: PAGE_TITLE
-              Value: 'Lightship Dashcam Video Analysis'
-            - Name: STREAMLIT_SERVER_ADDRESS
-              Value: '0.0.0.0'
-            - Name: STREAMLIT_SERVER_PORT
-              Value: '8501'
-            - Name: STREAMLIT_SERVER_HEADLESS
-              Value: 'true'
-            - Name: SHOW_DEBUG_INFO
-              Value: 'false'
+            - Name: PORT
+              Value: '3000'
+            - Name: NODE_ENV
+              Value: 'production'
+            - Name: NEXT_PUBLIC_API_BASE
+              Value: ''
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -78,7 +66,7 @@ Resources:
         Fn::ImportValue: !Sub '${ProjectName}-${Environment}-ecs-cluster'
       TaskDefinition: !Ref FrontendTaskDefinition
       LaunchType: FARGATE
-      DesiredCount: 2
+      DesiredCount: 1
       NetworkConfiguration:
         AwsvpcConfiguration:
           SecurityGroups:
@@ -89,7 +77,7 @@ Resources:
           AssignPublicIp: DISABLED
       LoadBalancers:
         - ContainerName: frontend
-          ContainerPort: 8501
+          ContainerPort: 3000
           TargetGroupArn:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-frontend-target-group-arn'
       DeploymentConfiguration:
@@ -106,8 +94,8 @@ Resources:
   ECSServiceAutoScalingTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
     Properties:
-      MaxCapacity: 10
-      MinCapacity: 2
+      MaxCapacity: 4
+      MinCapacity: 1
       ResourceId: !Sub 'service/${ProjectName}-${Environment}-cluster/${FrontendECSService.Name}'
       RoleARN: !Sub 'arn:aws:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService'
       ScalableDimension: ecs:service:DesiredCount

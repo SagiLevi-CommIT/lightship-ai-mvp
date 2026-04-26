@@ -1,0 +1,31 @@
+---
+description: Terminal + venv workflow: create/activate .venv, install reqs, run scripts/tests.
+alwaysApply: true
+---
+
+# Terminal + .venv workflow (Windows PowerShell)
+
+## Create venv (once per repo)
+From repo root (PowerShell):
+- `python -m venv .venv`
+  - If `python` isn't available, check your Python installation (python.org installer or winget).
+
+## Activate venv
+- `.venv\Scripts\Activate.ps1`
+  - If execution policy blocks this, run: `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`
+
+## Install deps
+- `python -m pip install --upgrade pip`
+- `python -m pip install -r requirements.txt`
+
+## Run code
+- Prefer:
+  - Activate venv, then `python -m <module>` / `python <script>`
+- Or call venv python explicitly:
+  - `.venv\Scripts\python <script>`
+
+## Tests
+- `python -m pytest -q` (if pytest is used in the repo)
+
+## Deactivate venv
+- `deactivate`

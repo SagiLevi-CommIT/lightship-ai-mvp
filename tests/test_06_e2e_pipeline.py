@@ -188,6 +188,42 @@ class TestE2EPipeline:
             f"No detection_summary/result file found in: {keys}"
         )
 
+    def test_rekognition_audit_present_in_output_json(self, submitted_job, s3_client):
+        """output.json must contain a ``rekognition_audit`` block so we can
+        prove managed-vision inference actually ran on every completed job.
+
+        The audit is authored by ``RekognitionLabeler`` and embedded by
+        ``Pipeline.process_video``; absence means either Rekognition never
+        executed or the embed step regressed.
+        """
+        result, fn_error = submitted_job
+        if fn_error:
+            pytest.skip("Skipping audit check: Lambda returned FunctionError on submit")
+
+        body = json.loads(result.get("body", "{}"))
+        job_id = body.get("job_id")
+        assert job_id
+
+        key = f"results/{job_id}/output.json"
+        resp = s3_client.get_object(Bucket=PROCESSING_BUCKET, Key=key)
+        output_doc = json.loads(resp["Body"].read())
+
+        audit = output_doc.get("rekognition_audit")
+        assert audit is not None, (
+            f"rekognition_audit missing from s3://{PROCESSING_BUCKET}/{key}. "
+            "Either Rekognition did not run or the pipeline failed to embed "
+            "the audit trail. Check CloudWatch for 'Failed to embed rekognition_audit'."
+        )
+        assert audit.get("frames_evaluated", 0) > 0, (
+            f"Rekognition reported 0 frames evaluated. audit={audit}"
+        )
+        per_frame = audit.get("per_frame", [])
+        assert per_frame, "rekognition_audit.per_frame was empty"
+        # Each per-frame entry must at minimum include timing + kept count.
+        first = per_frame[0]
+        for required in ("frame_path", "timestamp_ms", "kept_instances"):
+            assert required in first, f"per_frame entry missing {required}: {first}"
+
     def test_cloudwatch_logs_have_job_entries(self, submitted_job, logs_client):
         """Lambda logs should contain at least one entry mentioning the job_id."""
         result, fn_error = submitted_job
