@@ -67,6 +67,21 @@ _DESCRIPTION_ALIASES = {
     "helmet": "hard_hat",
     "vest": "safety_vest",
     "safety vest": "safety_vest",
+    # Custom Labels — Lightship driving model labels (kept verbatim where
+    # they already are canonical so the rest of the pipeline uses them as-is).
+    "crosswalk": "crosswalk",
+    "vehicle(parked)": "vehicle(parked)",
+    "vehicle": "vehicle",
+    "lane": "lane",
+    "lane(current)": "lane(current)",
+    "intersection_boundary": "intersection_boundary",
+    "visual_obstruction": "visual_obstruction",
+    "debris": "debris",
+    "unknown_sign": "sign",
+    "traffic_signal(red)": "traffic_signal",
+    "traffic_signal(green)": "traffic_signal",
+    "traffic_signal(yellow)": "traffic_signal",
+    "double_yellow": "double_yellow",
 }
 
 _PRIORITY_FOR_LABEL = {
@@ -74,7 +89,7 @@ _PRIORITY_FOR_LABEL = {
     "pedestrian(group)": "high",
     "bicyclist": "high",
     "motorcycle": "high",
-    "traffic_signal": "medium",
+    "traffic_signal": "high",
     "sign(stop)": "high",
     "sign(yield)": "medium",
     "sign": "low",
@@ -90,6 +105,15 @@ _PRIORITY_FOR_LABEL = {
     "excavator": "medium",
     "crane": "low",
     "scaffold": "low",
+    "crosswalk": "high",
+    "vehicle(parked)": "low",
+    "vehicle": "medium",
+    "lane": "low",
+    "lane(current)": "medium",
+    "intersection_boundary": "medium",
+    "visual_obstruction": "medium",
+    "debris": "high",
+    "double_yellow": "medium",
 }
 
 
@@ -118,16 +142,23 @@ class RekognitionLabeler:
         region_name: Optional[str] = None,
         min_confidence: int = 60,
         max_labels: int = 50,
+        custom_model_arn: Optional[str] = None,
     ):
         self.region_name = region_name or os.environ.get("AWS_REGION", "us-east-1")
         self.min_confidence = min_confidence
         self.max_labels = max_labels
+        self.custom_model_arn = (
+            custom_model_arn
+            if custom_model_arn is not None
+            else os.environ.get("REKOGNITION_CUSTOM_MODEL_ARN", "").strip() or None
+        )
         self._audit_records: List[Dict[str, Any]] = []
         try:
             self.client = boto3.client("rekognition", region_name=self.region_name)
             logger.info(
-                "RekognitionLabeler initialised (region=%s, min_confidence=%d, max_labels=%d)",
+                "RekognitionLabeler initialised (region=%s, min_confidence=%d, max_labels=%d, custom_model=%s)",
                 self.region_name, self.min_confidence, self.max_labels,
+                "yes" if self.custom_model_arn else "no",
             )
         except Exception as e:
             logger.warning("Rekognition client init failed: %s", e)
@@ -167,6 +198,11 @@ class RekognitionLabeler:
             "raw_labels": [],
             "kept_instances": 0,
             "error": None,
+            "custom_labels_invoked": False,
+            "custom_model_arn": self.custom_model_arn,
+            "custom_raw_labels": [],
+            "custom_kept_instances": 0,
+            "custom_error": None,
         }
 
         start = time.monotonic()
@@ -220,6 +256,18 @@ class RekognitionLabeler:
         audit_entry["raw_labels"] = raw_label_summary
         audit_entry["kept_instances"] = len(results)
         audit_entry["elapsed_ms"] = round(elapsed_ms, 1)
+
+        if self.custom_model_arn:
+            results.extend(
+                self._run_custom_labels(
+                    image_bytes=image_bytes,
+                    timestamp_ms=timestamp_ms,
+                    video_width=video_width,
+                    video_height=video_height,
+                    audit_entry=audit_entry,
+                )
+            )
+
         self._audit_records.append(audit_entry)
 
         metrics.put_metrics(
@@ -242,6 +290,68 @@ class RekognitionLabeler:
                 "elapsed_ms": round(elapsed_ms, 1),
             },
         )
+        return results
+
+    def _run_custom_labels(
+        self,
+        image_bytes: bytes,
+        timestamp_ms: float,
+        video_width: int,
+        video_height: int,
+        audit_entry: Dict[str, Any],
+    ) -> List[ObjectLabel]:
+        """Call DetectCustomLabels and convert geometry-bearing detections."""
+        audit_entry["custom_labels_invoked"] = True
+        start = time.monotonic()
+        try:
+            resp = self.client.detect_custom_labels(
+                ProjectVersionArn=self.custom_model_arn,
+                Image={"Bytes": image_bytes},
+                MinConfidence=self.min_confidence,
+            )
+        except ClientError as e:
+            audit_entry["custom_error"] = str(e)
+            metrics.count("RekognitionCustomFailures")
+            logger.warning("DetectCustomLabels failed: %s", e)
+            return []
+
+        elapsed_ms = (time.monotonic() - start) * 1000.0
+        audit_entry["custom_elapsed_ms"] = round(elapsed_ms, 1)
+
+        custom_summary: List[Dict[str, Any]] = []
+        results: List[ObjectLabel] = []
+        for label in resp.get("CustomLabels", []) or []:
+            name = label.get("Name", "")
+            confidence = float(label.get("Confidence", 0.0))
+            geometry = label.get("Geometry") or {}
+            bbox = geometry.get("BoundingBox") or {}
+            custom_summary.append({
+                "name": name,
+                "confidence": round(confidence, 2),
+                "has_bbox": bool(bbox),
+            })
+            if not bbox:
+                continue
+            canonical = self._canonicalise(name) or name
+            obj = self._bbox_to_object(
+                canonical=canonical,
+                bbox=bbox,
+                confidence=confidence,
+                timestamp_ms=timestamp_ms,
+                video_width=video_width,
+                video_height=video_height,
+            )
+            if obj is not None:
+                results.append(obj)
+
+        audit_entry["custom_raw_labels"] = custom_summary
+        audit_entry["custom_kept_instances"] = len(results)
+        metrics.put_metrics({
+            "RekognitionCustomCalls": 1.0,
+            "RekognitionCustomLabelsReturned": float(len(custom_summary)),
+            "RekognitionCustomInstancesKept": float(len(results)),
+        })
+        metrics.duration_ms("RekognitionCustomCallMs", elapsed_ms)
         return results
 
     @staticmethod

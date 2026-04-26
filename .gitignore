@@ -58,3 +58,14 @@ docs_data_mterialsui-fe/tsconfig.tsbuildinfo
 ui-fe/playwright-report/
 ui-fe/test-results/
 ui-fe/tests/e2e/.auth/
+
+# Rekognition dataset / training artefacts (large; keep class_map locally if needed)
+build/rekognition_dataset/**/images/
+build/rekognition_dataset/**/*.manifest
+build/rekognition_training_report.json
+build/training.log
+build/lambda_config_snapshot.json
+build/lambda_env_update.json
+build/validation_*.mp4
+build/validation_output_debug.json
+output/validation/

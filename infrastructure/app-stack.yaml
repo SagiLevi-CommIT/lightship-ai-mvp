@@ -437,6 +437,11 @@ Resources:
                   - rekognition:DetectModerationLabels
                   - rekognition:DetectText
                   - rekognition:DetectProtectiveEquipment
+                  - rekognition:DetectCustomLabels
+                  - rekognition:DescribeProjectVersions
+                  - rekognition:DescribeProjects
+                  - rekognition:StartProjectVersion
+                  - rekognition:StopProjectVersion
                 Resource: '*'
         - PolicyName: DynamoDBAccess
           PolicyDocument:
@@ -1302,6 +1307,7 @@ Resources:
           PROCESSING_QUEUE_URL: !Ref ProcessingQueue
           PIPELINE_STATE_MACHINE_ARN: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ProjectName}-${Environment}-pipeline'
           BEDROCK_MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
+          REKOGNITION_CUSTOM_MODEL_ARN: !Sub '{{resolve:ssm:/${ProjectName}/${Environment}/rekognition/custom-labels-arn}}'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-backend'

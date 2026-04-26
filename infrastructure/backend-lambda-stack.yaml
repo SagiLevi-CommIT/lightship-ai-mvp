@@ -69,6 +69,7 @@ Resources:
           PROCESSING_QUEUE_URL:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-processing-queue-url'
           PIPELINE_STATE_MACHINE_ARN: !Ref LightshipPipelineStateMachine
+          REKOGNITION_CUSTOM_MODEL_ARN: !Sub '{{resolve:ssm:/${ProjectName}/${Environment}/rekognition/custom-labels-arn}}'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-backend'
