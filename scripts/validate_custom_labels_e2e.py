@@ -26,6 +26,7 @@ from typing import Optional, Tuple
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger("validate_custom_labels_e2e")
 
@@ -81,6 +82,12 @@ def main() -> int:
     p.add_argument("--bucket", default="lightship-mvp-processing-336090301206")
     p.add_argument("--output-dir", type=Path, default=Path("output/validation"))
     p.add_argument("--max-wait-running-min", type=int, default=25)
+    p.add_argument(
+        "--max-snapshots",
+        type=int,
+        default=15,
+        help="Pipeline max_snapshots (more frames improve odds of a custom hit).",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
 
@@ -113,10 +120,18 @@ def main() -> int:
 
     try:
         logger.info("Starting project version endpoint…")
-        rek.start_project_version(
-            ProjectVersionArn=args.project_version_arn,
-            MinInferenceUnits=1,
-        )
+        try:
+            rek.start_project_version(
+                ProjectVersionArn=args.project_version_arn,
+                MinInferenceUnits=1,
+            )
+        except ClientError as e:
+            code = (e.response.get("Error") or {}).get("Code", "")
+            msg = (e.response.get("Error") or {}).get("Message", "")
+            if code == "ResourceInUseException" and "RUNNING" in msg:
+                logger.info("Endpoint already RUNNING; skipping start.")
+            else:
+                raise
         _wait_endpoint(rek, project_arn, version_name, "RUNNING", max_run)
         report["endpoint_started"] = True
 
@@ -130,7 +145,7 @@ def main() -> int:
             "filename": filename,
             "config": {
                 "snapshot_strategy": "naive",
-                "max_snapshots": 3,
+                "max_snapshots": args.max_snapshots,
                 "cleanup_frames": True,
                 "use_cv_labeler": True,
                 "native_fps": 0.25,

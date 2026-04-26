@@ -58,15 +58,23 @@ aws lambda update-function-configuration \
 **Applied in this effort:** `REKOGNITION_CUSTOM_MODEL_ARN` was set to the
 `v2domain` ProjectVersionArn (was previously `""`).
 
+**Custom label score floor:** `REKOGNITION_CUSTOM_MIN_CONFIDENCE` (default **15**
+in code; also set on the live Lambda) — Custom Labels often score lower than
+generic `DetectLabels` at the same visual evidence; 60% suppressed almost all
+hits on real dashcam frames.
+
 ## Lambda container image (ECR)
 
 **Current image URI (example):**
 `336090301206.dkr.ecr.us-east-1.amazonaws.com/lightship-backend:latest`
 
-**One-shot script:** `scripts/publish_lambda_backend_image.sh` (bash; same steps
-as below).
+**One-shot script:** `scripts/publish_lambda_backend_image.sh` (uses `docker
+buildx` with the flags below).
 
-**Local build & push** (requires Docker Desktop / daemon running):
+**Local build & push** (requires Docker Desktop / daemon running). **Important:**
+plain `docker build` on Windows often produces an image manifest that Lambda
+rejects (`InvalidParameterValueException` / unsupported media type). Use a
+**single-platform** `linux/amd64` build **without** attestations:
 
 ```bash
 cd lambda-be
@@ -80,7 +88,8 @@ aws ecr get-login-password --region "$AWS_REGION" \
   | docker login --username AWS --password-stdin \
   "$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com"
 
-docker build -t "$REPO:$TAG" .
+docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
+  -t "$REPO:$TAG" . --load
 docker tag "$REPO:$TAG" "$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO:$TAG"
 docker tag "$REPO:$TAG" "$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO:latest"
 docker push "$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO:$TAG"
@@ -92,11 +101,8 @@ aws lambda update-function-code \
   --image-uri "$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO:$TAG"
 ```
 
-**Agent host note:** On 2026-04-26 the integration machine had **no Docker
-daemon** (`npipe:////./pipe/dockerDesktopLinuxEngine` missing). Image build/push
-was **not** executed from automation; the ECR `latest` tag may still point at an
-image **without** `rekognition_labeler.py` custom-label audit fields. After you
-push a new image, re-run `scripts/validate_custom_labels_e2e.py`.
+After deploy, run `scripts/validate_custom_labels_e2e.py` with the Rekognition
+endpoint **stopped** first (the script starts/stops around the invoke).
 
 ## Rekognition training & data layout
 
@@ -144,10 +150,13 @@ py scripts/validate_custom_labels_e2e.py \
   --profile lightship
 ```
 
-**2026-04-26 run:** Endpoint reached `RUNNING`, Lambda returned `output.json`, but
-`rekognition_audit.per_frame` entries **lacked** `custom_labels_invoked` entirely
-→ confirms **stale Lambda image**. After redeploying the image, assertions should
-pass (`custom_labels_invoked == true`, at least one non-empty `custom_raw_labels`).
+**2026-04-26 run (pre-image):** Audit rows lacked `custom_labels_invoked` → stale
+Lambda image.
+
+**2026-04-27 run (post-image + tuning):** ECR image pushed with `buildx`;
+`validate_custom_labels_e2e.py` passed with `REKOGNITION_CUSTOM_MIN_CONFIDENCE=15`,
+`max_snapshots=15`, and a longer sample clip (`validation_verizon_1.mp4`).
+Report path example: `output/validation/custom_labels_<job_id>.json`.
 
 ## IAM drift (already aligned in `app-stack.yaml`)
 

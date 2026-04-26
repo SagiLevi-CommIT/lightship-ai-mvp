@@ -18,7 +18,10 @@ REGISTRY="${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 TAG="$(git -C "$ROOT" rev-parse --short HEAD)"
 
 echo "Building ${REPO}:${TAG} …"
-docker build -t "${REPO}:${TAG}" .
+# Lambda rejects Docker attestations / multi-arch manifest lists — single
+# linux/amd64 image without provenance/SBOM (see docs/REKOGNITION_CUSTOM_LABELS_DRIFT.md).
+docker buildx build --platform linux/amd64 --provenance=false --sbom=false \
+  -t "${REPO}:${TAG}" . --load
 
 echo "Logging in to ECR …"
 aws ecr get-login-password --profile "$AWS_PROFILE" --region "$AWS_REGION" \

@@ -31,6 +31,17 @@ from src.utils import metrics
 
 logger = logging.getLogger(__name__)
 
+
+def _parse_int_env(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return max(0, min(100, int(raw)))
+    except ValueError:
+        return default
+
+
 # Description normalisation: Rekognition returns things like "Person" which
 # we want to map onto the project's canonical vocabulary.
 _DESCRIPTION_ALIASES = {
@@ -152,12 +163,21 @@ class RekognitionLabeler:
             if custom_model_arn is not None
             else os.environ.get("REKOGNITION_CUSTOM_MODEL_ARN", "").strip() or None
         )
+        # Custom Labels scores are often lower than generic DetectLabels; use a
+        # separate floor (override with REKOGNITION_CUSTOM_MIN_CONFIDENCE).
+        self.custom_min_confidence = _parse_int_env(
+            "REKOGNITION_CUSTOM_MIN_CONFIDENCE", 15,
+        )
         self._audit_records: List[Dict[str, Any]] = []
         try:
             self.client = boto3.client("rekognition", region_name=self.region_name)
             logger.info(
-                "RekognitionLabeler initialised (region=%s, min_confidence=%d, max_labels=%d, custom_model=%s)",
-                self.region_name, self.min_confidence, self.max_labels,
+                "RekognitionLabeler initialised (region=%s, min_confidence=%d, "
+                "custom_min_confidence=%d, max_labels=%d, custom_model=%s)",
+                self.region_name,
+                self.min_confidence,
+                self.custom_min_confidence,
+                self.max_labels,
                 "yes" if self.custom_model_arn else "no",
             )
         except Exception as e:
@@ -302,12 +322,13 @@ class RekognitionLabeler:
     ) -> List[ObjectLabel]:
         """Call DetectCustomLabels and convert geometry-bearing detections."""
         audit_entry["custom_labels_invoked"] = True
+        audit_entry["custom_min_confidence"] = self.custom_min_confidence
         start = time.monotonic()
         try:
             resp = self.client.detect_custom_labels(
                 ProjectVersionArn=self.custom_model_arn,
                 Image={"Bytes": image_bytes},
-                MinConfidence=self.min_confidence,
+                MinConfidence=self.custom_min_confidence,
             )
         except ClientError as e:
             audit_entry["custom_error"] = str(e)

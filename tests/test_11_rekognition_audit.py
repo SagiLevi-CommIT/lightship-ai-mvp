@@ -148,7 +148,7 @@ def test_custom_labels_invoked_when_arn_present(frame_png, monkeypatch):
     labeler.client.detect_custom_labels.assert_called_once()
     call_kwargs = labeler.client.detect_custom_labels.call_args.kwargs
     assert call_kwargs["ProjectVersionArn"] == arn
-    assert call_kwargs["MinConfidence"] == labeler.min_confidence
+    assert call_kwargs["MinConfidence"] == labeler.custom_min_confidence
 
 
 def test_custom_labels_failure_falls_back_safely(frame_png, monkeypatch):
