@@ -63,6 +63,9 @@ aws lambda update-function-configuration \
 **Current image URI (example):**
 `336090301206.dkr.ecr.us-east-1.amazonaws.com/lightship-backend:latest`
 
+**One-shot script:** `scripts/publish_lambda_backend_image.sh` (bash; same steps
+as below).
+
 **Local build & push** (requires Docker Desktop / daemon running):
 
 ```bash
