@@ -47,15 +47,22 @@ function FrameThumb({
       }`}
     >
       {frame.annotated_url && !failed ? (
-        <Image
-          src={frame.annotated_url}
-          alt={`Frame ${frame.frame_idx}`}
-          width={160}
-          height={90}
-          unoptimized
-          onError={() => setFailed(true)}
-          className="h-20 w-32 rounded-md object-cover"
-        />
+        <div className="relative inline-block">
+          <Image
+            src={frame.annotated_url}
+            alt={`Frame ${frame.frame_idx}`}
+            width={160}
+            height={90}
+            unoptimized
+            onError={() => setFailed(true)}
+            className="h-20 w-32 rounded-md object-cover"
+          />
+          {frame.extraction_status === 'substituted' ? (
+            <span className="absolute left-1 top-1 rounded bg-amber-600/95 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow">
+              Substituted
+            </span>
+          ) : null}
+        </div>
       ) : (
         <div className="flex h-20 w-32 items-center justify-center rounded-md bg-slate-800 text-[10px] text-slate-400">
           {failed ? 'Failed to load' : 'No image'}

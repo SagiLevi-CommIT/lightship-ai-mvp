@@ -69,7 +69,13 @@ async function runWithConcurrency<T, R>(
 
 async function startJobForAsset(
   asset: UploadedAsset,
-  options: { max_snapshots: number; snapshot_strategy: string; native_fps?: number },
+  options: {
+    max_snapshots: number;
+    snapshot_strategy: string;
+    native_fps?: number;
+    detector_backend: 'florence2' | 'yolo' | 'detectron2';
+    lane_backend?: string;
+  },
 ): Promise<string> {
   if (asset.source === 's3' && asset.s3Uri) {
     const resp = await startS3VideoJob(asset.s3Uri, options);
@@ -166,6 +172,8 @@ export default function RunPage() {
             max_snapshots: maxSnapshots,
             snapshot_strategy: strategy,
             native_fps: nativeFps,
+            detector_backend: runConfig.pipelineConfig.detectorBackend ?? 'florence2',
+            lane_backend: 'ufldv2',
           });
           setAssetJobId(asset.id, jobId);
           jobIdByAssetId.set(asset.id, jobId);

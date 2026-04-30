@@ -161,6 +161,8 @@ export type JobOptions = {
   max_snapshots?: number;
   snapshot_strategy?: string;
   native_fps?: number;
+  detector_backend?: 'florence2' | 'yolo' | 'detectron2';
+  lane_backend?: string;
 };
 
 export async function startVideoJob(

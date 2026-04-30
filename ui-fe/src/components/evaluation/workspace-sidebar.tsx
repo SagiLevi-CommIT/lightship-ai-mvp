@@ -17,6 +17,8 @@ type WorkspaceSidebarProps = {
 const tooltips: Record<string, string> = {
   'frame-selection':
     'Native extracts frames at a fixed FPS rate. Scene change detects cuts and transitions to select key frames automatically.',
+  'detector-backend':
+    'Florence-2: zero-shot captions. YOLO: fast COCO detector. Detectron2: Mask R-CNN (heavier; runs on ECS worker).',
   's3-bucket':
     'The S3 path where pipeline output (annotated frames and JSON) will be written. Must be a valid s3:// URI you have write access to.',
   'hazard-severity':
@@ -199,6 +201,42 @@ export default function WorkspaceSidebar({
               Applies to both Native and Scene change. The pipeline will detect
               frames and keep up to this many for analysis.
             </p>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              Object detector
+              <Tooltip id="detector-backend" />
+            </label>
+            <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+              {(
+                [
+                  { id: 'florence2', label: 'Florence-2' },
+                  { id: 'yolo', label: 'YOLO11' },
+                  { id: 'detectron2', label: 'Detectron2' },
+                ] as const
+              ).map((opt) => {
+                const isSelected = (config.detectorBackend ?? 'florence2') === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() =>
+                      onChange({
+                        detectorBackend: opt.id,
+                      })
+                    }
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                      isSelected
+                        ? 'border-cyan-400 bg-cyan-500/10 text-cyan-200'
+                        : 'border-slate-700 bg-slate-950/70 text-slate-400 hover:border-cyan-400/70 hover:text-slate-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>
