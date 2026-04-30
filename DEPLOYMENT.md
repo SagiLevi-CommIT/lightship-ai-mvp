@@ -26,12 +26,23 @@ flowchart LR
   Lambda -->|send_message| SQS[(SQS)]
   SQS -->|EventSourceMapping| Lambda
   Lambda -->|StartExecution| SFN[Step Functions lightship-mvp-pipeline]
-  SFN --> Lambda
+  SFN -->|ecs:runTask.sync| ECS[Inference worker Fargate]
+  ECS -->|output + frames_manifest| S3[(S3 processing)]
+  SFN -->|Catch| Lambda
   Lambda -->|put job/update status| DDB[(DynamoDB lightship_jobs)]
-  Lambda -->|put output.json + frames| S3[(S3 processing)]
-  Lambda -->|DetectLabels| Rekognition
   Lambda -->|InvokeModel| Bedrock
 ```
+
+**Step Functions vs CloudFormation:** `aws cloudformation deploy` on
+`backend-lambda-stack.yaml` may report a **circular dependency** between the
+Lambda, the SQS mapping, and the state machine (pre-existing template shape).
+The live ASL can still be updated with `aws stepfunctions update-state-machine`;
+this repo includes `build/patch_sfn_ecs_env.py` as a reference for injecting
+ECS container env from the SQS payload’s `ecs_env` object.
+
+**Inference worker image:** Detectron2 is installed with
+`detectron2==0.6+18f6958pt2.6.0cpu` (torch 2.6 CPU community wheel); the
+string `0.6+pt2.6.0cpu` is **not** valid on the wheel index.
 
 ---
 

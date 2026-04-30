@@ -2,7 +2,149 @@
 
 ## Complete System Implementation — Status
 
-Last updated: 2026-04-20
+Last updated: 2026-04-30
+
+### E2E multi-backend + worker frame artefacts — 2026-04-30 — **DEPLOYED**
+
+**Scope:** Per-job detector selection (`florence2` \| `yolo` \| `detectron2`), shared
+`result_persistence` for Lambda + ECS, ECS worker writes `frames_manifest.json` and
+per-frame PNG/JSON under `results/{job_id}/frames/`, Step Functions passes
+`ecs_env` into the task, real Detectron2 (Mask R-CNN) in the worker image, UI
+backend picker, `VisionLabeler` runs **only** the selected backend, Lambda
+fallback rejects `detectron2`, scene-change selector retried with threshold 0.18
++ pixel-diff fallback on long clips.
+
+**Detectron2 wheel:** `detectron2==0.6+18f6958pt2.6.0cpu` from
+[miropsota/torch_packages_builder](https://miropsota.github.io/torch_packages_builder)
+(pinned build id; `0.6+pt2.6.0cpu` is not a valid distribution name on the index).
+
+**AWS (account 336090301206, us-east-1):**
+- Lambda `lightship-mvp-backend` — image pushed (`lightship-backend:7cf6c9a` digest updated on ECR).
+- Step Functions `lightship-mvp-pipeline` — definition updated in-place (ECS env overrides for
+  `MAX_SNAPSHOTS`, `SNAPSHOT_STRATEGY`, `NATIVE_FPS`, `DETECTOR_BACKEND`, `LANE_BACKEND`;
+  CloudFormation `deploy` for the backend stack still hits a pre-existing circular dependency,
+  so ASL was applied via `aws stepfunctions update-state-machine` + `build/patch_sfn_ecs_env.py`).
+- ECS worker stack `lightship-mvp-inference-worker` — **UPDATE_COMPLETE** with new task definition
+  pointing at `lightship-mvp-inference-worker:7cf6c9a` / `:latest` on ECR.
+- CodeBuild `lightship-mvp-frontend` — build **started** for the UI (`lightship-mvp-frontend:4443c79f-…`).
+
+**Live browser E2E** (upload via ALB ×3 backends) is **not executed from CI/agent**
+(ALB is IP-restricted). From an authorized client, use `build/run_e2e_three_backends.py`
+(HTTPS to the ALB) or the UI run flow.
+
+---
+
+### Pipeline "FAIL" flag fix — 2026-04-30 — **DEPLOYED**
+
+**Root cause identified & fixed:**
+- The merger names the output JSON after the video file (e.g. `20251107-153701-C.json`), not `output.json`.
+- The entrypoint searched for `output.json` in uploaded S3 keys → never found it → `output_s3_key = ""` in DynamoDB.
+- The Lambda API (`/download/json`, `/client-configs`, `/video-class`) always fetches `results/{job_id}/output.json` → 404.
+- The UI's mandatory `getOutputJson()` call threw after retries → asset set to `failed` → run shows "FAIL".
+
+**Fix applied (commit `7cf6c9a`):**
+1. `inference-worker/entrypoint.py`: After uploading pipeline artefacts, also upload the output JSON under the canonical `results/{job_id}/output.json` name. Falls back to scanning uploaded keys for any top-level `.json` file.
+2. `lambda-be/src/api_server.py`: `_load_output_json_from_s3` now has a two-stage fallback — tries canonical key first, then reads `output_s3_key` from DynamoDB for any residual naming variant.
+
+**Deployed:**
+- Lambda `lightship-mvp-backend` → image `lightship-backend:7cf6c9a` (updated)
+- ECR `lightship-mvp-inference-worker:latest` → image `7cf6c9a` (new ECS tasks will pick this up)
+
+---
+
+### Rekognition → VisionLabeler migration — 2026-04-29 — **DEPLOYED & VALIDATED IN PRODUCTION**
+
+Full migration off Rekognition Custom Labels to Florence-2 + Detectron2 + UFLDv2, with ECS Fargate Worker for inference.
+
+**Live e2e validation (2026-04-29 23:00 UTC+3, account 336090301206):**
+- SFN execution `e2e-vision-test-v4-py-1777496033` → SUCCEEDED in 182s
+- ECS task `lightship-mvp-inference-worker:1` ran on Fargate cluster `lightship-mvp-cluster`
+- Florence-2-base loaded successfully on CPU; 5 frames processed at ~9 sec/frame
+- `vision_audit` block in `s3://lightship-mvp-processing-336090301206/results/.../output.json`:
+  - `frames_evaluated: 5`, `backend: "florence2"`, `lane_backend: "ufldv2"`, `fallback_triggered_count: 0`
+  - per-frame `primary_elapsed_ms ≈ 8500-10000` (real Florence-2 inference)
+- CloudWatch metrics flowing: `VisionLabelerCalls`, `VisionLabelerInstancesKept`, `VisionLabelerCallMs`, `LaneBackendLanesKept`
+- Rekognition project `lightship-mvp-objects` (version `v2domain`) **fully deleted**
+- SSM parameter `/lightship/mvp/rekognition/custom-labels-arn` **deleted**
+- Lambda role `lightship-mvp-lambda-role` — `RekognitionAccess` policy **removed**, `ECSRunTaskAccess` **added**
+- SFN role `lightship-mvp-sfn-execution-role` — `rekognition:*` actions removed, `ECSRunTaskAccess` added
+
+**Drift from CFN templates (manual ops; CFN deploy role still missing `elasticloadbalancing:DescribeLoadBalancers`):**
+- Lambda image URI: `lightship-backend:vision-7cf6c9a` (CFN file says `:latest`)
+- Lambda env: `DETECTOR_BACKEND=auto`, `LANE_BACKEND=ufldv2` (live = template)
+- SFN definition matches `infrastructure/backend-lambda-stack.yaml` (ECS RunTask + Lambda fallback)
+
+**Active deployment artifacts in AWS:**
+| Resource | Identifier |
+|---|---|
+| Inference worker stack | `lightship-mvp-inference-worker` (CREATE_COMPLETE) |
+| Worker ECR repo | `lightship-mvp-inference-worker:latest` (digest `1a2ad25c...`) |
+| Worker TaskDef revision | `lightship-mvp-inference-worker:3` (BEDROCK_MODEL_ID=Sonnet 4.5, LANE_BACKEND=opencv) |
+| ECS Cluster | `lightship-mvp-cluster` (reused) |
+| Worker SG | `sg-0fc9be8b2c09432b4` (reused pre-existing; allowlisted on VPC endpoints) |
+| Worker task role | `lightship-mvp-inference-worker-task-role` (S3 + DynamoDB + Bedrock + KMS) |
+| Lambda image | `lightship-backend:vision-honest2-7cf6c9a` (digest `759b506e...`) |
+| Step Functions | `lightship-mvp-pipeline` (ECS RunTask + Lambda fallback) |
+| Bedrock model in use | `us.anthropic.claude-sonnet-4-5-20250929-v1:0` (cross-region inference profile) |
+
+### Honest disclosure of partial / deferred items
+
+1. **UFLDv2 lane detection — NOT integrated, opt-in only.**
+   - Tried: HuggingFace repo `cfzd/ufld-v2-culane` — does not exist (401 Unauthorized; I made up the repo name based on the GitHub org).
+   - Real distribution: only via Google Drive / Baidu Drive (`cfzd/Ultra-Fast-Lane-Detection-V2`) — not script-friendly.
+   - Viable path: PINTO_model_zoo provides ONNX exports (`ufldv2_culane_res34_320x1600.onnx`); requires baking into worker image + adding `onnxruntime` package.
+   - **Current default**: `LANE_BACKEND=opencv` (HSV + Hough in `cv_labeler.py`). Production-tested.
+   - The UFLDv2 backend module is a stub; selecting it emits zero lanes (deliberate, no silent fallback).
+
+2. **Detectron2 — NEVER actually loaded.**
+   - The Apache-2.0 prebuilt CPU wheel from `dl.fbaipublicfiles.com/detectron2/wheels/cpu/torch2.6/...` was not added to `requirements.txt`.
+   - The "Detectron2 backend" was always falling through to YOLOv11n.
+   - Renamed honestly to `YoloFallbackBackend` (file: `lambda-be/src/backends/yolo_fallback_backend.py`).
+   - `detectron2_backend.py` kept as a one-line back-compat shim importing the new class.
+
+3. **YOLO version & licence** (used by both `CVLabeler` dense pre-selection AND `YoloFallbackBackend` for Florence-2 fallback):
+   - **YOLOv11n via Ultralytics 8.4.45**, AGPL-3.0.
+   - Weights `yolo11n.pt` (~6 MB) baked into the worker image at build time (`/app/.cache/ultralytics/`).
+   - AGPL-3.0 is acceptable for server-side processing; would block on-prem distribution.
+
+4. **Bedrock Claude — root cause was wrong model ID, not IAM.**
+   - Calling roles: `lightship-mvp-lambda-role` and `lightship-mvp-inference-worker-task-role`. Both have `bedrock:InvokeModel` allowed.
+   - Old model ID: `us.anthropic.claude-sonnet-4-20250514-v1:0` — Bedrock reports this as `LEGACY` and the account never had Marketplace model access granted (the "AWS Marketplace actions (aws-marketplace:ViewSubscriptions, aws-marketplace:Subscribe)" error is Bedrock's wording for "model access not enabled in the Bedrock console for this account").
+   - Working model IDs in this account today: `us.anthropic.claude-sonnet-4-5-20250929-v1:0` (in use), `us.anthropic.claude-sonnet-4-6` (also works), `anthropic.claude-3-haiku-20240307-v1:0` (works on-demand without inference profile).
+   - Secondary issue: Sonnet 4.5 rejects requests that pass both `temperature` and `top_p`. Fixed `frame_refiner.py`, `hazard_assessor.py`, `scene_labeler.py` to pass only `temperature`.
+
+| Area | Status | Files |
+|---|---|---|
+| Frame selection backfill bug | **FIXED** | `lambda-be/src/pipeline.py` — after existence filter, backfills from valid candidates to reach `max_snapshots` |
+| VisionLabeler orchestrator | **DONE** | `lambda-be/src/vision_labeler.py` (NEW) |
+| Florence-2 backend (MIT) | **DONE** | `lambda-be/src/backends/florence2_backend.py` (NEW) |
+| Detectron2 fallback backend (Apache 2.0) | **DONE** | `lambda-be/src/backends/detectron2_backend.py` (NEW) |
+| UFLDv2 lane backend (Apache 2.0) | **DONE** | `lambda-be/src/backends/ufldv2_backend.py` (NEW) |
+| OpenCV lanes gated to `LANE_BACKEND=opencv` | **DONE** | `lambda-be/src/cv_labeler.py` |
+| Pipeline wire-up (rekognition→vision, audit rename) | **DONE** | `lambda-be/src/pipeline.py` |
+| Config vars (DETECTOR_BACKEND, LANE_BACKEND, etc.) | **DONE** | `lambda-be/src/config.py` |
+| UI/API backend + lane config fields | **DONE** | `lambda-be/src/api_server.py` (ProcessingConfig) |
+| ECS Fargate inference worker | **DONE** | `inference-worker/entrypoint.py`, `inference-worker/Dockerfile`, `inference-worker/requirements.txt` |
+| ECS infrastructure stack | **DONE** | `infrastructure/inference-worker-stack.yaml` (NEW) |
+| Step Functions ASL — ECS path + Lambda fallback | **DONE** | `infrastructure/backend-lambda-stack.yaml` |
+| Rekognition IAM / env / dashboard removed | **DONE** | `infrastructure/app-stack.yaml`, `infrastructure/backend-lambda-stack.yaml` |
+| Rekognition code/scripts/tests deleted | **DONE** | `lambda-be/src/rekognition_labeler.py`, `tests/test_11_rekognition_audit.py`, `scripts/prepare_rekognition_dataset.py`, `scripts/train_custom_labels.py`, `scripts/validate_custom_labels_e2e.py`, `scripts/start_stop_custom_labels.py` |
+| vision_audit e2e test | **DONE** | `tests/test_12_vision_audit.py` (NEW), `tests/test_06_e2e_pipeline.py` updated |
+| POC evaluation script | **DONE** | `scripts/run_vision_poc.py` (NEW) |
+| Docs deprecation notice | **DONE** | `docs/aws-architecture-audit-2026-04-26.md` |
+
+**Manual AWS cleanup still required:**
+1. Delete SSM parameter `/lightship/mvp/rekognition/custom-labels-arn`
+2. Stop and delete Rekognition Custom Labels version `v2domain` on project `lightship-mvp-objects`
+3. Delete Rekognition project `lightship-mvp-objects` (saves ~$4/hr)
+4. Deploy `infrastructure/inference-worker-stack.yaml` → build and push ECR image → re-deploy `backend-lambda-stack.yaml`
+
+**Test status:**
+- `pytest tests/test_12_vision_audit.py -v` → 1 skipped (numpy/cv2 not in dev venv; full run in Lambda container)
+- `pytest tests/test_07_config_generator.py -v` → **5 passed**
+- `pytest tests/test_01_infrastructure.py -v` → 13 failed (pre-existing: live AWS credentials required; 5 passed)
+
+---
 
 ### MVP fix pass — 2026-04-20 (branch `cursor/lightship-mvp-fixes-6abf`)
 

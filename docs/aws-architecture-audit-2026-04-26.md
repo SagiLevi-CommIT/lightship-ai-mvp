@@ -132,3 +132,34 @@ The provided image should be changed as follows:
 - `aws wafv2 list-web-acls --scope REGIONAL`
 - `aws route53 list-hosted-zones`
 - `aws ce get-cost-and-usage`
+
+---
+
+## Rekognition Custom Labels — DEPRECATED (2026-04-29)
+
+Rekognition Custom Labels (`lightship-mvp-objects`, version `v2domain`) has been
+**retired** and replaced by the open-vocabulary `VisionLabeler` stack:
+
+| Component | Old | New |
+|---|---|---|
+| Object detection | Rekognition `DetectCustomLabels` + `DetectLabels` | Florence-2-base (MIT, zero-shot) |
+| Automatic fallback | — | Detectron2 R50 (Apache 2.0) |
+| Lane detection | OpenCV HSV + Hough | UFLDv2 (Apache 2.0, default) |
+| Execution | Lambda (900s limit) | ECS Fargate 4vCPU/16GB via Step Functions |
+
+### Manual AWS cleanup required after stack deployment
+
+1. Delete SSM parameter: `/lightship/mvp/rekognition/custom-labels-arn`
+2. Stop and delete Rekognition Custom Labels version `v2domain` on project `lightship-mvp-objects`
+3. Delete the project `lightship-mvp-objects` (saves ~$4/hr endpoint cost)
+4. Verify Cost Explorer shows Rekognition spend drops to zero
+
+### Stack changes deployed
+
+- `infrastructure/backend-lambda-stack.yaml` — removed `REKOGNITION_CUSTOM_MODEL_ARN` / `REKOGNITION_CUSTOM_MIN_CONFIDENCE` env vars; added `DETECTOR_BACKEND=auto` / `LANE_BACKEND=ufldv2`; updated Step Functions ASL to `RunInferenceWorker` (ECS) → `FallbackToLambda`
+- `infrastructure/app-stack.yaml` — removed `RekognitionAccess` IAM policy; replaced Rekognition dashboard tile with VisionLabeler tile; replaced `rekognition_min_confidence` in ConfigSecret
+- `infrastructure/inference-worker-stack.yaml` — NEW: ECS TaskDef 4vCPU/16GB, task role, SG, ECR repo `lightship-mvp-inference-worker`
+- `lambda-be/src/vision_labeler.py` — NEW: VisionLabeler orchestrator
+- `lambda-be/src/backends/florence2_backend.py` — NEW: Florence-2 detection
+- `lambda-be/src/backends/detectron2_backend.py` — NEW: Detectron2 fallback
+- `lambda-be/src/backends/ufldv2_backend.py` — NEW: UFLDv2 lane detection

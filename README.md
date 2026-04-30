@@ -35,8 +35,9 @@ flowchart TB
 
   SQS -->|EventSourceMapping| Lambda
   Lambda -->|StartExecution| SFN[Step Functions lightship-mvp-pipeline]
-  SFN -->|invoke action=pipeline_stage| Lambda
-  Lambda -->|DetectLabels| Rekognition
+  SFN -->|ecs:runTask.sync + env overrides| ECSWorker[ECS inference worker]
+  ECSWorker -->|Florence-2 / YOLO / Detectron2 + lanes| S3Output[(S3 results/)]
+  SFN -->|Catch: pipeline_stage| Lambda
   Lambda -->|InvokeModel| Bedrock
 
   Lambda -->|put results| S3Output[(S3 results/)]
@@ -54,15 +55,24 @@ flowchart TB
    `EventSourceMapping` (with `ReportBatchItemFailures`); the dispatcher
    branch calls `StartExecution` on the `lightship-mvp-pipeline` state
    machine.
-4. The state machine invokes the backend Lambda again with
-   `action: pipeline_stage`; that branch runs `Pipeline.process_video` end
-   to end.
-5. On failure, the state machine's `Catch` routes to a `MarkFailed` task
-   that updates DynamoDB, then the execution transitions to `Fail`.
+4. The state machine runs **ECS Fargate** (`inference-worker`) with
+   per-job env vars (`DETECTOR_BACKEND`, `MAX_SNAPSHOTS`, …). On failure it
+   may fall back to Lambda `action: pipeline_stage` (Detectron2 is rejected
+   on that path); terminal errors go to `MarkFailed` in DynamoDB then `Fail`.
 
 The legacy Lambda self-invoke path (`action: process_worker`) is still
 supported as a fallback when `PROCESSING_QUEUE_URL` is unset — local dev
 and un-migrated deployments keep working.
+
+### Object detectors (per job)
+
+The UI and `/process-video` / `/process-s3-video` `config` JSON accept
+`detector_backend`: **`florence2`** (default), **`yolo`** (YOLO11n COCO), or
+**`detectron2`** (Mask R-CNN via Detectron2 in the **ECS worker image only**).
+There is no silent Florence→YOLO fallback; legacy `auto` is normalised to
+`florence2`. Worker + Lambda write the same frame artefact layout
+(`frames_manifest.json`, `frames/frame_*_{raw,annotated}.png`, per-frame JSON)
+via `lambda-be/src/result_persistence.py`.
 
 ---
 
