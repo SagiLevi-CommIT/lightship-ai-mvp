@@ -188,13 +188,12 @@ class TestE2EPipeline:
             f"No detection_summary/result file found in: {keys}"
         )
 
-    def test_rekognition_audit_present_in_output_json(self, submitted_job, s3_client):
-        """output.json must contain a ``rekognition_audit`` block so we can
-        prove managed-vision inference actually ran on every completed job.
+    def test_vision_audit_present_in_output_json(self, submitted_job, s3_client):
+        """output.json must contain a ``vision_audit`` block proving VisionLabeler ran.
 
-        The audit is authored by ``RekognitionLabeler`` and embedded by
-        ``Pipeline.process_video``; absence means either Rekognition never
-        executed or the embed step regressed.
+        The audit is authored by ``VisionLabeler`` and embedded by
+        ``Pipeline.process_video``; absence means either the labeler did not
+        execute or the embed step regressed.
         """
         result, fn_error = submitted_job
         if fn_error:
@@ -208,20 +207,25 @@ class TestE2EPipeline:
         resp = s3_client.get_object(Bucket=PROCESSING_BUCKET, Key=key)
         output_doc = json.loads(resp["Body"].read())
 
-        audit = output_doc.get("rekognition_audit")
+        audit = output_doc.get("vision_audit")
         assert audit is not None, (
-            f"rekognition_audit missing from s3://{PROCESSING_BUCKET}/{key}. "
-            "Either Rekognition did not run or the pipeline failed to embed "
-            "the audit trail. Check CloudWatch for 'Failed to embed rekognition_audit'."
+            f"vision_audit missing from s3://{PROCESSING_BUCKET}/{key}. "
+            "VisionLabeler did not run or the embed step regressed. "
+            "Check CloudWatch for 'Failed to embed vision_audit'."
         )
         assert audit.get("frames_evaluated", 0) > 0, (
-            f"Rekognition reported 0 frames evaluated. audit={audit}"
+            f"VisionLabeler reported 0 frames evaluated. audit={audit}"
+        )
+        assert audit.get("backend") in ("florence2", "yolo", "detectron2", "mixed"), (
+            f"Unexpected backend value: {audit.get('backend')}"
         )
         per_frame = audit.get("per_frame", [])
-        assert per_frame, "rekognition_audit.per_frame was empty"
-        # Each per-frame entry must at minimum include timing + kept count.
+        assert per_frame, "vision_audit.per_frame was empty"
         first = per_frame[0]
-        for required in ("frame_path", "timestamp_ms", "kept_instances"):
+        for required in (
+            "frame_path", "timestamp_ms", "primary_kept_instances",
+            "primary_backend", "fallback_used", "lane_backend",
+        ):
             assert required in first, f"per_frame entry missing {required}: {first}"
 
     def test_cloudwatch_logs_have_job_entries(self, submitted_job, logs_client):

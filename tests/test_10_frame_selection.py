@@ -10,9 +10,9 @@ import os
 import sys
 from pathlib import Path
 
-import numpy as np
 import pytest
 
+np = pytest.importorskip("numpy")
 cv2 = pytest.importorskip("cv2")
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lambda-be"))

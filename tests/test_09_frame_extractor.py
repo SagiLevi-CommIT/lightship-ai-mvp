@@ -19,9 +19,9 @@ import tempfile
 from pathlib import Path
 from typing import List
 
-import numpy as np
 import pytest
 
+np = pytest.importorskip("numpy")
 # Skip gracefully when cv2 isn't available (e.g. on the test VM).
 cv2 = pytest.importorskip("cv2")
 

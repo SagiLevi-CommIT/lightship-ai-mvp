@@ -66,17 +66,9 @@ def api_module():
     job_status.clear()
 
 
-class _ProcessingConfig:
-    """Minimal stand-in — api_server's ProcessingConfig has a model_dump()."""
-
-    def __init__(self, **extra: Any) -> None:
-        self._extra = extra
-
-    def model_dump(self) -> Dict[str, Any]:
-        return {"max_snapshots": 5, "snapshot_strategy": "clustering", **self._extra}
-
-
 def test_enqueue_prefers_sqs_when_configured(api_module):
+    from src.processing_models import ProcessingConfig
+
     api_server, _ = api_module
     sent = []
 
@@ -88,15 +80,25 @@ def test_enqueue_prefers_sqs_when_configured(api_module):
     api_server._sqs_client = _SQS()
     api_server.PROCESSING_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/0/processing"
 
-    path = api_server._enqueue_job("job-1", "input/v/a.mp4", "a.mp4", _ProcessingConfig())
+    proc = ProcessingConfig(max_snapshots=5, snapshot_strategy="clustering")
+    path = api_server._enqueue_job("job-1", "input/v/a.mp4", "a.mp4", proc)
     assert path == "sqs"
     assert len(sent) == 1
     body = json.loads(sent[0]["MessageBody"])
+    cfg = proc.model_dump(mode="json")
+    ecs_env = {
+        "MAX_SNAPSHOTS": str(proc.max_snapshots),
+        "SNAPSHOT_STRATEGY": proc.snapshot_strategy,
+        "NATIVE_FPS": "" if proc.native_fps is None else str(float(proc.native_fps)),
+        "DETECTOR_BACKEND": proc.detector_backend,
+        "LANE_BACKEND": proc.lane_backend,
+    }
     assert body == {
         "job_id": "job-1",
         "s3_key": "input/v/a.mp4",
         "filename": "a.mp4",
-        "config": {"max_snapshots": 5, "snapshot_strategy": "clustering"},
+        "config": cfg,
+        "ecs_env": ecs_env,
     }
     assert sent[0]["QueueUrl"].endswith("/processing")
     assert sent[0]["MessageAttributes"]["job_id"]["StringValue"] == "job-1"
@@ -116,7 +118,9 @@ def test_enqueue_falls_back_to_lambda_self_invoke(api_module):
     api_server._lambda_client = _Lambda()
     api_server.LAMBDA_FUNCTION_NAME = "lightship-mvp-backend"
 
-    path = api_server._enqueue_job("job-2", "x.mp4", "x.mp4", _ProcessingConfig())
+    from src.processing_models import ProcessingConfig
+
+    path = api_server._enqueue_job("job-2", "x.mp4", "x.mp4", ProcessingConfig())
     assert path == "lambda"
     assert invoked[0]["FunctionName"] == "lightship-mvp-backend"
     body = json.loads(invoked[0]["Payload"])
@@ -131,7 +135,9 @@ def test_enqueue_background_when_nothing_configured(api_module):
     api_server._lambda_client = None
     api_server.LAMBDA_FUNCTION_NAME = ""
 
-    path = api_server._enqueue_job("job-3", "y.mp4", "y.mp4", _ProcessingConfig())
+    from src.processing_models import ProcessingConfig
+
+    path = api_server._enqueue_job("job-3", "y.mp4", "y.mp4", ProcessingConfig())
     assert path == "background"
 
 
@@ -192,7 +198,9 @@ def test_enqueue_marks_failed_when_sqs_raises(api_module):
 
     from fastapi import HTTPException
     with pytest.raises(HTTPException) as exc_info:
-        api_server._enqueue_job("job-err", "a.mp4", "a.mp4", _ProcessingConfig())
+        from src.processing_models import ProcessingConfig
+
+        api_server._enqueue_job("job-err", "a.mp4", "a.mp4", ProcessingConfig())
 
     assert exc_info.value.status_code == 500
     assert "sqs" in exc_info.value.detail.lower()
