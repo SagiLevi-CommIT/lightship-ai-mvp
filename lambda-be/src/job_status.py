@@ -243,3 +243,8 @@ def read_status(job_id: str) -> Optional[Dict[str, Any]]:
             "current_step": cached.get("current_step"),
         }
     return None
+
+
+def clear() -> None:
+    """Clear the in-memory warm cache (used by unit tests between runs)."""
+    processing_status.clear()

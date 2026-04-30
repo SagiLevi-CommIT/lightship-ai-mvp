@@ -21,8 +21,16 @@ from botocore.exceptions import ClientError
 
 from src.pipeline import Pipeline
 from src.config import SNAPSHOT_STRATEGY, MAX_SNAPSHOTS_PER_VIDEO, TEMP_FRAMES_DIR
+from src.result_persistence import (
+    OUTPUT_JSON_KEY,
+    RESULTS_PREFIX,
+    persist_frame_artefacts,
+    put_frames_manifest_json,
+    s3_result_key,
+)
 from src.config_generator import generate_client_configs, write_client_configs
 from src import job_status
+from src.processing_models import ProcessingConfig, ProcessingStatus
 from src.utils import metrics
 from src.utils.logging_setup import setup_logging
 
@@ -142,11 +150,21 @@ def _enqueue_job(job_id: str, s3_key: str, filename: str,
     is already ``QUEUED`` by the time we're called, so we must either hand
     off successfully or mark the row ``FAILED`` and propagate.
     """
+    cfg = proc_config.model_dump(mode="json")
+    native = proc_config.native_fps
+    ecs_env = {
+        "MAX_SNAPSHOTS": str(proc_config.max_snapshots),
+        "SNAPSHOT_STRATEGY": proc_config.snapshot_strategy,
+        "NATIVE_FPS": "" if native is None else str(float(native)),
+        "DETECTOR_BACKEND": proc_config.detector_backend,
+        "LANE_BACKEND": proc_config.lane_backend,
+    }
     payload = {
         "job_id": job_id,
         "s3_key": s3_key,
         "filename": filename,
-        "config": proc_config.model_dump(),
+        "config": cfg,
+        "ecs_env": ecs_env,
     }
 
     if _sqs_client and PROCESSING_QUEUE_URL:
@@ -197,12 +215,6 @@ def _enqueue_job(job_id: str, s3_key: str, filename: str,
 # ---------------------------------------------------------------------------
 # S3-backed result storage (survives cross-invocation Lambda cold starts)
 # ---------------------------------------------------------------------------
-_RESULTS_PREFIX = "results"
-_OUTPUT_JSON_KEY = "output.json"
-
-
-def _s3_result_key(job_id: str, name: str) -> str:
-    return f"{_RESULTS_PREFIX}/{job_id}/{name}"
 
 
 def _persist_result_to_s3(job_id: str, output_json_path: str,
@@ -220,7 +232,7 @@ def _persist_result_to_s3(job_id: str, output_json_path: str,
     try:
         _s3_client.upload_file(
             output_json_path, PROCESSING_BUCKET,
-            _s3_result_key(job_id, _OUTPUT_JSON_KEY),
+            s3_result_key(job_id, OUTPUT_JSON_KEY),
             ExtraArgs={"ServerSideEncryption": "aws:kms",
                        "ContentType": "application/json"},
         )
@@ -232,12 +244,12 @@ def _persist_result_to_s3(job_id: str, output_json_path: str,
         }
         _s3_client.put_object(
             Bucket=PROCESSING_BUCKET,
-            Key=_s3_result_key(job_id, "manifest.json"),
+            Key=s3_result_key(job_id, "manifest.json"),
             Body=json.dumps(manifest).encode("utf-8"),
             ContentType="application/json",
             ServerSideEncryption="aws:kms",
         )
-        logger.info(f"Results persisted to s3://{PROCESSING_BUCKET}/{_RESULTS_PREFIX}/{job_id}/")
+        logger.info(f"Results persisted to s3://{PROCESSING_BUCKET}/{RESULTS_PREFIX}/{job_id}/")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Result S3 persist failed for {job_id}: {e}")
 
@@ -248,7 +260,7 @@ def _load_result_manifest_from_s3(job_id: str) -> Optional[Dict[str, Any]]:
     try:
         resp = _s3_client.get_object(
             Bucket=PROCESSING_BUCKET,
-            Key=_s3_result_key(job_id, "manifest.json"),
+            Key=s3_result_key(job_id, "manifest.json"),
         )
         return json.loads(resp["Body"].read())
     except Exception as e:  # noqa: BLE001
@@ -257,19 +269,37 @@ def _load_result_manifest_from_s3(job_id: str) -> Optional[Dict[str, Any]]:
 
 
 def _load_output_json_from_s3(job_id: str, dest_dir: Optional[str] = None) -> Optional[str]:
-    """Download the pipeline output.json for job_id to a temp path. Returns path or None."""
+    """Download the pipeline output.json for job_id to a temp path. Returns path or None.
+
+    Tries keys in order:
+    1. The canonical ``results/{job_id}/output.json`` (ECS worker since fix).
+    2. The ``output_s3_key`` recorded in DynamoDB (handles any naming variant).
+    """
     if _s3_client is None:
         return None
+    dest_dir = dest_dir or tempfile.mkdtemp()
+    local_path = os.path.join(dest_dir, f"{job_id}-output.json")
+
+    # 1. Try the canonical key first.
     try:
-        dest_dir = dest_dir or tempfile.mkdtemp()
-        local_path = os.path.join(dest_dir, f"{job_id}-output.json")
         _s3_client.download_file(
-            PROCESSING_BUCKET, _s3_result_key(job_id, _OUTPUT_JSON_KEY), local_path,
+            PROCESSING_BUCKET, s3_result_key(job_id, OUTPUT_JSON_KEY), local_path,
         )
         return local_path
     except Exception as e:  # noqa: BLE001
         logger.debug(f"No output.json in S3 for {job_id}: {e}")
-        return None
+
+    # 2. Fallback: read output_s3_key from DynamoDB and try that key.
+    try:
+        dynamo_item = _dynamo_get_job(job_id)
+        s3_key = (dynamo_item or {}).get("output_s3_key") or ""
+        if s3_key and s3_key != s3_result_key(job_id, OUTPUT_JSON_KEY):
+            _s3_client.download_file(PROCESSING_BUCKET, s3_key, local_path)
+            return local_path
+    except Exception as e2:  # noqa: BLE001
+        logger.debug(f"DynamoDB output_s3_key fallback failed for {job_id}: {e2}")
+
+    return None
 
 
 def _persist_frame_artefacts_to_s3(
@@ -285,105 +315,16 @@ def _persist_frame_artefacts_to_s3(
     Returns a list of per-frame manifest entries (with S3 keys) that the
     API can surface to the UI via presigned GETs.
     """
-    if _s3_client is None:
-        return []
-    manifest: list = []
-    # Index the extraction manifest by frame_idx so per-frame entries
-    # can surface extraction status (ok / substituted / failed),
-    # decoded frame dimensions, and any substitution/error metadata.
-    extraction_by_idx: Dict[int, Dict[str, Any]] = {}
-    for entry in extraction_manifest or []:
-        idx = entry.get("frame_idx")
-        if idx is not None:
-            extraction_by_idx[int(idx)] = entry
-    # Group objects by integer millisecond timestamp so we can slice them
-    # per frame for per-frame JSON files.
-    from collections import defaultdict
-    objs_by_ms: Dict[int, list] = defaultdict(list)
-    for obj in all_objects:
-        key = int(round(obj.get("start_time_ms", 0)))
-        objs_by_ms[key].append(obj)
-
-    for frame_idx, frame_path in sorted(annotated_frames.items()):
-        if not os.path.exists(frame_path):
-            continue
-        ts_ms = timestamps.get(frame_idx, 0.0)
-        frame_key = _s3_result_key(job_id, f"frames/frame_{frame_idx:04d}_annotated.png")
-        raw_key = None
-        raw_path = selected_frames.get(frame_idx)
-        if raw_path and os.path.exists(raw_path):
-            raw_key = _s3_result_key(job_id, f"frames/frame_{frame_idx:04d}_raw.png")
-            try:
-                _s3_client.upload_file(
-                    raw_path, PROCESSING_BUCKET, raw_key,
-                    ExtraArgs={
-                        "ServerSideEncryption": "aws:kms",
-                        "ContentType": "image/png",
-                    },
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.warning("Raw frame upload failed (frame %d): %s", frame_idx, e)
-                raw_key = None
-        try:
-            _s3_client.upload_file(
-                frame_path, PROCESSING_BUCKET, frame_key,
-                ExtraArgs={
-                    "ServerSideEncryption": "aws:kms",
-                    "ContentType": "image/png",
-                },
-            )
-        except Exception as e:  # noqa: BLE001
-            logger.warning("Annotated frame upload failed (frame %d): %s", frame_idx, e)
-            continue
-
-        # Find objects whose timestamp is within 100ms of this frame
-        matched_ms = [ms for ms in objs_by_ms if abs(ms - ts_ms) <= 100]
-        frame_objs: list = []
-        for ms in matched_ms:
-            frame_objs.extend(objs_by_ms[ms])
-
-        extraction_meta = extraction_by_idx.get(int(frame_idx), {})
-        per_frame_json_key = _s3_result_key(job_id, f"frames/frame_{frame_idx:04d}.json")
-        per_frame_doc = {
-            "job_id": job_id,
-            "frame_idx": frame_idx,
-            "timestamp_ms": ts_ms,
-            "num_objects": len(frame_objs),
-            "objects": frame_objs,
-            "extraction": {
-                "source": extraction_meta.get("source"),
-                "status": extraction_meta.get("status"),
-                "decoded_idx": extraction_meta.get("decoded_idx"),
-                "width": extraction_meta.get("width"),
-                "height": extraction_meta.get("height"),
-                "error": extraction_meta.get("error"),
-            },
-        }
-        try:
-            _s3_client.put_object(
-                Bucket=PROCESSING_BUCKET,
-                Key=per_frame_json_key,
-                Body=json.dumps(per_frame_doc, indent=2).encode("utf-8"),
-                ContentType="application/json",
-                ServerSideEncryption="aws:kms",
-            )
-        except Exception as e:  # noqa: BLE001
-            logger.warning("Per-frame JSON upload failed (frame %d): %s", frame_idx, e)
-            per_frame_json_key = None
-
-        manifest.append({
-            "frame_idx": frame_idx,
-            "timestamp_ms": ts_ms,
-            "num_objects": len(frame_objs),
-            "annotated_key": frame_key,
-            "raw_key": raw_key,
-            "json_key": per_frame_json_key,
-            "extraction_source": extraction_meta.get("source"),
-            "extraction_status": extraction_meta.get("status"),
-            "width": extraction_meta.get("width"),
-            "height": extraction_meta.get("height"),
-        })
-    return manifest
+    return persist_frame_artefacts(
+        _s3_client,
+        PROCESSING_BUCKET,
+        job_id,
+        selected_frames,
+        annotated_frames,
+        timestamps,
+        all_objects,
+        extraction_manifest,
+    )
 
 
 def _presign_get(key: str, expires_in: int = 3600) -> Optional[str]:
@@ -407,36 +348,12 @@ def _load_per_frame_manifest_from_s3(job_id: str) -> list:
     try:
         resp = _s3_client.get_object(
             Bucket=PROCESSING_BUCKET,
-            Key=_s3_result_key(job_id, "frames_manifest.json"),
+            Key=s3_result_key(job_id, "frames_manifest.json"),
         )
         return json.loads(resp["Body"].read())
     except Exception as e:  # noqa: BLE001
         logger.debug("No frames_manifest.json in S3 for %s: %s", job_id, e)
         return []
-
-
-class ProcessingConfig(BaseModel):
-    """Configuration for video processing."""
-    snapshot_strategy: str = "naive"
-    max_snapshots: int = 3
-    cleanup_frames: bool = False  # Keep frames for UI display
-    use_cv_labeler: bool = True   # V2 pipeline by default
-    hazard_mode: str = "sliding_window"
-    window_size: int = 3
-    window_overlap: int = 1
-    # Native sampling rate when ``snapshot_strategy == "naive"`` — the
-    # pipeline samples at ``native_fps`` Hz and then ranks candidates by
-    # detection count. Accepts strings for convenience because the UI
-    # posts form data and frequently sends ``"2"`` rather than ``2``.
-    native_fps: Optional[float] = None
-
-
-class ProcessingStatus(BaseModel):
-    """Status response model."""
-    status: str
-    progress: float
-    message: str
-    current_step: Optional[str] = None
 
 
 @app.get("/")
@@ -625,6 +542,15 @@ def process_video_worker(event: dict) -> dict:
     filename = event["filename"]
     proc_config = ProcessingConfig(**event.get("config", {}))
 
+    if proc_config.detector_backend == "detectron2":
+        err = (
+            "detector_backend=detectron2 requires the ECS inference worker image "
+            "(Detectron2 is not installed on this Lambda fallback path)."
+        )
+        logger.error(err)
+        _dynamo_update_status(job_id, "FAILED", error_message=err)
+        return {"status": "error", "job_id": job_id, "error": err}
+
     logger.info(f"🚀 Worker started: job={job_id} file={filename}")
 
     temp_dir = tempfile.mkdtemp()
@@ -705,6 +631,8 @@ def process_video_task(
             cleanup_frames=config.cleanup_frames,
             use_cv_labeler=config.use_cv_labeler,
             native_fps=config.native_fps,
+            detector_backend=config.detector_backend,
+            lane_backend=config.lane_backend,
         )
 
         _on_progress(0.05, "loading_video", "Reading video from local storage")
@@ -800,18 +728,9 @@ def process_video_task(
             all_objects=all_obj_dicts,
             extraction_manifest=getattr(pipeline, "last_extraction_manifest", []) or [],
         )
-        # Write the manifest to S3 too so /frames/{id} works cross-invocation
-        if _s3_client is not None and frames_manifest:
-            try:
-                _s3_client.put_object(
-                    Bucket=PROCESSING_BUCKET,
-                    Key=_s3_result_key(job_id, "frames_manifest.json"),
-                    Body=json.dumps(frames_manifest, indent=2).encode("utf-8"),
-                    ContentType="application/json",
-                    ServerSideEncryption="aws:kms",
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.warning("frames_manifest.json upload failed: %s", e)
+        put_frames_manifest_json(
+            _s3_client, PROCESSING_BUCKET, job_id, frames_manifest,
+        )
 
         # Store results in-memory (warm cache) and persist to S3 (survives cold starts).
         processing_results[job_id] = {
@@ -1461,7 +1380,7 @@ def download_frames_zip(job_id: str):
         # Also embed output.json and manifest.json at the zip root.
         try:
             output_obj = _s3_client.get_object(
-                Bucket=PROCESSING_BUCKET, Key=_s3_result_key(job_id, _OUTPUT_JSON_KEY),
+                Bucket=PROCESSING_BUCKET, Key=s3_result_key(job_id, OUTPUT_JSON_KEY),
             )
             zf.writestr("output.json", output_obj["Body"].read())
         except Exception:

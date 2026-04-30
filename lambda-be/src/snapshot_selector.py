@@ -194,10 +194,103 @@ class SnapshotSelector:
         )
         return snapshots
 
+    def _histogram_scene_changes(
+        self,
+        video_metadata: VideoMetadata,
+        threshold: float,
+    ) -> List[tuple]:
+        """Return list of (frame_idx, timestamp_ms, diff) scene-change candidates."""
+        cap = cv2.VideoCapture(video_metadata.filepath)
+        if not cap.isOpened():
+            return []
+        scene_changes: List[tuple] = []
+        try:
+            prev_hist = None
+            frame_idx = 0
+            last_change_time = -float("inf")
+            sample_rate = max(1, int(video_metadata.fps / 2))
+
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                if frame_idx % sample_rate == 0:
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+                    hist = cv2.normalize(hist, hist).flatten()
+
+                    if prev_hist is not None:
+                        diff = 1 - cv2.compareHist(prev_hist, hist, cv2.HISTCMP_CORREL)
+                        timestamp_ms = (frame_idx / video_metadata.fps) * 1000
+                        if (
+                            diff > threshold
+                            and timestamp_ms - last_change_time > SCENE_CHANGE_MIN_INTERVAL_MS
+                        ):
+                            scene_changes.append((frame_idx, timestamp_ms, diff))
+                            last_change_time = timestamp_ms
+                    prev_hist = hist
+                frame_idx += 1
+        finally:
+            cap.release()
+        return scene_changes
+
+    def _pixeldiff_scene_changes(self, video_metadata: VideoMetadata) -> List[tuple]:
+        """Fallback: mean absolute difference on downscaled grayscale pairs."""
+        cap = cv2.VideoCapture(video_metadata.filepath)
+        if not cap.isOpened():
+            return []
+        out: List[tuple] = []
+        try:
+            prev_small = None
+            frame_idx = 0
+            last_change_time = -float("inf")
+            sample_rate = max(1, int(video_metadata.fps))
+
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                if frame_idx % sample_rate == 0:
+                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    small = cv2.resize(gray, (160, 90), interpolation=cv2.INTER_AREA)
+                    if prev_small is not None:
+                        mad = float(np.mean(cv2.absdiff(prev_small, small))) / 255.0
+                        timestamp_ms = (frame_idx / video_metadata.fps) * 1000
+                        if (
+                            mad > 0.06
+                            and timestamp_ms - last_change_time > SCENE_CHANGE_MIN_INTERVAL_MS
+                        ):
+                            out.append((frame_idx, timestamp_ms, mad))
+                            last_change_time = timestamp_ms
+                    prev_small = small
+                frame_idx += 1
+        finally:
+            cap.release()
+        return out
+
+    def _merge_scene_candidates(self, *buckets: List[tuple]) -> List[tuple]:
+        """Merge (frame_idx, ts, score) tuples, keeping temporal spacing."""
+        merged: List[tuple] = []
+        last_ts = -float("inf")
+        flat = sorted(
+            (t for b in buckets for t in b),
+            key=lambda x: x[2],
+            reverse=True,
+        )
+        for frame_idx, ts, diff in flat:
+            if ts - last_ts > SCENE_CHANGE_MIN_INTERVAL_MS * 0.9:
+                merged.append((frame_idx, ts, diff))
+                last_ts = ts
+        merged.sort(key=lambda x: x[1])
+        return merged
+
     def _select_scene_change(self, video_metadata: VideoMetadata) -> List[SnapshotInfo]:
         """Select snapshots using scene change detection.
 
         Uses histogram difference to detect significant scene transitions.
+        On long clips where the default threshold yields very few events,
+        automatically retries with a looser threshold and a pixel-diff fallback.
 
         Args:
             video_metadata: Video metadata
@@ -207,84 +300,45 @@ class SnapshotSelector:
         """
         logger.info(f"Detecting scene changes for {video_metadata.filename}")
 
-        cap = cv2.VideoCapture(video_metadata.filepath)
-        if not cap.isOpened():
-            logger.error(f"Cannot open video for scene detection: {video_metadata.filepath}")
-            return self._select_uniform(video_metadata)
+        primary = self._histogram_scene_changes(video_metadata, SCENE_CHANGE_THRESHOLD)
+        buckets = [primary]
 
-        try:
-            scene_changes = []
-            prev_hist = None
-            frame_idx = 0
-            last_change_time = -float('inf')
-
-            # Sample frames (not every frame for efficiency)
-            sample_rate = max(1, int(video_metadata.fps / 2))  # 2 samples per second
-
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-
-                if frame_idx % sample_rate == 0:
-                    # Compute histogram
-                    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
-                    hist = cv2.normalize(hist, hist).flatten()
-
-                    # Compare with previous frame
-                    if prev_hist is not None:
-                        # Calculate histogram difference (correlation distance)
-                        diff = 1 - cv2.compareHist(prev_hist, hist, cv2.HISTCMP_CORREL)
-
-                        timestamp_ms = (frame_idx / video_metadata.fps) * 1000
-
-                        # Check if this is a significant scene change
-                        if (diff > SCENE_CHANGE_THRESHOLD and
-                            timestamp_ms - last_change_time > SCENE_CHANGE_MIN_INTERVAL_MS):
-
-                            scene_changes.append((frame_idx, timestamp_ms, diff))
-                            last_change_time = timestamp_ms
-                            logger.debug(
-                                f"Scene change detected at frame {frame_idx} "
-                                f"({timestamp_ms:.2f}ms, diff={diff:.3f})"
-                            )
-
-                    prev_hist = hist
-
-                frame_idx += 1
-
-            cap.release()
-
-            # Sort by difference score (most significant changes first)
-            scene_changes.sort(key=lambda x: x[2], reverse=True)
-
-            # Take top max_snapshots changes
-            selected_changes = scene_changes[:self.max_snapshots]
-
-            # Sort by timestamp
-            selected_changes.sort(key=lambda x: x[1])
-
-            if not selected_changes:
-                logger.warning("No scene changes detected, falling back to uniform sampling")
-                return self._select_uniform(video_metadata)
-
-            snapshots = [
-                SnapshotInfo(
-                    frame_idx=frame_idx,
-                    timestamp_ms=timestamp_ms,
-                    reason=f"Scene change (diff={diff:.3f})"
-                )
-                for frame_idx, timestamp_ms, diff in selected_changes
-            ]
-
+        long_clip = video_metadata.duration_ms >= 30_000
+        if long_clip and len(primary) < 3:
+            relaxed = self._histogram_scene_changes(video_metadata, 0.18)
             logger.info(
-                f"Selected {len(snapshots)} scene change snapshots for {video_metadata.filename}"
+                "Scene-change retry: threshold 0.18 (primary had %d peaks on %.1fs video)",
+                len(primary),
+                video_metadata.duration_ms / 1000.0,
             )
-            return snapshots
+            buckets.append(relaxed)
+        if long_clip and len(self._merge_scene_candidates(*buckets)) < 3:
+            pix = self._pixeldiff_scene_changes(video_metadata)
+            logger.info("Scene-change pixel-diff fallback added %d candidates", len(pix))
+            buckets.append(pix)
 
-        except Exception as e:
-            logger.error(f"Error during scene change detection: {e}")
-            cap.release()
+        scene_changes = list(buckets[0])
+        if len(buckets) > 1:
+            scene_changes = self._merge_scene_candidates(*buckets)
+
+        scene_changes.sort(key=lambda x: x[2], reverse=True)
+        selected_changes = scene_changes[: self.max_snapshots]
+        selected_changes.sort(key=lambda x: x[1])
+
+        if not selected_changes:
+            logger.warning("No scene changes detected, falling back to uniform sampling")
             return self._select_uniform(video_metadata)
+
+        snapshots = [
+            SnapshotInfo(
+                frame_idx=frame_idx,
+                timestamp_ms=timestamp_ms,
+                reason=f"Scene change (diff={diff:.3f})",
+            )
+            for frame_idx, timestamp_ms, diff in selected_changes
+        ]
+        logger.info(
+            f"Selected {len(snapshots)} scene change snapshots for {video_metadata.filename}"
+        )
+        return snapshots
 

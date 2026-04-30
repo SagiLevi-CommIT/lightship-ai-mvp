@@ -139,7 +139,7 @@ OBJECT_LABELS = [
 AWS_REGION = os.getenv("AWS_REGION", "eu-central-1")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-20250514-v1:0")
+BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-5-20250929-v1:0")
 
 # LLM parameters
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.1"))
@@ -371,4 +371,65 @@ CV_PARALLEL_WORKERS = 4
 
 ENABLE_FRAME_PREPROCESSING = os.getenv("ENABLE_FRAME_PREPROCESSING", "true").lower() == "true"
 """Enable CLAHE + sharpen preprocessing before CV detection"""
+
+# ============================================================================
+# Vision Labeler Configuration (replaces Rekognition)
+# ============================================================================
+
+DETECTOR_BACKEND: str = os.getenv("DETECTOR_BACKEND", "florence2")
+"""Detection backend: ``florence2`` | ``yolo`` | ``detectron2``.
+
+Legacy env value ``auto`` is still accepted by :class:`src.processing_models.ProcessingConfig`
+and is normalised to ``florence2`` (no silent YOLO fallback)."""
+
+LANE_BACKEND: str = os.getenv("LANE_BACKEND", "opencv")
+"""Lane detection backend.
+
+Values:
+- 'opencv' (DEFAULT): HSV + Hough lane/crosswalk detection in cv_labeler.py.
+                      Production-tested, works with no external weights.
+- 'ufldv2'          : Ultra-Fast-Lane-Detection-V2.  Currently UNAVAILABLE
+                      because the upstream weights are only distributed via
+                      Google Drive / Baidu Drive / PINTO_model_zoo (no HF
+                      repo).  Selecting this value emits zero lanes until
+                      the ONNX checkpoint from
+                      https://github.com/PINTO0309/PINTO_model_zoo/tree/main/324_Ultra-Fast-Lane-Detection-v2
+                      is baked into the worker image and the backend is
+                      switched to onnxruntime."""
+
+VISION_FALLBACK_ENABLED: bool = os.getenv("VISION_FALLBACK_ENABLED", "true").lower() == "true"
+"""Enable automatic Detectron2 fallback when Florence-2 confidence is below threshold."""
+
+VISION_FALLBACK_CONFIDENCE_THRESHOLD: float = float(
+    os.getenv("VISION_FALLBACK_CONFIDENCE_THRESHOLD", "0.40")
+)
+"""Confidence threshold below which the Detectron2 fallback is triggered (0–1)."""
+
+VISION_CRITICAL_CLASSES: list = [
+    c.strip()
+    for c in os.getenv(
+        "VISION_CRITICAL_CLASSES",
+        "motorcycle,pedestrian,cone,construction_worker,traffic_signal",
+    ).split(",")
+    if c.strip()
+]
+"""Classes that trigger Detectron2 fallback when missing or below threshold."""
+
+FLORENCE2_MODEL_ID: str = os.getenv("FLORENCE2_MODEL_ID", "microsoft/Florence-2-base")
+"""HuggingFace model ID for Florence-2."""
+
+FLORENCE2_OD_PROMPTS: list = [
+    c.strip()
+    for c in os.getenv(
+        "FLORENCE2_OD_PROMPTS",
+        "car,truck,bus,motorcycle,pedestrian,bicycle,"
+        "traffic light,stop sign,traffic cone,barrier,"
+        "construction worker,heavy equipment,debris",
+    ).split(",")
+    if c.strip()
+]
+"""Prompt classes for Florence-2 open-vocabulary detection."""
+
+UFLDV2_MODEL_ID: str = os.getenv("UFLDV2_MODEL_ID", "cfzd/ufld-v2-culane")
+"""HuggingFace model ID for UFLDv2 lane detection (or local path)."""
 

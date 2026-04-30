@@ -218,9 +218,9 @@ Now analyze the dashcam frame and return the JSON array of detected objects."""
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": MAX_TOKENS,
+            # Sonnet 4.5+ rejects InvokeModel calls that specify BOTH
+            # temperature and top_p; prefer temperature for determinism.
             "temperature": TEMPERATURE,
-            "top_p": TOP_P,
-            "top_k": TOP_K,
             "messages": [
                 {
                     "role": "user",

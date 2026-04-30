@@ -25,7 +25,8 @@ from src.config import (
     LANE_CLUSTERING_THRESHOLD_PX,
     MIN_LANE_ASPECT_RATIO,
     MAX_LANE_ASPECT_RATIO,
-    GEOMETRY_NMS_IOU_THRESHOLD
+    GEOMETRY_NMS_IOU_THRESHOLD,
+    LANE_BACKEND,
 )
 from src.camera_profiles import CameraProfile, get_camera_profile, detect_camera_from_filename
 
@@ -142,8 +143,14 @@ class CVLabeler:
         # Calibrate depth scale
         scale_factor = self._calibrate_depth(detections, depth_map, frame_rgb.shape)
 
-        # Detect road geometry
-        road_geometry = self._detect_road_geometry(frame_rgb, frame_bgr, timestamp_ms)
+        # Detect road geometry — only when OpenCV lane backend is active.
+        # When LANE_BACKEND=ufldv2 (default), VisionLabeler owns lane detection;
+        # CVLabeler skips this step to avoid producing duplicate lane objects.
+        road_geometry = (
+            self._detect_road_geometry(frame_rgb, frame_bgr, timestamp_ms)
+            if LANE_BACKEND == "opencv"
+            else []
+        )
 
         # Build object instances
         objects = []

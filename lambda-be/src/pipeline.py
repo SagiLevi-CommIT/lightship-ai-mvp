@@ -45,7 +45,7 @@ from src.config import (
 from src.frame_selector import select_frames_by_clustering
 from src.frame_preprocessor import preprocess_frame
 from src.config_generator import write_client_configs
-from src.rekognition_labeler import RekognitionLabeler
+from src.vision_labeler import VisionLabeler
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +60,8 @@ class Pipeline:
         cleanup_frames: bool = False,  # Changed default to False for V2
         use_cv_labeler: bool = True,  # Use V2 CV pipeline by default
         native_fps: Optional[float] = None,
+        detector_backend: str = "florence2",
+        lane_backend: str = "ufldv2",
     ):
         """Initialize Pipeline with all components.
 
@@ -86,11 +88,14 @@ class Pipeline:
         if use_cv_labeler:
             # Note: CVLabeler will be re-initialized per video with camera-specific profile
             self.cv_labeler = None  # Will be set in process_video
-            self.rekognition = RekognitionLabeler()
+            self.vision_labeler = VisionLabeler(
+                detector_backend=detector_backend,
+                lane_backend=lane_backend,
+            )
             self.frame_annotator = FrameAnnotator()
             self.frame_refiner = FrameRefiner()
             self.hazard_assessor = HazardAssessor()
-            logger.info("Using V3 pipeline: CV + Rekognition + Per-Frame Refinement + Hazard Assessor")
+            logger.info("Using V3 pipeline: CV + VisionLabeler (Florence-2+UFLDv2) + Refinement + Hazard Assessor")
         else:
             self.scene_labeler = SceneLabeler()
             logger.info("Using V1 pipeline: LLM Scene Labeler")
@@ -240,30 +245,36 @@ class Pipeline:
                 video_metadata, all_objects, hazard_events, inferred_metadata if self.use_cv_labeler else {}
             )
 
-            # Inject the Rekognition audit trail into output.json so every
-            # completed run carries proof that managed-vision inference was
-            # actually invoked. The audit is authored by ``RekognitionLabeler``
-            # one entry per frame (raw label names, confidence, kept count,
-            # latency) and tests assert on its presence.
+            # Inject the VisionLabeler audit trail into output.json so every
+            # completed run carries a per-frame record of which backend ran,
+            # what it returned, and whether the Detectron2 fallback was used.
             import json as _json
-            if self.use_cv_labeler and self.rekognition is not None:
+            if self.use_cv_labeler and self.vision_labeler is not None:
                 try:
                     with open(output_path, "r", encoding="utf-8") as fp:
                         output_doc = _json.load(fp)
-                    audit = self.rekognition.build_audit()
-                    output_doc["rekognition_audit"] = {
-                        "frames_evaluated": len(audit),
+                    per_frame = self.vision_labeler.build_audit()
+                    configured_backend = getattr(
+                        self.vision_labeler, "detector_backend", "unknown",
+                    )
+                    output_doc["vision_audit"] = {
+                        "frames_evaluated": len(per_frame),
                         "total_instances_kept": sum(
-                            int(entry.get("kept_instances", 0)) for entry in audit
+                            int(e.get("primary_kept_instances", 0))
+                            + int(e.get("fallback_kept_instances") or 0)
+                            for e in per_frame
                         ),
-                        "region": getattr(self.rekognition, "region_name", None),
-                        "min_confidence": getattr(self.rekognition, "min_confidence", None),
-                        "per_frame": audit,
+                        "backend": configured_backend,
+                        "lane_backend": getattr(self.vision_labeler, "lane_backend", "unknown"),
+                        "fallback_triggered_count": sum(
+                            1 for e in per_frame if e.get("fallback_used")
+                        ),
+                        "per_frame": per_frame,
                     }
                     with open(output_path, "w", encoding="utf-8") as fp:
                         _json.dump(output_doc, fp, indent=2)
                 except Exception as audit_err:
-                    logger.warning("Failed to embed rekognition_audit: %s", audit_err)
+                    logger.warning("Failed to embed vision_audit: %s", audit_err)
 
             # Get summary stats
             from src.schemas import VideoOutput
@@ -639,39 +650,63 @@ class Pipeline:
             if idx in extracted_frames and os.path.exists(extracted_frames[idx])
         ][:max_snapshots]
 
-        report(0.55, "rekognition",
-               f"Running AWS Rekognition on {len(selected_indices)} selected frames")
-        # Step 4c: Merge Rekognition labels into selected-frame CV detections.
-        # Rekognition adds broad managed-model labels (cones, workers,
-        # pedestrians, signs, signals) that YOLO often misses. We only call
-        # it on the small final set, not the full pre-selection sweep, to
-        # keep the cost bounded.
+        # Backfill: if the existence filter or an upstream strategy returned
+        # fewer than max_snapshots, fill up from the remaining valid frames
+        # ranked by detection count (richest content first).
+        if len(selected_indices) < max_snapshots:
+            already = set(selected_indices)
+            backfill_pool = sorted(
+                (
+                    idx for idx in all_frame_objects
+                    if idx not in already
+                    and idx in extracted_frames
+                    and os.path.exists(extracted_frames[idx])
+                ),
+                key=lambda i: len(all_frame_objects.get(i, [])),
+                reverse=True,
+            )
+            need = max_snapshots - len(selected_indices)
+            selected_indices = sorted(selected_indices + backfill_pool[:need])
+            if len(selected_indices) < max_snapshots:
+                logger.warning(
+                    "Frame count below requested: got %d / %d "
+                    "(not enough valid extracted frames in video)",
+                    len(selected_indices), max_snapshots,
+                )
+            else:
+                logger.info(
+                    "Backfilled %d frame(s) to reach requested count of %d",
+                    need, max_snapshots,
+                )
+
+        report(0.55, "vision_labeler",
+               f"Running VisionLabeler on {len(selected_indices)} selected frames")
+        # Step 4c: Merge VisionLabeler (Florence-2 + UFLDv2) detections into
+        # the selected-frame CV results.  We only call VisionLabeler on the
+        # small final selected set, not the dense pre-selection sweep, to
+        # keep inference cost bounded (same pattern as former Rekognition step).
         try:
+            snap_ts: Dict[int, float] = {s.frame_idx: s.timestamp_ms for s in snapshots}
             for fidx in selected_indices:
                 frame_path = extracted_frames.get(fidx)
                 if not frame_path:
                     continue
-                # Find matching timestamp for this frame
-                ts_ms = 0.0
-                for snap in snapshots:
-                    if snap.frame_idx == fidx:
-                        ts_ms = snap.timestamp_ms
-                        break
-                rk_objs = self.rekognition.detect(
+                ts_ms = snap_ts.get(fidx, 0.0)
+                vl_objs = self.vision_labeler.detect(
                     frame_path=frame_path,
                     timestamp_ms=ts_ms,
                     video_width=video_metadata.width,
                     video_height=video_metadata.height,
                 )
-                if rk_objs:
+                if vl_objs:
                     existing = all_frame_objects.setdefault(fidx, [])
-                    existing.extend(rk_objs)
+                    existing.extend(vl_objs)
                     logger.info(
-                        "Rekognition added %d detections on frame %d (total now %d)",
-                        len(rk_objs), fidx, len(existing),
+                        "VisionLabeler added %d detections on frame %d (total now %d)",
+                        len(vl_objs), fidx, len(existing),
                     )
         except Exception as e:  # noqa: BLE001
-            logger.warning("Rekognition merge failed: %s", e)
+            logger.warning("VisionLabeler merge failed: %s", e)
 
         logger.info(
             f"Selected {len(selected_indices)}/{len(all_frame_objects)} frames "
