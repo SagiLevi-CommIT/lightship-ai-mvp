@@ -67,6 +67,80 @@ class ExtractionResult:
     manifest: List[FrameEntry] = field(default_factory=list)
 
 
+def _decode_frame_pyav(
+    filepath: str,
+    target_idx: int,
+    fps: float,
+) -> Tuple[Optional[np.ndarray], Optional[int]]:
+    """Decode a frame near ``target_idx`` using PyAV (more accurate than OpenCV seek).
+
+    Returns ``(frame, decoded_idx)`` where ``decoded_idx`` is the estimated frame
+    index for the returned raster. Returns ``(None, None)`` if PyAV is unavailable
+    or cannot produce a validated frame close enough to the request.
+    """
+    try:
+        import av  # type: ignore[import-untyped]
+    except ImportError:
+        logger.debug("PyAV (av) not installed — skipping PyAV decode path")
+        return None, None
+
+    try:
+        with av.open(filepath, mode="r") as container:
+            stream = container.streams.video[0]
+            tb = stream.time_base
+            if tb is None or float(tb) == 0:
+                tb = av.Rational(1, max(1, int(round(max(fps, 1e-6) * 1000))))
+            rate = float(stream.average_rate) if stream.average_rate else max(float(fps), 1e-6)
+            t_sec = target_idx / rate
+            time_base_f = float(tb)
+            try:
+                seek_ts = max(0, int(t_sec / time_base_f) - int(0.5 / time_base_f))
+                container.seek(seek_ts, backward=True, any_frame=False, stream=stream)
+            except Exception as exc:
+                logger.debug("PyAV seek failed for %s idx=%d: %s", filepath, target_idx, exc)
+                try:
+                    container.seek(0, backward=True, any_frame=True, stream=stream)
+                except Exception:
+                    pass
+
+            best_frame: Optional[np.ndarray] = None
+            best_idx: Optional[int] = None
+            best_dist = 10**9
+
+            for frame in container.decode(stream):
+                if frame.pts is None:
+                    continue
+                try:
+                    t = float(frame.pts * tb)
+                except Exception:
+                    continue
+                idx_est = int(round(t * rate))
+                dist = abs(idx_est - target_idx)
+                try:
+                    arr = frame.to_ndarray(format="bgr24")
+                except Exception:
+                    continue
+                if not _is_real_frame(arr):
+                    continue
+                if dist < best_dist:
+                    best_dist = dist
+                    best_frame = arr
+                    best_idx = idx_est
+                if idx_est >= target_idx and dist <= 2:
+                    break
+                if idx_est > target_idx + 120 and best_frame is not None:
+                    break
+
+        if best_frame is None or best_idx is None:
+            return None, None
+        if best_dist > 30:
+            return None, None
+        return best_frame, best_idx
+    except Exception as exc:
+        logger.warning("PyAV decode failed for %s idx=%d: %s", filepath, target_idx, exc)
+        return None, None
+
+
 def _is_real_frame(frame: Optional[np.ndarray]) -> bool:
     """Reject ``None`` / empty / uniform-colour decoded frames.
 
@@ -139,6 +213,8 @@ class FrameExtractor:
                     snapshot=snapshot,
                     video_name=video_name,
                     total_frames=total_frames,
+                    video_path=video_metadata.filepath,
+                    fps=float(video_metadata.fps or 0.0),
                 )
                 result.manifest.append(entry)
                 if output_path is not None:
@@ -176,6 +252,8 @@ class FrameExtractor:
         snapshot: SnapshotInfo,
         video_name: str,
         total_frames: int,
+        video_path: str,
+        fps: float,
     ) -> Tuple[FrameEntry, Optional[str]]:
         target = max(0, min(snapshot.frame_idx, max(0, total_frames - 1)))
         entry = FrameEntry(
@@ -185,7 +263,13 @@ class FrameExtractor:
             status="failed",
         )
 
-        frame, decoded_idx = self._read_validated_frame(cap, target, total_frames)
+        frame, decoded_idx = self._read_validated_frame(
+            cap,
+            target,
+            total_frames,
+            video_path=video_path,
+            fps=fps,
+        )
 
         if frame is None or decoded_idx is None:
             entry.error = "decode_failed_after_fallback"
@@ -224,11 +308,15 @@ class FrameExtractor:
         cap: cv2.VideoCapture,
         target_idx: int,
         total_frames: int,
+        *,
+        video_path: Optional[str] = None,
+        fps: Optional[float] = None,
     ) -> Tuple[Optional[np.ndarray], Optional[int]]:
         """Seek to ``target_idx`` and return ``(frame, decoded_idx)``.
 
         On failure: (a) try a 1-frame seek-back and re-read, (b) walk
-        forward up to ``FRAME_READ_FALLBACK_STEPS`` frames, (c) give up.
+        forward up to ``FRAME_READ_FALLBACK_STEPS`` frames, (c) try PyAV
+        when OpenCV fails or only returns a substituted neighbour, (d) give up.
         ``decoded_idx`` is always the index of the frame we actually
         returned to the caller, so manifest entries can reflect when a
         substitution happened.
@@ -248,17 +336,32 @@ class FrameExtractor:
                 return frame, target_idx
 
         # 2) Linear forward walk. We re-seek to target and then step
-        #    forward up to FRAME_READ_FALLBACK_STEPS frames, returning
-        #    the first readable one.
+        #    forward up to FRAME_READ_FALLBACK_STEPS frames, capturing the
+        #    first readable neighbour (may be a substitute for ``target_idx``).
+        opencv_frame: Optional[np.ndarray] = None
+        opencv_decoded: Optional[int] = None
         cap.set(cv2.CAP_PROP_POS_FRAMES, target_idx)
         for offset in range(1, FRAME_READ_FALLBACK_STEPS + 1):
             if target_idx + offset >= total_frames:
                 break
             ret, frame = cap.read()
             if ret and _is_real_frame(frame):
-                return frame, target_idx + offset
+                opencv_frame = frame
+                opencv_decoded = target_idx + offset
+                break
 
-        return None, None
+        # 3) PyAV — refine when OpenCV failed entirely or only returned a neighbour.
+        if video_path and fps and fps > 0:
+            p_frame, p_idx = _decode_frame_pyav(video_path, target_idx, fps)
+            if p_frame is not None and p_idx is not None:
+                if opencv_frame is None or opencv_decoded is None:
+                    return p_frame, p_idx
+                if p_idx == target_idx:
+                    return p_frame, p_idx
+                if abs(p_idx - target_idx) < abs(opencv_decoded - target_idx):
+                    return p_frame, p_idx
+
+        return opencv_frame, opencv_decoded
 
     @staticmethod
     def _write_frame(output_path: str, frame: np.ndarray) -> bool:

@@ -1,0 +1,35 @@
+# Inference worker dependencies
+# All ML weights are baked into the Docker image at build time (TRANSFORMERS_OFFLINE=1 at runtime)
+
+opencv-python-headless>=4.8.0
+av>=12.0.0
+boto3>=1.34.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+numpy>=1.24.0
+scikit-image>=0.21.0
+Pillow>=10.0.0
+
+# FastAPI / Mangum (needed because lambda-be/src imports api_server transitively)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+mangum>=0.17.0
+
+# CV models
+ultralytics>=8.3.0              # YOLO11 (pre-selection sweep + Detectron2 fallback)
+# Florence-2 needs transformers 4.49.x exactly.  Newer minor versions (4.50+)
+# remove `_supports_sdpa` from the model class hierarchy, which Florence-2's
+# trust_remote_code modeling file relies on.  Older versions (<4.49) lack
+# Florence-2 support entirely.
+transformers==4.49.0
+torch>=2.0.0
+torchvision>=0.15.0
+timm>=0.9.0                     # Required by Depth-Anything-V2
+
+# Florence-2 requires trust_remote_code=True — needs accelerate + einops
+accelerate>=0.26.0
+einops>=0.7.0                   # required by Florence-2's modeling code
+
+# For UFLDv2 HuggingFace hub download
+huggingface_hub>=0.20.0,<1.0.0
