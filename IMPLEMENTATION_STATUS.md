@@ -4,6 +4,46 @@
 
 Last updated: 2026-04-30
 
+### E2E follow-up (CodeBuild YAML + PyAV + UI picker) — 2026-04-30 — **SHIPPED TO GIT; AWS PENDING SSO**
+
+**Git (`main`, seven commits ending `c69dd81`):** Pushed to GitHub
+`https://github.com/SagiLevi-CommIT/lightship-ai-mvp` (`github` remote).  
+`origin` (CodeCommit) push requires a fresh `aws sso login --profile proxy-corp-ai-devops` then
+`git push origin main` if your pipeline still tracks CodeCommit.
+
+**Code changes in this follow-up:**
+- **`ui-fe/buildspec.yml` + `lambda-be/buildspec.yml`:** detect-secrets gate moved to
+  `scripts/ci/check_detect_secrets.py` so CodeBuild no longer fails YAML parse at `DOWNLOAD_SOURCE`.
+- **`lambda-be/src/frame_extractor.py`:** PyAV (`av`) decode when OpenCV fails or returns a
+  substituted neighbour; worker image installs `av>=12` + libav dev packages.
+- **`ui-fe`:** detector backend picker + **Substituted** badge on frame thumbnails when
+  `extraction_status === 'substituted'`.
+
+**Run after SSO (account `336090301206`, `us-east-1`, profile `corp-ai-sandbox-devops`):**
+
+```powershell
+aws sso login --profile proxy-corp-ai-devops
+aws codebuild start-build --project-name lightship-mvp-frontend --profile corp-ai-sandbox-devops --region us-east-1
+# wait SUCCEEDED, then:
+aws ecs update-service --cluster lightship-mvp-cluster --service lightship-mvp-frontend-service `
+  --force-new-deployment --profile corp-ai-sandbox-devops --region us-east-1
+```
+
+**Worker (PyAV):** rebuild/push `lightship-mvp-inference-worker:<git-sha>` from repo root, then
+`aws cloudformation deploy` using `infrastructure/inference-worker-stack.yaml` with `ImageUri=…`.
+Re-apply SFN overrides with `py build/patch_sfn_ecs_env.py` if CFN cannot update the state machine.
+
+**Live E2E (manual, authorized client):** three runs on a **non-HUD** dashcam clip with
+`detector_backend ∈ {florence2, yolo, detectron2}`; confirm dropdown, `vision_audit.backend`,
+≥4/5 frames `extraction.status == "ok"`, three SUCCEEDED SFN executions.
+
+**Screenshot placeholder (attach after UI deploy):**  
+`![Detector picker + frames](docs/images/e2e-detector-picker-2026-04-30.png)` — capture from `/run`
+showing the detector dropdown and one thumbnail row per backend; save under `docs/images/` and
+uncomment or embed in this file.
+
+---
+
 ### E2E multi-backend + worker frame artefacts — 2026-04-30 — **DEPLOYED**
 
 **Scope:** Per-job detector selection (`florence2` \| `yolo` \| `detectron2`), shared
