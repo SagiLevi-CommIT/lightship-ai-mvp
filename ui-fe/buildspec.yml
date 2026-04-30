@@ -36,18 +36,7 @@ phases:
       # ── Secret / credential leak scan ─────────────────────────────────────
       - echo "=== detect-secrets: secret scan ==="
       - detect-secrets scan --all-files --exclude-files '\.git/.*' --exclude-files 'package-lock\.json' > reports/detect-secrets.json 2>&1
-      - python3 -c "
-      import json,sys
-      r=json.load(open('reports/detect-secrets.json'))
-      results=r.get('results',{})
-      count=sum(len(v) for v in results.values())
-      if count:
-          print(f'detect-secrets: {count} potential secret(s) found:')
-          [print(f'  {f}: {s}') for f,secrets in results.items() for s in secrets]
-          sys.exit(1 if '${FAIL}'=='true' else 0)
-      else:
-          print('detect-secrets PASSED - no secrets found')
-      "
+      - python3 scripts/ci/check_detect_secrets.py reports/detect-secrets.json "$FAIL"
 
       # ── CloudFormation IaC misconfiguration scan ───────────────────────────
       - echo "=== checkov: CloudFormation IaC scan ==="
