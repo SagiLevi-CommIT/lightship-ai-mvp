@@ -45,9 +45,9 @@ Resources:
           EMIT_METRICS: 'true'
           METRICS_NAMESPACE: Lightship/Backend
           DEFAULT_MODEL_ID: anthropic.claude-3-haiku-20240307-v1:0
-          FAST_MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
-          REASONING_MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
-          KNOWLEDGE_BASE_MODEL_ARN: us.anthropic.claude-sonnet-4-20250514-v1:0
+          FAST_MODEL_ID: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+          REASONING_MODEL_ID: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+          KNOWLEDGE_BASE_MODEL_ARN: us.anthropic.claude-sonnet-4-5-20250929-v1:0
           MAX_TOKENS: '4096'
           TEMPERATURE: '0'
           TOP_P: '1'
@@ -69,8 +69,8 @@ Resources:
           PROCESSING_QUEUE_URL:
             Fn::ImportValue: !Sub '${ProjectName}-${Environment}-processing-queue-url'
           PIPELINE_STATE_MACHINE_ARN: !Ref LightshipPipelineStateMachine
-          REKOGNITION_CUSTOM_MODEL_ARN: !Sub '{{resolve:ssm:/${ProjectName}/${Environment}/rekognition/custom-labels-arn}}'
-          REKOGNITION_CUSTOM_MIN_CONFIDENCE: '15'
+          DETECTOR_BACKEND: 'auto'
+          LANE_BACKEND: 'ufldv2'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-backend'
@@ -127,13 +127,80 @@ Resources:
       # also update infrastructure/state-machines/pipeline.asl.json.
       DefinitionSubstitutions:
         PipelineFunctionArn: !GetAtt BackendLambdaFunction.Arn
+        InferenceWorkerTaskDefArn:
+          Fn::ImportValue: !Sub '${ProjectName}-${Environment}-inference-worker-task-def-arn'
+        InferenceWorkerClusterArn:
+          Fn::ImportValue: !Sub '${ProjectName}-${Environment}-inference-cluster-arn'
+        InferenceWorkerSgId:
+          Fn::ImportValue: !Sub '${ProjectName}-${Environment}-inference-worker-sg-id'
+        PrivateSubnet1:
+          Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-1'
+        PrivateSubnet2:
+          Fn::ImportValue: !Sub '${ProjectName}-${Environment}-private-app-subnet-2'
+        ProcessingBucket:
+          Fn::ImportValue: !Sub '${ProjectName}-${Environment}-processing-bucket'
       DefinitionString: !Sub |
         {
-          "Comment": "Lightship video processing pipeline. SQS dispatcher enqueues a job, this state machine runs Pipeline.process_video as a Lambda task and catches failures to mark Dynamo FAILED.",
-          "StartAt": "RunPipeline",
+          "Comment": "Lightship video processing pipeline v2. SQS dispatcher -> Lambda (orchestration) -> ECS Fargate (ML inference) -> Lambda (finalize). Falls back to Lambda-only if ECS task def is unavailable.",
+          "StartAt": "RunInferenceWorker",
           "States": {
-            "RunPipeline": {
+            "RunInferenceWorker": {
               "Type": "Task",
+              "Resource": "arn:aws:states:::ecs:runTask.sync",
+              "Parameters": {
+                "LaunchType": "FARGATE",
+                "Cluster": "${!InferenceWorkerClusterArn}",
+                "TaskDefinition": "${!InferenceWorkerTaskDefArn}",
+                "NetworkConfiguration": {
+                  "AwsvpcConfiguration": {
+                    "Subnets": ["${!PrivateSubnet1}", "${!PrivateSubnet2}"],
+                    "SecurityGroups": ["${!InferenceWorkerSgId}"],
+                    "AssignPublicIp": "DISABLED"
+                  }
+                },
+                "Overrides": {
+                  "ContainerOverrides": [{
+                    "Name": "inference-worker",
+                    "Environment": [
+                      {"Name": "JOB_ID", "Value.$": "$.job_id"},
+                      {"Name": "S3_INPUT_KEY", "Value.$": "$.s3_key"},
+                      {"Name": "S3_OUTPUT_PREFIX", "Value.$": "States.Format('results/{}/', $.job_id)"},
+                      {"Name": "PROCESSING_BUCKET", "Value": "${!ProcessingBucket}"},
+                      {"Name": "MAX_SNAPSHOTS", "Value.$": "$.ecs_env.MAX_SNAPSHOTS"},
+                      {"Name": "SNAPSHOT_STRATEGY", "Value.$": "$.ecs_env.SNAPSHOT_STRATEGY"},
+                      {"Name": "NATIVE_FPS", "Value.$": "$.ecs_env.NATIVE_FPS"},
+                      {"Name": "DETECTOR_BACKEND", "Value.$": "$.ecs_env.DETECTOR_BACKEND"},
+                      {"Name": "LANE_BACKEND", "Value.$": "$.ecs_env.LANE_BACKEND"}
+                    ]
+                  }]
+                }
+              },
+              "ResultPath": "$.ecs_result",
+              "TimeoutSeconds": 1800,
+              "HeartbeatSeconds": 300,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "ECS.AmazonECSException",
+                    "States.TaskFailed"
+                  ],
+                  "IntervalSeconds": 30,
+                  "MaxAttempts": 2,
+                  "BackoffRate": 2.0
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": ["States.ALL"],
+                  "ResultPath": "$.error",
+                  "Next": "FallbackToLambda"
+                }
+              ],
+              "Next": "Succeed"
+            },
+            "FallbackToLambda": {
+              "Type": "Task",
+              "Comment": "ECS worker unavailable — fall back to Lambda pipeline (legacy path, 900s limit).",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
                 "FunctionName": "${!PipelineFunctionArn}",
@@ -160,7 +227,7 @@ Resources:
                     "Lambda.TooManyRequestsException"
                   ],
                   "IntervalSeconds": 5,
-                  "MaxAttempts": 3,
+                  "MaxAttempts": 2,
                   "BackoffRate": 2.0
                 }
               ],

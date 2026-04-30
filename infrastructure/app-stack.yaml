@@ -427,22 +427,20 @@ Resources:
                   - !GetAtt ConversationResultsBucket.Arn
                   - !Sub 'arn:aws:s3:::s3-${ProjectName}-custom-datasources-${AWS::Region}'
                   - !Sub 'arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}'
-        - PolicyName: RekognitionAccess
+        - PolicyName: VisionLabelerAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - rekognition:DetectLabels
-                  - rekognition:DetectModerationLabels
-                  - rekognition:DetectText
-                  - rekognition:DetectProtectiveEquipment
-                  - rekognition:DetectCustomLabels
-                  - rekognition:DescribeProjectVersions
-                  - rekognition:DescribeProjects
-                  - rekognition:StartProjectVersion
-                  - rekognition:StopProjectVersion
+                  - ecs:RunTask
+                  - ecs:StopTask
+                  - ecs:DescribeTasks
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ProjectName}-${Environment}-inference-worker-task-role'
         - PolicyName: DynamoDBAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -907,11 +905,12 @@ Resources:
       KmsKeyId: !GetAtt LightshipKMSKey.Arn
       SecretString: !Sub |
         {
-          "bedrock_model_id": "anthropic.claude-sonnet-4-20250514-v1:0",
+          "bedrock_model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
           "detection_confidence_threshold": 0.7,
           "frame_sampling_rate": 2,
           "max_concurrent_workers": 5,
-          "rekognition_min_confidence": 70,
+          "detector_backend": "auto",
+          "lane_backend": "ufldv2",
           "max_snapshots_per_video": 10,
           "snapshot_strategy": "scene_change"
         }
@@ -948,11 +947,6 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
-                Action:
-                  - rekognition:DetectLabels
-                  - rekognition:DetectModerationLabels
-                Resource: '*'
               - Effect: Allow
                 Action:
                   - bedrock:InvokeModel
@@ -1306,9 +1300,11 @@ Resources:
           CUSTOM_DATASOURCES_BUCKET: !Sub 's3-${ProjectName}-custom-datasources-${AWS::Region}'
           PROCESSING_QUEUE_URL: !Ref ProcessingQueue
           PIPELINE_STATE_MACHINE_ARN: !Sub 'arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${ProjectName}-${Environment}-pipeline'
-          BEDROCK_MODEL_ID: us.anthropic.claude-sonnet-4-20250514-v1:0
-          REKOGNITION_CUSTOM_MODEL_ARN: !Sub '{{resolve:ssm:/${ProjectName}/${Environment}/rekognition/custom-labels-arn}}'
-          REKOGNITION_CUSTOM_MIN_CONFIDENCE: '15'
+          # Sonnet 4 v1 is LEGACY in Bedrock and was never granted Marketplace
+          # access for this account; v4.5 (20250929) is ACTIVE and granted.
+          BEDROCK_MODEL_ID: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+          DETECTOR_BACKEND: 'auto'
+          LANE_BACKEND: 'ufldv2'
       Tags:
         - Key: Name
           Value: !Sub '${ProjectName}-${Environment}-backend'
@@ -1589,12 +1585,12 @@ Resources:
               "type": "metric",
               "x": 12, "y": 12, "width": 12, "height": 6,
               "properties": {
-                "title": "Rekognition Activity (EMF)",
+                "title": "VisionLabeler Activity (Florence-2 + UFLDv2)",
                 "metrics": [
-                  ["Lightship/Backend", "RekognitionCalls", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum"}],
-                  ["Lightship/Backend", "RekognitionLabelsReturned", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum", "color": "#2ca02c"}],
-                  ["Lightship/Backend", "RekognitionInstancesKept", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum"}],
-                  ["Lightship/Backend", "RekognitionFailures", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum", "color": "#d62728"}]
+                  ["Lightship/Backend", "VisionLabelerCalls", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum"}],
+                  ["Lightship/Backend", "VisionLabelerInstancesKept", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum", "color": "#2ca02c"}],
+                  ["Lightship/Backend", "VisionLabelerFallbackTriggered", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum"}],
+                  ["Lightship/Backend", "LaneBackendLanesKept", "Service", "lightship-backend", "Environment", "${Environment}", {"stat": "Sum", "color": "#9467bd"}]
                 ],
                 "region": "${AWS::Region}",
                 "period": 300

@@ -1,0 +1,315 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Lightship MVP — ECS Fargate Inference Worker stack.
+  Provisions the ECR repository, ECS cluster, task definition, task IAM role,
+  and security group for the heavy-ML video processing worker.
+  Step Functions invokes this worker via ecs:runTask.sync so it can be
+  monitored and timeout-controlled independently of the Lambda layer.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: lightship
+  Environment:
+    Type: String
+    Default: mvp
+    AllowedValues: [mvp, dev, staging, production]
+  ImageUri:
+    Type: String
+    Description: >
+      ECR image URI for the inference worker container.
+      Format: <account>.dkr.ecr.<region>.amazonaws.com/lightship-mvp-inference-worker:latest
+    Default: "336090301206.dkr.ecr.us-east-1.amazonaws.com/lightship-mvp-inference-worker:latest"
+  # Task sizing (CPU units and memory MB follow Fargate valid combinations)
+  TaskCpu:
+    Type: String
+    Default: "4096"
+    Description: Fargate task vCPU units (1024 = 1 vCPU). 4096 = 4 vCPU.
+  TaskMemory:
+    Type: String
+    Default: "16384"
+    Description: Fargate task memory in MB. 16384 = 16 GB.
+  DetectorBackend:
+    Type: String
+    Default: "florence2"
+    Description: "Default detection backend (per-job env overrides): florence2 | yolo | detectron2"
+  LaneBackend:
+    Type: String
+    Default: "opencv"
+    Description: >
+      Lane backend.  "opencv" is the production default (HSV + Hough in
+      cv_labeler.py).  "ufldv2" is reserved for future use — the upstream
+      weights are not on HuggingFace; PINTO_model_zoo provides ONNX exports
+      that need to be baked into the worker image with onnxruntime before
+      this can be selected.
+  MaxSnapshots:
+    Type: String
+    Default: "5"
+    Description: Maximum frames selected per video.
+  SnapshotStrategy:
+    Type: String
+    Default: "clustering"
+    Description: Frame selection strategy.
+
+Resources:
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # ECR Repository
+  # ──────────────────────────────────────────────────────────────────────────
+  InferenceWorkerECRRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-${Environment}-inference-worker"
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [{
+              "rulePriority": 1,
+              "description": "Keep last 10 images",
+              "selection": { "tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 10 },
+              "action": { "type": "expire" }
+            }]
+          }
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-inference-worker"
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # ECS Cluster — reuse the existing lightship-mvp-cluster (frontend cluster)
+  # to avoid creating a duplicate.  Imported via Fn::ImportValue below.
+  # ──────────────────────────────────────────────────────────────────────────
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # CloudWatch Log Group
+  # ──────────────────────────────────────────────────────────────────────────
+  WorkerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${ProjectName}-${Environment}-inference-worker"
+      RetentionInDays: 30
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Security Group — REUSE the existing pre-provisioned worker SG
+  # (lightship-mvp-worker-sg-id) which is already in the VPC endpoint SG's
+  # allow-list.  The previous version of this stack created a NEW SG that
+  # the VPC endpoints rejected, causing ECS tasks to hang in PENDING.
+  # ──────────────────────────────────────────────────────────────────────────
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # IAM Task Execution Role (ECR pull + CloudWatch logs)
+  # ──────────────────────────────────────────────────────────────────────────
+  WorkerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${Environment}-inference-worker-exec-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-inference-worker-exec-role"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # IAM Task Role (S3 read/write, DynamoDB, Bedrock, CloudWatch metrics)
+  # ──────────────────────────────────────────────────────────────────────────
+  WorkerTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${Environment}-inference-worker-task-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}/*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}"
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                Resource:
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_jobs"
+                  - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_jobs/index/*"
+        - PolicyName: BedrockAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: "*"
+        - PolicyName: CloudWatchMetrics
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+        - PolicyName: ECRReadForModelArtifacts
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchGetImage
+                  - ecr:GetDownloadUrlForLayer
+                Resource: "*"
+        - PolicyName: KMSAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                  - kms:DescribeKey
+                Resource:
+                  Fn::ImportValue: !Sub "${ProjectName}-${Environment}-kms-key-arn"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-inference-worker-task-role"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # ECS Task Definition
+  # ──────────────────────────────────────────────────────────────────────────
+  InferenceWorkerTaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${ProjectName}-${Environment}-inference-worker"
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !GetAtt WorkerExecutionRole.Arn
+      TaskRoleArn: !GetAtt WorkerTaskRole.Arn
+      ContainerDefinitions:
+        - Name: inference-worker
+          Image: !Ref ImageUri
+          Essential: true
+          # JOB_ID, S3_INPUT_KEY, S3_OUTPUT_PREFIX are injected per-task via
+          # containerOverrides in the Step Functions ecs:runTask call.
+          Environment:
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: DYNAMODB_TABLE
+              Value: !Sub "${ProjectName}_jobs"
+            - Name: PROCESSING_BUCKET
+              Value: !Sub "${ProjectName}-${Environment}-processing-${AWS::AccountId}"
+            - Name: DETECTOR_BACKEND
+              Value: !Ref DetectorBackend
+            - Name: LANE_BACKEND
+              Value: !Ref LaneBackend
+            - Name: MAX_SNAPSHOTS
+              Value: !Ref MaxSnapshots
+            - Name: SNAPSHOT_STRATEGY
+              Value: !Ref SnapshotStrategy
+            - Name: LOG_LEVEL
+              Value: INFO
+            # Bedrock cross-region inference profile that has model access
+            # granted in account 336090301206 (Claude Sonnet 4.5).  The older
+            # us.anthropic.claude-sonnet-4-20250514-v1:0 profile is LEGACY
+            # and was never enabled in Bedrock console (Marketplace gate).
+            - Name: BEDROCK_MODEL_ID
+              Value: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+            # Florence-2's trust_remote_code path needs the *.py files to be
+            # downloadable at runtime even when weights are baked in, so we
+            # leave TRANSFORMERS_OFFLINE off (the call only fetches a few KB
+            # of modeling-code .py files; weights are always cached locally).
+            - Name: TRANSFORMERS_OFFLINE
+              Value: "0"
+            - Name: HF_DATASETS_OFFLINE
+              Value: "1"
+            - Name: PYTHONUNBUFFERED
+              Value: "1"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref WorkerLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: worker
+          # Ephemeral storage for video download + extracted frames
+          # (default 20 GB is sufficient for most dashcam clips)
+      EphemeralStorage:
+        SizeInGiB: 50
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-inference-worker"
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  WorkerTaskDefinitionArn:
+    Description: ECS Task Definition ARN for the inference worker
+    Value: !Ref InferenceWorkerTaskDef
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-inference-worker-task-def-arn"
+
+  WorkerClusterArn:
+    Description: ECS Cluster ARN (reused from app-stack lightship-mvp-cluster)
+    Value:
+      Fn::ImportValue: !Sub "${ProjectName}-${Environment}-ecs-cluster-arn"
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-inference-cluster-arn"
+
+  WorkerClusterName:
+    Description: ECS Cluster name (reused)
+    Value:
+      Fn::ImportValue: !Sub "${ProjectName}-${Environment}-ecs-cluster"
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-inference-cluster-name"
+
+  WorkerSecurityGroupId:
+    Description: Security Group ID for worker tasks (reused pre-existing worker SG)
+    Value:
+      Fn::ImportValue: !Sub "${ProjectName}-${Environment}-worker-sg-id"
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-inference-worker-sg-id"
+
+  WorkerTaskRoleArn:
+    Description: Task IAM Role ARN
+    Value: !GetAtt WorkerTaskRole.Arn
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-inference-worker-task-role-arn"
+
+  ECRRepositoryUri:
+    Description: ECR repository URI for the inference worker image
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ProjectName}-${Environment}-inference-worker"
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-inference-worker-ecr-uri"
