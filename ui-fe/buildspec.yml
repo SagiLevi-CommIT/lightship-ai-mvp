@@ -52,14 +52,6 @@ phases:
       - docker push "$FRONTEND_IMAGE_URI"
       - bash scripts/deploy_app_stack.sh
 
-reports:
-  SecurityReports:
-    files:
-      - reports/npm-audit.json
-      - reports/trivy-frontend.json
-      - reports/detect-secrets.json
-    discard-paths: yes
-
 artifacts:
   files:
     - '**/*'

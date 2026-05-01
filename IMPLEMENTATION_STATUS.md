@@ -2,45 +2,37 @@
 
 ## Complete System Implementation — Status
 
-Last updated: 2026-04-30
+Last updated: 2026-05-01
 
-### E2E follow-up (CodeBuild YAML + PyAV + UI picker) — 2026-04-30 — **SHIPPED TO GIT; AWS PENDING SSO**
+### E2E follow-up — 2026-05-01 deploy (profile `lightship`, account `336090301206`)
 
-**Git (`main`, seven commits ending `c69dd81`):** Pushed to GitHub
-`https://github.com/SagiLevi-CommIT/lightship-ai-mvp` (`github` remote).  
-`origin` (CodeCommit) push requires a fresh `aws sso login --profile proxy-corp-ai-devops` then
-`git push origin main` if your pipeline still tracks CodeCommit.
+**Git:** `main` includes `154d436` (CodeBuild-strict YAML: no multi-line `commands`, no `echo …: …`
+colon-space patterns, `export IMAGE_TAG=…` / `export FAIL=…`, `reports:` blocks removed so
+CodeBuild stops failing `UPLOAD_ARTIFACTS` with `CreateReportGroup` AccessDenied). Pushed to
+CodeCommit and GitHub.
 
-**Code changes in this follow-up:**
-- **`ui-fe/buildspec.yml` + `lambda-be/buildspec.yml`:** detect-secrets gate moved to
-  `scripts/ci/check_detect_secrets.py` so CodeBuild no longer fails YAML parse at `DOWNLOAD_SOURCE`.
-- **`lambda-be/src/frame_extractor.py`:** PyAV (`av`) decode when OpenCV fails or returns a
-  substituted neighbour; worker image installs `av>=12` + libav dev packages.
-- **`ui-fe`:** detector backend picker + **Substituted** badge on frame thumbnails when
-  `extraction_status === 'substituted'`.
+**CodeBuild `lightship-mvp-frontend` (build `7c0cc42b-…`):** `DOWNLOAD_SOURCE` → `BUILD` **SUCCEEDED**
+(image built and scanned). `POST_BUILD` **failed** on `bash scripts/deploy_app_stack.sh`:
+CloudFormation **`lightship-mvp-app` is in `UPDATE_ROLLBACK_FAILED`** — the script cannot deploy
+until that stack is repaired in the console (continue rollback / skip resources / stack delete as
+appropriate).
 
-**Run after SSO (account `336090301206`, `us-east-1`, profile `corp-ai-sandbox-devops`):**
+**Frontend rollout without CFN app deploy:** ECR image for commit `154d436…` was pushed by
+CodeBuild; **`lightship-frontend:latest`** was updated to the **same manifest** as that tag via
+`ecr put-image`, then **`lightship-mvp-frontend-service`** received **`--force-new-deployment`**
+so tasks pull the new UI (detector picker + substituted badge).
 
-```powershell
-aws sso login --profile proxy-corp-ai-devops
-aws codebuild start-build --project-name lightship-mvp-frontend --profile corp-ai-sandbox-devops --region us-east-1
-# wait SUCCEEDED, then:
-aws ecs update-service --cluster lightship-mvp-cluster --service lightship-mvp-frontend-service `
-  --force-new-deployment --profile corp-ai-sandbox-devops --region us-east-1
-```
+**Inference worker (PyAV):** Local `docker buildx build --platform linux/amd64` produced
+`lightship-mvp-inference-worker:154d436`, pushed to ECR, **`latest` retagged** to that manifest,
+and **`aws cloudformation deploy`** ran successfully on **`lightship-mvp-inference-worker`**.
 
-**Worker (PyAV):** rebuild/push `lightship-mvp-inference-worker:<git-sha>` from repo root, then
-`aws cloudformation deploy` using `infrastructure/inference-worker-stack.yaml` with `ImageUri=…`.
-Re-apply SFN overrides with `py build/patch_sfn_ecs_env.py` if CFN cannot update the state machine.
+**Live three-backend script** (`build/run_e2e_three_backends.py`): **not run to completion** from
+the agent host — HTTPS to the ALB **timed out** (security group allows only operator IPs per
+`DEPLOYMENT.md`). Run the script from an authorized network to verify `vision_audit.backend` and
+frame extraction counts.
 
-**Live E2E (manual, authorized client):** three runs on a **non-HUD** dashcam clip with
-`detector_backend ∈ {florence2, yolo, detectron2}`; confirm dropdown, `vision_audit.backend`,
-≥4/5 frames `extraction.status == "ok"`, three SUCCEEDED SFN executions.
-
-**Screenshot placeholder (attach after UI deploy):**  
-`![Detector picker + frames](docs/images/e2e-detector-picker-2026-04-30.png)` — capture from `/run`
-showing the detector dropdown and one thumbnail row per backend; save under `docs/images/` and
-uncomment or embed in this file.
+**Screenshot (operator):** from an allowed IP, capture `/run` with the detector dropdown and frame
+strip; save as `docs/images/e2e-detector-picker-2026-05-01.png` and link here if desired.
 
 ---
 
