@@ -17,45 +17,41 @@ phases:
 
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
+      - echo Logging in to Amazon ECR
       - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
-      - IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual-$(date +%Y%m%d%H%M%S)}
-      - export BACKEND_IMAGE_URI="$ECR_REPOSITORY_URI:$IMAGE_TAG"
+      - export IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual-$(date +%Y%m%d%H%M%S)}"
+      - export BACKEND_IMAGE_URI="${ECR_REPOSITORY_URI}:${IMAGE_TAG}"
       - export DOCKER_BUILDKIT=0
-      - FAIL=${SECURITY_FAIL_BUILD:-true}
-
-      - echo "=== pip-audit: Python dependency CVE scan ==="
+      - export FAIL="${SECURITY_FAIL_BUILD:-true}"
+      - echo "=== pip-audit (Python dependency CVE scan) ==="
       - mkdir -p reports
       - pip-audit -r lambda-be/requirements.txt --format json -o reports/pip-audit.json 2>&1 || true
       - pip-audit -r lambda-be/requirements.txt --severity critical 2>&1 && echo "pip-audit PASSED" || { echo "pip-audit FAILED - CRITICAL CVEs in Python deps"; [ "$FAIL" = "true" ] && exit 1 || true; }
-      - echo "=== bandit: Python SAST ==="
+      - echo "=== bandit (Python SAST) ==="
       - bandit -r lambda-be/src -ll -iii -f json -o reports/bandit.json 2>&1 || true
       - bandit -r lambda-be/src -ll -iii -q 2>&1 && echo "bandit PASSED" || { echo "bandit FAILED - HIGH severity findings in source"; [ "$FAIL" = "true" ] && exit 1 || true; }
-      - echo "=== detect-secrets: secret scan ==="
+      - echo "=== detect-secrets (secret scan) ==="
       - detect-secrets scan --all-files --exclude-files '\.git/.*' --exclude-files 'package-lock\.json' > reports/detect-secrets.json 2>&1
       - python3 scripts/ci/check_detect_secrets.py reports/detect-secrets.json "$FAIL"
-
-      - echo "=== checkov: CloudFormation IaC scan ==="
+      - echo "=== checkov (CloudFormation IaC scan) ==="
       - checkov -d infrastructure/ --framework cloudformation --compact --quiet --output json --output-file-path reports/ 2>&1 || true
       - checkov -d infrastructure/ --framework cloudformation --compact --quiet --check HIGH 2>&1 && echo "checkov PASSED" || { echo "checkov FAILED - HIGH severity IaC misconfigurations"; [ "$FAIL" = "true" ] && exit 1 || true; }
 
   build:
     commands:
-      - echo Build started on `date`
+      - echo "Build started $(date)"
       - cd lambda-be
       - docker build --platform linux/amd64 -t "$BACKEND_IMAGE_URI" .
       - cd ..
-
-      - echo "=== trivy: container image CVE scan ==="
+      - echo "=== trivy (container image CVE scan) ==="
       - trivy image --no-progress --format json --output reports/trivy-backend.json "$BACKEND_IMAGE_URI" 2>&1 || true
       - trivy image --exit-code 1 --severity CRITICAL --no-progress "$BACKEND_IMAGE_URI" 2>&1 && echo "trivy PASSED" || { echo "trivy FAILED - CRITICAL CVEs in container image"; [ "$FAIL" = "true" ] && exit 1 || true; }
 
   post_build:
     commands:
-      - echo Build completed on `date`
-      - echo Pushing Docker image $BACKEND_IMAGE_URI
+      - echo "Build completed $(date)"
+      - echo Pushing Docker image "$BACKEND_IMAGE_URI"
       - docker push "$BACKEND_IMAGE_URI"
-      - cd ..
       - bash scripts/deploy_app_stack.sh
 
 reports:
