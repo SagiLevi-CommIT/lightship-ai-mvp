@@ -23,29 +23,18 @@ phases:
       - export FRONTEND_IMAGE_URI="$ECR_REPOSITORY_URI:$IMAGE_TAG"
       - FAIL=${SECURITY_FAIL_BUILD:-true}
       - mkdir -p reports
-
-      # ── Node.js dependency CVE scan ────────────────────────────────────────
       - echo "=== npm audit: Node.js dependency CVE scan ==="
       - cd ui-fe
       - npm audit --json > ../reports/npm-audit.json 2>&1 || true
-      - npm audit --audit-level=critical 2>&1
-        && echo "npm audit PASSED"
-        || { echo "npm audit FAILED - CRITICAL CVEs in Node deps"; [ "$FAIL" = "true" ] && exit 1 || true; }
+      - npm audit --audit-level=critical 2>&1 && echo "npm audit PASSED" || { echo "npm audit FAILED - CRITICAL CVEs in Node deps"; [ "$FAIL" = "true" ] && exit 1 || true; }
       - cd ..
-
-      # ── Secret / credential leak scan ─────────────────────────────────────
       - echo "=== detect-secrets: secret scan ==="
       - detect-secrets scan --all-files --exclude-files '\.git/.*' --exclude-files 'package-lock\.json' > reports/detect-secrets.json 2>&1
       - python3 scripts/ci/check_detect_secrets.py reports/detect-secrets.json "$FAIL"
 
-      # ── CloudFormation IaC misconfiguration scan ───────────────────────────
       - echo "=== checkov: CloudFormation IaC scan ==="
-      - checkov -d infrastructure/ --framework cloudformation --compact --quiet
-        --output json --output-file-path reports/ 2>&1 || true
-      - checkov -d infrastructure/ --framework cloudformation --compact --quiet
-        --check HIGH 2>&1
-        && echo "checkov PASSED"
-        || { echo "checkov FAILED - HIGH severity IaC misconfigurations"; [ "$FAIL" = "true" ] && exit 1 || true; }
+      - checkov -d infrastructure/ --framework cloudformation --compact --quiet --output json --output-file-path reports/ 2>&1 || true
+      - checkov -d infrastructure/ --framework cloudformation --compact --quiet --check HIGH 2>&1 && echo "checkov PASSED" || { echo "checkov FAILED - HIGH severity IaC misconfigurations"; [ "$FAIL" = "true" ] && exit 1 || true; }
 
   build:
     commands:
@@ -54,12 +43,9 @@ phases:
       - docker build -t "$FRONTEND_IMAGE_URI" .
       - cd ..
 
-      # ── Container image CVE scan (pre-push gate) ───────────────────────────
       - echo "=== trivy: container image CVE scan ==="
       - trivy image --no-progress --format json --output reports/trivy-frontend.json "$FRONTEND_IMAGE_URI" 2>&1 || true
-      - trivy image --exit-code 1 --severity CRITICAL --no-progress "$FRONTEND_IMAGE_URI" 2>&1
-        && echo "trivy PASSED"
-        || { echo "trivy FAILED - CRITICAL CVEs in container image"; [ "$FAIL" = "true" ] && exit 1 || true; }
+      - trivy image --exit-code 1 --severity CRITICAL --no-progress "$FRONTEND_IMAGE_URI" 2>&1 && echo "trivy PASSED" || { echo "trivy FAILED - CRITICAL CVEs in container image"; [ "$FAIL" = "true" ] && exit 1 || true; }
 
   post_build:
     commands:
