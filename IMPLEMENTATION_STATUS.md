@@ -4,35 +4,21 @@
 
 Last updated: 2026-05-01
 
-### E2E follow-up — 2026-05-01 deploy (profile `lightship`, account `336090301206`)
+### Production unblock — 2026-05-01 — **COMPLETE** (profile `lightship`, `336090301206`)
 
-**Git:** `main` includes `154d436` (CodeBuild-strict YAML: no multi-line `commands`, no `echo …: …`
-colon-space patterns, `export IMAGE_TAG=…` / `export FAIL=…`, `reports:` blocks removed so
-CodeBuild stops failing `UPLOAD_ARTIFACTS` with `CreateReportGroup` AccessDenied). Pushed to
-CodeCommit and GitHub.
-
-**CodeBuild `lightship-mvp-frontend` (build `7c0cc42b-…`):** `DOWNLOAD_SOURCE` → `BUILD` **SUCCEEDED**
-(image built and scanned). `POST_BUILD` **failed** on `bash scripts/deploy_app_stack.sh`:
-CloudFormation **`lightship-mvp-app` is in `UPDATE_ROLLBACK_FAILED`** — the script cannot deploy
-until that stack is repaired in the console (continue rollback / skip resources / stack delete as
-appropriate).
-
-**Frontend rollout without CFN app deploy:** ECR image for commit `154d436…` was pushed by
-CodeBuild; **`lightship-frontend:latest`** was updated to the **same manifest** as that tag via
-`ecr put-image`, then **`lightship-mvp-frontend-service`** received **`--force-new-deployment`**
-so tasks pull the new UI (detector picker + substituted badge).
-
-**Inference worker (PyAV):** Local `docker buildx build --platform linux/amd64` produced
-`lightship-mvp-inference-worker:154d436`, pushed to ECR, **`latest` retagged** to that manifest,
-and **`aws cloudformation deploy`** ran successfully on **`lightship-mvp-inference-worker`**.
-
-**Live three-backend script** (`build/run_e2e_three_backends.py`): **not run to completion** from
-the agent host — HTTPS to the ALB **timed out** (security group allows only operator IPs per
-`DEPLOYMENT.md`). Run the script from an authorized network to verify `vision_audit.backend` and
-frame extraction counts.
-
-**Screenshot (operator):** from an allowed IP, capture `/run` with the detector dropdown and frame
-strip; save as `docs/images/e2e-detector-picker-2026-05-01.png` and link here if desired.
+- **`lightship-mvp-cfn-app-deploy-role`:** extended in `cicd/cicd-stack.yaml` with Secrets Manager
+  (`GetSecretValue` / updates), CloudWatch dashboards (`PutDashboard`…), KMS use on the app CMK
+  (imported ARN), IAM inline policy mutations on app roles, and CodeBuild report-group APIs.
+- **`lightship-mvp-app`:** recovered from `UPDATE_ROLLBACK_FAILED` → `UPDATE_ROLLBACK_COMPLETE` →
+  **`UPDATE_COMPLETE`** via `continue-update-rollback` + successful **`scripts/deploy_app_stack.sh`**.
+- **CI:** `lightship-mvp-frontend` CodeBuild end-to-end **`SUCCEEDED`** (including CloudFormation deploy
+  and security reports).
+- **E2E:** `py -3 build/run_e2e_three_backends.py` — three jobs **COMPLETED** with
+  `vision_audit.backend` **florence2** / **yolo** / **detectron2** (ALB over **HTTP**; TLS hostname
+  mismatch on raw ELB DNS).
+- **Screenshot:** `docs/images/e2e-detector-picker-2026-05-01.png` (Playwright capture of `/run`).
+- **Docs/config:** `.cursor/rules/010-aws-environment.mdc`, `.cursor/skills/aws-sso-connectivity/SKILL.md`,
+  and `DEPLOYMENT.md` now require profile **`lightship`** for this repo (no `corp-ai-sandbox-devops`).
 
 ---
 
@@ -60,9 +46,9 @@ fallback rejects `detectron2`, scene-change selector retried with threshold 0.18
   pointing at `lightship-mvp-inference-worker:7cf6c9a` / `:latest` on ECR.
 - CodeBuild `lightship-mvp-frontend` — build **started** for the UI (`lightship-mvp-frontend:4443c79f-…`).
 
-**Live browser E2E** (upload via ALB ×3 backends) is **not executed from CI/agent**
-(ALB is IP-restricted). From an authorized client, use `build/run_e2e_three_backends.py`
-(HTTPS to the ALB) or the UI run flow.
+**Live browser E2E** (upload via ALB ×3 backends): use `build/run_e2e_three_backends.py` from an
+IP allowed by **`AllowedAlbIngressCidr`**. The script uses **HTTP** to the ELB DNS (avoids TLS
+hostname mismatch on the default ALB certificate).
 
 ---
 

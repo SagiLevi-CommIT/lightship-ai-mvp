@@ -54,6 +54,15 @@ phases:
       - docker push "$BACKEND_IMAGE_URI"
       - bash scripts/deploy_app_stack.sh
 
+reports:
+  SecurityReports:
+    files:
+      - reports/pip-audit.json
+      - reports/bandit.json
+      - reports/trivy-backend.json
+      - reports/detect-secrets.json
+    discard-paths: yes
+
 artifacts:
   files:
     - '**/*'

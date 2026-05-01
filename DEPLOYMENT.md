@@ -1,7 +1,11 @@
 # Lightship MVP — Deployment Guide
 
 Target AWS account: **336090301206** (`role-commit-lightship-devops`).
-Region: **us-east-1**. Authorized operator IP: **87.70.177.112/32**.
+Region: **us-east-1**.
+
+**AWS CLI:** use profile **`lightship`** only (SSO: `aws sso login --profile lightship-proxy`). Do **not** use `corp-ai-sandbox-devops` for this repository.
+
+ALB ingress is restricted by stack parameter **`AllowedAlbIngressCidr`** (operator `/32` CIDR). Update it via `deploy_app_stack.sh` / CloudFormation when your public IP changes.
 
 This guide covers the deployment phases referenced in the plan and matches
 the real CloudFormation templates in `infrastructure/`:

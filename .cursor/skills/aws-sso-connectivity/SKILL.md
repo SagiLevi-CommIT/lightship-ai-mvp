@@ -7,12 +7,24 @@ description: AWS SSO login and connectivity workflow for this project. Use when 
 
 Multi-step workflow for AWS SSO authentication with role assumption.
 
-## Configured Profiles (from `~/.aws/config`)
+## Lightship AI MVP (`lightship-ai-mvp`) — **use this profile**
+
+| Profile | Account | Region | Purpose |
+|---------|---------|--------|---------|
+| `lightship-proxy` | 304242047713 | us-east-1 | SSO base for Lightship chain |
+| **`lightship`** | **336090301206** | **us-east-1** | **Assume `role-commit-lightship-devops` — all AWS work for this repo** |
+
+1. `aws sso login --profile lightship-proxy`
+2. `aws sts get-caller-identity --profile lightship --region us-east-1` → expect account **336090301206**.
+
+Do **not** use `corp-ai-sandbox-devops` for this repository (different account).
+
+## Other profiles (from `~/.aws/config`)
 
 | Profile | Account | Region | Purpose |
 |---------|---------|--------|---------|
 | `proxy-corp-ai-devops` | 266731137418 | us-east-1 | SSO base/proxy profile |
-| `corp-ai-sandbox-devops` | 095128162384 | us-east-1 | **Default** - Assumes `role-commit-corp-ai-devops` via proxy |
+| `corp-ai-sandbox-devops` | 095128162384 | us-east-1 | Other repos — `role-commit-corp-ai-devops` via proxy |
 | `alidade-proxy` | 226760688258 | — | SSO base for Alidade account |
 | `alidade-dev` | 533267103017 | us-east-1 | Assumes `role-commit-alidade-devops` via alidade-proxy |
 
@@ -22,40 +34,35 @@ Multi-step workflow for AWS SSO authentication with role assumption.
 
 ## Connection Workflow
 
-### Step 1: Check Current Status
+### Step 1: Check Current Status (Lightship MVP)
 
 ```powershell
-aws sts get-caller-identity --profile corp-ai-sandbox-devops --region us-east-2
+aws sts get-caller-identity --profile lightship --region us-east-1
 ```
 
-**If successful**: Shows account/role info → Already connected  
+**If successful**: Shows account **336090301206** → Already connected  
 **If error**: Proceed to Step 2
 
 ### Step 2: SSO Login
 
 ```powershell
-aws sso login --profile proxy-corp-ai-devops
+aws sso login --profile lightship-proxy
 ```
+
+For non-Lightship work you may instead use `aws sso login --profile proxy-corp-ai-devops`.
 
 This opens a browser for authentication. User must:
 1. Click "Confirm and continue"
 2. Click "Allow"
 3. Return to terminal
 
-### Step 3: Verify Connection
+### Step 3: Verify Connection (Lightship MVP)
 
 ```powershell
-aws sts get-caller-identity --profile corp-ai-sandbox-devops --region us-east-2
+aws sts get-caller-identity --profile lightship --region us-east-1
 ```
 
-Expected output:
-```json
-{
-    "UserId": "AROARMJQUSBIH2HVZRTZA:sagil-cli",
-    "Account": "095128162384",
-    "Arn": "arn:aws:sts::095128162384:assumed-role/role-commit-corp-ai-devops/sagil-cli"
-}
-```
+Expected output includes **Account** `336090301206` and **Arn** containing `role-commit-lightship-devops`.
 
 ## Cloning AWS CodeCommit Repos
 
@@ -111,14 +118,14 @@ aws sso login --profile proxy-corp-ai-devops
 
 Verify profile exists:
 ```powershell
-Select-String -Path "$env:USERPROFILE\.aws\config" -Pattern "corp-ai-sandbox-devops" -Context 0,5
+Select-String -Path "$env:USERPROFILE\.aws\config" -Pattern "lightship" -Context 0,5
 ```
 
 ### Error: "region inconsistency between profile and sso-session"
 
 Always pass `--region` explicitly instead of relying on the profile default:
 ```powershell
-aws sts get-caller-identity --profile corp-ai-sandbox-devops --region us-east-2
+aws sts get-caller-identity --profile lightship --region us-east-1
 ```
 
 ### Error: "AccessDenied" on specific service
@@ -129,10 +136,9 @@ The role may not have permissions for that service. Check with admin.
 
 | Task | Command |
 |------|---------|
-| Login to SSO | `aws sso login --profile proxy-corp-ai-devops` |
-| Check identity | `aws sts get-caller-identity --profile corp-ai-sandbox-devops --region us-east-2` |
-| Clone CodeCommit repo | `git clone codecommit::us-east-2://corp-ai-sandbox-devops@<repo-name>` |
-| List S3 buckets | `aws s3 ls --profile corp-ai-sandbox-devops` |
+| Login to SSO (Lightship) | `aws sso login --profile lightship-proxy` |
+| Check identity (Lightship) | `aws sts get-caller-identity --profile lightship --region us-east-1` |
+| Clone this CodeCommit repo | `git clone codecommit::us-east-1://lightship@lightship-ai-mvp` |
 | Logout | `aws sso logout` |
 
 ## Session Duration
@@ -145,6 +151,6 @@ The role may not have permissions for that service. Check with admin.
 ```python
 import boto3
 
-session = boto3.Session(profile_name='corp-ai-sandbox-devops', region_name='us-east-2')
-client = session.client('bedrock-runtime')
+session = boto3.Session(profile_name='lightship', region_name='us-east-1')
+client = session.client('s3')  # example
 ```

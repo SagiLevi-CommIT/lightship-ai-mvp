@@ -1,50 +1,33 @@
 ---
-description: AWS environment configuration - SSO authentication and Bedrock setup.
+description: AWS environment for Lightship AI MVP — SSO profile and region.
 alwaysApply: true
 ---
 
-# AWS Environment Configuration
+# AWS Environment — Lightship AI MVP
 
-## Authentication (Primary: SSO with Assume Role)
+## Required profile (this repository)
 
-This project uses **AWS SSO with role assumption** as the primary authentication method.
+- **CLI profile:** `lightship` (assumes `role-commit-lightship-devops` in account **336090301206**).
+- **SSO base profile:** `lightship-proxy` (run `aws sso login --profile lightship-proxy` first).
+- **Region:** `us-east-1` for all Lightship MVP resources (ALB, Lambda, ECS, CodeBuild, CloudFormation).
 
-### Default Profile: `commit-devops-role`
+Do **not** use `corp-ai-sandbox-devops` or account **095128162384** for this repo — that profile targets a different account.
 
-- **Account**: `095128162384`
-- **Region**: `eu-central-1`
-- **Role**: `role-commit-corp-ai-devops`
-- **Source**: SSO via `ps-customer-devops-266731137418`
+### Verify
 
-### Daily Login
-
-```bash
-# Login to SSO (required once per session, ~8-12 hours)
-aws sso login --profile ps-customer-devops-266731137418
-
-# Verify connection
-aws sts get-caller-identity
+```powershell
+aws sts get-caller-identity --profile lightship --region us-east-1
 ```
 
-### Agent Guidelines - AWS Authentication
+Expected account: `336090301206`, role: `role-commit-lightship-devops`.
 
-1. **Prefer SSO/Profile**: Use `--profile commit-devops-role` or rely on `AWS_PROFILE` env var
-2. **boto3 usage**: Let boto3 auto-discover credentials from profile (no explicit keys)
-3. **Never hardcode credentials** in source code
-4. **If SSO expired**: Guide user to run `aws sso login --profile ps-customer-devops-266731137418`
+### boto3
 
-## Fallback: `.env` File (CI/CD or Specific Use Cases)
+```python
+import boto3
+session = boto3.Session(profile_name="lightship", region_name="us-east-1")
+```
 
-For CI/CD pipelines or when SSO is not available, use `.env` file:
+## Bedrock / other regions
 
-- **AWS_REGION** - AWS region for services
-- **AWS_ACCESS_KEY_ID** - AWS access key (only for CI/CD)
-- **AWS_SECRET_ACCESS_KEY** - AWS secret access key (only for CI/CD)
-- **BEDROCK_MODEL_ID** - Bedrock model identifier
-- **TEMPERATURE**, **MAX_TOKENS**, **TOP_P**, **TOP_K** - LLM parameters
-
-## Bedrock Configuration
-
-- **Primary Region**: `eu-central-1`
-- **Model Access**: Claude Sonnet 4, NVIDIA models available
-- Ensure `.env` is in `.gitignore` to prevent credential leakage
+If Bedrock or other services are used outside `us-east-1`, override the client region explicitly; the default for this project remains **us-east-1**.
