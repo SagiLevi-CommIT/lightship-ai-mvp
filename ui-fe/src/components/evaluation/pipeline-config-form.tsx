@@ -12,7 +12,7 @@ type PipelineConfigFormProps = {
   onSubmit: () => void;
 };
 
-const WIZARD_STEPS = ['Frame selection', 'S3 destination', 'Output rules'];
+const WIZARD_STEPS = ['Frame selection', 'S3 destination'];
 
 export default function PipelineConfigForm({
   config,
@@ -25,7 +25,12 @@ export default function PipelineConfigForm({
 
   const canContinue = useMemo(() => {
     if (currentStep === 0) {
-      return config.frameSelectionMethod !== 'native' || config.nativeFps.trim().length > 0;
+      if (config.frameSelectionMethod !== 'native') {
+        return config.maxSnapshots.trim().length > 0;
+      }
+      return config.nativeSamplingMode === 'fps'
+        ? config.nativeFps.trim().length > 0
+        : config.maxSnapshots.trim().length > 0;
     }
 
     if (currentStep === 1) {
@@ -33,7 +38,14 @@ export default function PipelineConfigForm({
     }
 
     return true;
-  }, [config.frameSelectionMethod, config.nativeFps, config.s3BucketPath, currentStep]);
+  }, [
+    config.frameSelectionMethod,
+    config.maxSnapshots,
+    config.nativeFps,
+    config.nativeSamplingMode,
+    config.s3BucketPath,
+    currentStep,
+  ]);
 
   return (
     <div className="rounded-[32px] border border-white/80 bg-white/80 p-6 shadow-[0_24px_64px_rgba(15,23,42,0.08)] backdrop-blur md:p-8">
@@ -88,19 +100,85 @@ export default function PipelineConfigForm({
             </div>
 
             {config.frameSelectionMethod === 'native' ? (
+              <div className="space-y-4 rounded-[24px] bg-slate-50 p-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    { id: 'count', label: 'Number of frames' },
+                    { id: 'fps', label: 'Frames per second' },
+                  ].map((option) => {
+                    const isSelected = config.nativeSamplingMode === option.id;
+
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() =>
+                          onChange({
+                            nativeSamplingMode: option.id as PipelineConfig['nativeSamplingMode'],
+                          })
+                        }
+                        className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                          isSelected
+                            ? 'border-fuchsia-300 bg-fuchsia-50 text-slate-950'
+                            : 'border-slate-200 bg-white text-slate-500 hover:border-cyan-300'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {config.nativeSamplingMode === 'fps' ? (
+                  <>
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                      Frames per second
+                    </label>
+                    <input
+                      data-test-id="native-fps-input"
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={config.nativeFps}
+                      onChange={(event) => onChange({ nativeFps: event.target.value })}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-fuchsia-400"
+                      placeholder="Enter FPS"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                      Number of frames
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      step="1"
+                      value={config.maxSnapshots}
+                      onChange={(event) => onChange({ maxSnapshots: event.target.value })}
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-fuchsia-400"
+                      placeholder="Enter frame count"
+                    />
+                  </>
+                )}
+              </div>
+            ) : null}
+
+            {config.frameSelectionMethod === 'scene-change' ? (
               <div className="rounded-[24px] bg-slate-50 p-5">
                 <label className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                  Frames per second
+                  Scene-change frames
                 </label>
                 <input
-                  data-test-id="native-fps-input"
                   type="number"
                   min="1"
+                  max="30"
                   step="1"
-                  value={config.nativeFps}
-                  onChange={(event) => onChange({ nativeFps: event.target.value })}
+                  value={config.maxSnapshots}
+                  onChange={(event) => onChange({ maxSnapshots: event.target.value })}
                   className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-fuchsia-400"
-                  placeholder="Enter FPS"
+                  placeholder="Enter frame count"
                 />
               </div>
             ) : null}
@@ -129,39 +207,6 @@ export default function PipelineConfigForm({
           </div>
         ) : null}
 
-        {currentStep === 2 ? (
-          <div className="space-y-4">
-            <p className="text-sm text-slate-500">Choose which classification bucket should keep frames in the output.</p>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {[
-                { id: 'high', label: 'High', description: 'Keep only high severity frames.' },
-                { id: 'medium', label: 'Medium', description: 'Keep medium severity frames.' },
-                { id: 'low', label: 'Low', description: 'Keep low severity frames.' },
-                { id: 'all-frames', label: 'All frames', description: 'Keep all selected frames.' },
-              ].map((option) => {
-                const isSelected = config.outputCategory === option.id;
-
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => onChange({ outputCategory: option.id as PipelineConfig['outputCategory'] })}
-                    className={`rounded-[24px] border p-5 text-left transition ${
-                      isSelected
-                        ? 'border-fuchsia-300 bg-fuchsia-50 shadow-sm'
-                        : 'border-slate-200 bg-white hover:border-cyan-300 hover:bg-cyan-50/70'
-                    }`}
-                  >
-                    <p className="font-[family:var(--font-ibm-plex-sans)] text-lg font-semibold text-slate-950">
-                      {option.label}
-                    </p>
-                    <p className="mt-3 text-sm leading-6 text-slate-500">{option.description}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
       </div>
 
       <div className="mt-8 flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">

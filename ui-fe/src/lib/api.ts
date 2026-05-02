@@ -161,6 +161,7 @@ export type JobOptions = {
   max_snapshots?: number;
   snapshot_strategy?: string;
   native_fps?: number;
+  native_sampling_mode?: 'count' | 'fps';
   detector_backend?: 'florence2' | 'yolo' | 'detectron2';
   lane_backend?: string;
 };

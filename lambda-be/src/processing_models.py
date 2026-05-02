@@ -15,11 +15,15 @@ class ProcessingConfig(BaseModel):
     hazard_mode: str = "sliding_window"
     window_size: int = 3
     window_overlap: int = 1
-    # Native sampling rate when ``snapshot_strategy == "naive"`` — the
-    # pipeline samples at ``native_fps`` Hz and then ranks candidates by
-    # detection count. Accepts strings for convenience because the UI
-    # posts form data and frequently sends ``"2"`` rather than ``2``.
+    # Native sampling rate when ``snapshot_strategy == "naive"``.
+    # If omitted, native mode samples exactly ``max_snapshots`` frames with
+    # an even jump. If provided, native mode samples at this FPS.
+    # Accepts strings for convenience because the UI posts form data and
+    # frequently sends ``"2"`` rather than ``2``.
     native_fps: Optional[float] = None
+    # Explicit Native UI mode. ``count`` ignores native_fps and returns
+    # exactly max_snapshots final frames; ``fps`` uses native_fps.
+    native_sampling_mode: str = "count"
     # Vision labeler backend (overrides DETECTOR_BACKEND env var).
     # ``florence2`` | ``yolo`` | ``detectron2``. Legacy ``auto`` is accepted
     # and normalised to ``florence2`` (no silent YOLO fallback).
@@ -28,6 +32,16 @@ class ProcessingConfig(BaseModel):
     # "ufldv2" = Ultra-Fast Lane Detection V2 (default)
     # "opencv" = legacy OpenCV HSV + Hough lane detection (opt-in)
     lane_backend: str = "ufldv2"
+
+    @field_validator("native_sampling_mode", mode="before")
+    @classmethod
+    def _normalize_native_sampling_mode(cls, v):  # noqa: ANN001
+        if v is None:
+            return "count"
+        s = str(v).strip().lower()
+        if s not in ("count", "fps"):
+            raise ValueError("native_sampling_mode must be 'count' or 'fps'")
+        return s
 
     @field_validator("detector_backend", mode="before")
     @classmethod

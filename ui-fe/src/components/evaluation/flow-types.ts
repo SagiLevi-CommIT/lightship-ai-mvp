@@ -8,10 +8,10 @@ export type AssetStatus = 'ready' | 'queued' | 'running' | 'completed' | 'failed
 
 export type FrameSelectionMethod = 'native' | 'scene-change';
 
+export type NativeSamplingMode = 'count' | 'fps';
+
 /** Object detector passed through to the backend (ECS worker / Lambda). */
 export type DetectorBackend = 'florence2' | 'yolo' | 'detectron2';
-
-export type OutputCategory = 'high' | 'medium' | 'low' | 'all-frames';
 
 export type NotificationState = 'default' | 'granted' | 'denied' | 'unsupported';
 
@@ -35,11 +35,11 @@ export type UploadedAsset = {
 
 export type PipelineConfig = {
   frameSelectionMethod: FrameSelectionMethod;
-  nativeFps: string;          // used when frameSelectionMethod === 'native'
-  maxSnapshots: string;        // number of frames to keep (all strategies)
+  nativeSamplingMode: NativeSamplingMode;
+  nativeFps: string;          // used when Native sampling mode is FPS
+  maxSnapshots: string;        // used by Native count mode and Scene change
   detectorBackend: DetectorBackend;
   s3BucketPath: string;        // informational; not used by backend
-  outputCategory: OutputCategory;
 };
 
 export type VideoSource =

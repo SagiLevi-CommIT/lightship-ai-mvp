@@ -90,9 +90,12 @@ def test_enqueue_prefers_sqs_when_configured(api_module):
         "MAX_SNAPSHOTS": str(proc.max_snapshots),
         "SNAPSHOT_STRATEGY": proc.snapshot_strategy,
         "NATIVE_FPS": "" if proc.native_fps is None else str(float(proc.native_fps)),
+        "NATIVE_SAMPLING_MODE": proc.native_sampling_mode,
         "DETECTOR_BACKEND": proc.detector_backend,
         "LANE_BACKEND": proc.lane_backend,
     }
+    assert body["ecs_env"]["DISPATCHED_AT_EPOCH_MS"].isdigit()
+    body["ecs_env"].pop("DISPATCHED_AT_EPOCH_MS")
     assert body == {
         "job_id": "job-1",
         "s3_key": "input/v/a.mp4",

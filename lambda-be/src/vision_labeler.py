@@ -5,7 +5,8 @@ Orchestrates (exactly one object detector per job — no silent fallback chain):
   - yolo        : YOLO11n COCO
   - detectron2  : Detectron2 Mask R-CNN R50-FPN COCO
 
-Lane detector: UFLDv2 (default) or OpenCV lanes (opt-in via LANE_BACKEND).
+Lane detector: UFLDv2 (default). OpenCV means "no lane pass here" and is
+retained only for legacy configuration compatibility.
 
 Public API matches the old ``RekognitionLabeler``:
   - ``detect(frame_path, timestamp_ms, video_width, video_height)``

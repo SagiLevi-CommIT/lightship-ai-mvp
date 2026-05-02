@@ -12,6 +12,8 @@ import os
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
+from src.config import SUBSTITUTED_FRAME_VISION_POLICY
+
 logger = logging.getLogger(__name__)
 
 RESULTS_PREFIX = "results"
@@ -93,20 +95,33 @@ def persist_frame_artefacts(
 
         extraction_meta = extraction_by_idx.get(int(frame_idx), {})
         per_frame_json_key = s3_result_key(job_id, f"frames/frame_{frame_idx:04d}.json")
+        extraction_doc: Dict[str, Any] = {
+            "source": extraction_meta.get("source"),
+            "status": extraction_meta.get("status"),
+            "decoded_idx": extraction_meta.get("decoded_idx"),
+            "width": extraction_meta.get("width"),
+            "height": extraction_meta.get("height"),
+            "error": extraction_meta.get("error"),
+        }
+        if extraction_meta.get("vision_skipped"):
+            extraction_doc["vision_skipped"] = True
+            extraction_doc["vision_skip_reason"] = extraction_meta.get("vision_skip_reason")
+        if (
+            SUBSTITUTED_FRAME_VISION_POLICY == "flag"
+            and extraction_meta.get("status") == "substituted"
+        ):
+            extraction_doc["vision_unreliable"] = True
+            extraction_doc["vision_unreliable_reason"] = (
+                "Raster may not match the requested frame index (decoder substitution); "
+                "bounding boxes are not guaranteed to align with this timestamp."
+            )
         per_frame_doc = {
             "job_id": job_id,
             "frame_idx": frame_idx,
             "timestamp_ms": ts_ms,
             "num_objects": len(frame_objs),
             "objects": frame_objs,
-            "extraction": {
-                "source": extraction_meta.get("source"),
-                "status": extraction_meta.get("status"),
-                "decoded_idx": extraction_meta.get("decoded_idx"),
-                "width": extraction_meta.get("width"),
-                "height": extraction_meta.get("height"),
-                "error": extraction_meta.get("error"),
-            },
+            "extraction": extraction_doc,
         }
         try:
             s3_client.put_object(
@@ -129,8 +144,11 @@ def persist_frame_artefacts(
             "json_key": per_frame_json_key,
             "extraction_source": extraction_meta.get("source"),
             "extraction_status": extraction_meta.get("status"),
+            "decoded_idx": extraction_meta.get("decoded_idx"),
             "width": extraction_meta.get("width"),
             "height": extraction_meta.get("height"),
+            "vision_skipped": extraction_meta.get("vision_skipped"),
+            "vision_skip_reason": extraction_meta.get("vision_skip_reason"),
         })
     return manifest
 

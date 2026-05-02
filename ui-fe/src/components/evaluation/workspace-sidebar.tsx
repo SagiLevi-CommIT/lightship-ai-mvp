@@ -16,13 +16,11 @@ type WorkspaceSidebarProps = {
 
 const tooltips: Record<string, string> = {
   'frame-selection':
-    'Native extracts frames at a fixed FPS rate. Scene change detects cuts and transitions to select key frames automatically.',
+    'Native samples directly from the video. Use either a target frame count or a fixed FPS rate. Scene change detects cuts and keeps the requested number of key frames.',
   'detector-backend':
     'Florence-2: zero-shot captions. YOLO: fast COCO detector. Detectron2: Mask R-CNN (heavier; runs on ECS worker).',
   's3-bucket':
     'The S3 path where pipeline output (annotated frames and JSON) will be written. Must be a valid s3:// URI you have write access to.',
-  'hazard-severity':
-    'Filter which annotated frames are included in the output. "All frames" keeps everything; severity levels keep only frames with hazards at or above that level.',
 };
 
 const steps = [
@@ -79,6 +77,8 @@ export default function WorkspaceSidebar({
 }: WorkspaceSidebarProps) {
   const runLabel = mode === 'evaluation' ? 'Run Evaluation' : 'Run Detection Pipeline';
   const activeStep = getActiveStep(mode, assetCount, configConfirmed);
+  const usesFrameCount =
+    config.frameSelectionMethod === 'scene-change' || config.nativeSamplingMode === 'count';
 
   return (
     <aside className="rounded-2xl border border-cyan-500/20 bg-slate-950/82 p-5 shadow-[0_24px_64px_rgba(2,8,20,0.45)] backdrop-blur xl:sticky xl:top-6">
@@ -163,45 +163,80 @@ export default function WorkspaceSidebar({
             </div>
 
             {config.frameSelectionMethod === 'native' ? (
-              <div className="mt-2 flex items-center rounded-lg border border-slate-700 bg-slate-950/75 pr-3 focus-within:border-cyan-400">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={config.nativeFps}
-                  onChange={(event) => onChange({ nativeFps: event.target.value })}
-                  className="w-full bg-transparent px-3 py-2 text-sm text-white outline-none"
-                  placeholder="2"
-                />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">FPS</span>
+              <div className="mt-3">
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: 'count', label: 'Frames' },
+                    { id: 'fps', label: 'FPS' },
+                  ].map((option) => {
+                    const isSelected = config.nativeSamplingMode === option.id;
+
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() =>
+                          onChange({
+                            nativeSamplingMode: option.id as PipelineConfig['nativeSamplingMode'],
+                          })
+                        }
+                        className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                          isSelected
+                            ? 'border-cyan-400 bg-cyan-500/10 text-cyan-200'
+                            : 'border-slate-700 bg-slate-950/70 text-slate-400 hover:border-cyan-400/70 hover:text-slate-200'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {config.nativeSamplingMode === 'fps' ? (
+                  <div className="mt-2 flex items-center rounded-lg border border-slate-700 bg-slate-950/75 pr-3 focus-within:border-cyan-400">
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={config.nativeFps}
+                      onChange={(event) => onChange({ nativeFps: event.target.value })}
+                      className="w-full bg-transparent px-3 py-2 text-sm text-white outline-none"
+                      placeholder="2"
+                    />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">FPS</span>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
 
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-              Number of frames to keep
-            </label>
-            <div className="mt-2 flex items-center rounded-lg border border-slate-700 bg-slate-950/75 pr-3 focus-within:border-cyan-400">
-              <input
-                type="number"
-                min="1"
-                max="30"
-                step="1"
-                value={config.maxSnapshots}
-                onChange={(event) => onChange({ maxSnapshots: event.target.value })}
-                className="w-full bg-transparent px-3 py-2 text-sm text-white outline-none"
-                placeholder="5"
-              />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                frames
-              </span>
+          {usesFrameCount ? (
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                {config.frameSelectionMethod === 'scene-change' ? 'Scene-change frames' : 'Native frames'}
+              </label>
+              <div className="mt-2 flex items-center rounded-lg border border-slate-700 bg-slate-950/75 pr-3 focus-within:border-cyan-400">
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  step="1"
+                  value={config.maxSnapshots}
+                  onChange={(event) => onChange({ maxSnapshots: event.target.value })}
+                  className="w-full bg-transparent px-3 py-2 text-sm text-white outline-none"
+                  placeholder="5"
+                />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  frames
+                </span>
+              </div>
+              <p className="mt-1 text-[10px] text-slate-500">
+                {config.frameSelectionMethod === 'scene-change'
+                  ? 'Detect scene changes and keep this many key frames.'
+                  : 'Pick this many frames with an even jump through the video.'}
+              </p>
             </div>
-            <p className="mt-1 text-[10px] text-slate-500">
-              Applies to both Native and Scene change. The pipeline will detect
-              frames and keep up to this many for analysis.
-            </p>
-          </div>
+          ) : null}
 
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
@@ -251,38 +286,6 @@ export default function WorkspaceSidebar({
               className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950/75 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400"
               placeholder="s3://bucket/path/to/results"
             />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-              Hazard severity filter
-              <Tooltip id="hazard-severity" />
-            </label>
-            <div className="mt-2 grid grid-cols-2 gap-1.5">
-              {[
-                { id: 'high', label: 'High' },
-                { id: 'medium', label: 'Medium' },
-                { id: 'low', label: 'Low' },
-                { id: 'all-frames', label: 'All frames' },
-              ].map((option) => {
-                const isSelected = config.outputCategory === option.id;
-
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => onChange({ outputCategory: option.id as PipelineConfig['outputCategory'] })}
-                    className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
-                      isSelected
-                        ? 'border-cyan-400 bg-cyan-500/10 text-cyan-200'
-                        : 'border-slate-700 bg-slate-950/70 text-slate-400 hover:border-cyan-400/70 hover:text-slate-200'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
       ) : (

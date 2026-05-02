@@ -29,19 +29,22 @@ Parameters:
     Type: String
     Default: "16384"
     Description: Fargate task memory in MB. 16384 = 16 GB.
+  WarmWorkerDesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 0
+    Description: Number of warm SQS consumer workers to keep running.
   DetectorBackend:
     Type: String
     Default: "florence2"
     Description: "Default detection backend (per-job env overrides): florence2 | yolo | detectron2"
   LaneBackend:
     Type: String
-    Default: "opencv"
+    Default: "ufldv2"
     Description: >
-      Lane backend.  "opencv" is the production default (HSV + Hough in
-      cv_labeler.py).  "ufldv2" is reserved for future use — the upstream
-      weights are not on HuggingFace; PINTO_model_zoo provides ONNX exports
-      that need to be baked into the worker image with onnxruntime before
-      this can be selected.
+      Lane backend. "ufldv2" runs the final-frame lane model. "opencv" is
+      retained only as a legacy compatibility value and does not invoke the
+      old CVLabeler pre-sweep.
   MaxSnapshots:
     Type: String
     Default: "5"
@@ -163,6 +166,18 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_jobs"
                   - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}_jobs/index/*"
+        - PolicyName: SQSAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - sqs:ChangeMessageVisibility
+                Resource:
+                  Fn::ImportValue: !Sub "${ProjectName}-${Environment}-processing-queue-arn"
         - PolicyName: BedrockAccess
           PolicyDocument:
             Version: "2012-10-17"
@@ -232,6 +247,11 @@ Resources:
               Value: !Sub "${ProjectName}_jobs"
             - Name: PROCESSING_BUCKET
               Value: !Sub "${ProjectName}-${Environment}-processing-${AWS::AccountId}"
+            - Name: PROCESSING_QUEUE_URL
+              Value:
+                Fn::ImportValue: !Sub "${ProjectName}-${Environment}-processing-queue-url"
+            - Name: WORKER_MODE
+              Value: sqs_consumer
             - Name: DETECTOR_BACKEND
               Value: !Ref DetectorBackend
             - Name: LANE_BACKEND
@@ -240,6 +260,8 @@ Resources:
               Value: !Ref MaxSnapshots
             - Name: SNAPSHOT_STRATEGY
               Value: !Ref SnapshotStrategy
+            - Name: NATIVE_SAMPLING_MODE
+              Value: count
             - Name: LOG_LEVEL
               Value: INFO
             # Bedrock cross-region inference profile that has model access
@@ -271,6 +293,33 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${ProjectName}-${Environment}-inference-worker"
+        - Key: Environment
+          Value: !Ref Environment
+
+  WarmInferenceWorkerService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Sub "${ProjectName}-${Environment}-inference-worker-warm"
+      Cluster:
+        Fn::ImportValue: !Sub "${ProjectName}-${Environment}-ecs-cluster-arn"
+      LaunchType: FARGATE
+      DesiredCount: !Ref WarmWorkerDesiredCount
+      TaskDefinition: !Ref InferenceWorkerTaskDef
+      EnableExecuteCommand: false
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 0
+        MaximumPercent: 200
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::ImportValue: !Sub "${ProjectName}-${Environment}-worker-sg-id"
+          Subnets:
+            - Fn::ImportValue: !Sub "${ProjectName}-${Environment}-private-app-subnet-1"
+            - Fn::ImportValue: !Sub "${ProjectName}-${Environment}-private-app-subnet-2"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-inference-worker-warm"
         - Key: Environment
           Value: !Ref Environment
 
@@ -307,6 +356,12 @@ Outputs:
     Value: !GetAtt WorkerTaskRole.Arn
     Export:
       Name: !Sub "${ProjectName}-${Environment}-inference-worker-task-role-arn"
+
+  WarmWorkerServiceName:
+    Description: Warm ECS service that consumes processing jobs from SQS
+    Value: !Ref WarmInferenceWorkerService
+    Export:
+      Name: !Sub "${ProjectName}-${Environment}-warm-inference-worker-service-name"
 
   ECRRepositoryUri:
     Description: ECR repository URI for the inference worker image

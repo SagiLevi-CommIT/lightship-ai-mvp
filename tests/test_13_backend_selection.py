@@ -54,6 +54,14 @@ def test_processing_config_auto_maps_to_florence2():
     assert cfg.detector_backend == "florence2"
 
 
+def test_processing_config_defaults_native_sampling_to_count():
+    """Native FPS is ignored unless native_sampling_mode explicitly selects fps."""
+    from src.processing_models import ProcessingConfig
+
+    cfg = ProcessingConfig(native_fps=30)
+    assert cfg.native_sampling_mode == "count"
+
+
 def _stub_detect(name: str):
     m = MagicMock()
     from src.schemas import Center, ObjectLabel

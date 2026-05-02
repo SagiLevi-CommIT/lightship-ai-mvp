@@ -5,7 +5,7 @@ Verifies:
 * Florence-2, YOLO, and Detectron2 single-backend paths (mocked) set ``primary_backend`` honestly.
 * UFLDv2 lane backend is invoked when LANE_BACKEND=ufldv2.
 * OpenCV lane backend is skipped by VisionLabeler when LANE_BACKEND=opencv
-  (OpenCV lanes come from CVLabeler instead).
+  (legacy compatibility mode; final-frame-first pipeline does not invoke CVLabeler).
 * The vision_audit block written into output.json matches the expected schema.
 """
 from __future__ import annotations
@@ -136,7 +136,7 @@ class TestVisionLabelerAudit:
         assert audit[0]["lane_backend"] == "ufldv2"
 
     def test_opencv_lane_backend_not_duplicated_by_vision_labeler(self, frame_png):
-        """When lane_backend=opencv, VisionLabeler does not call UFLDv2 (CVLabeler handles lanes)."""
+        """When lane_backend=opencv, VisionLabeler does not call UFLDv2."""
         from src.vision_labeler import VisionLabeler
 
         mock_f2 = MagicMock()

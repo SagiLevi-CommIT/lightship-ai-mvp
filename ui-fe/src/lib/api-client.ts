@@ -78,6 +78,8 @@ export type ProcessVideoRequest = {
   config?: {
     snapshot_strategy?: string;
     max_snapshots?: number;
+    native_fps?: number;
+    native_sampling_mode?: 'count' | 'fps';
     s3_output_path?: string;
   };
 };
@@ -164,7 +166,13 @@ export async function uploadAndProcess(
             : config.frameSelectionMethod === 'native'
               ? 'naive'
               : 'clustering',
-        max_snapshots: parseInt(config.nativeFps, 10) || 5,
+        max_snapshots: parseInt(config.maxSnapshots, 10) || 5,
+        native_fps:
+          config.frameSelectionMethod === 'native' && config.nativeSamplingMode === 'fps'
+            ? Number.parseFloat(config.nativeFps) || undefined
+            : undefined,
+        native_sampling_mode:
+          config.frameSelectionMethod === 'native' ? config.nativeSamplingMode : 'count',
         s3_output_path: config.s3BucketPath,
       }),
     );
@@ -192,7 +200,13 @@ export async function uploadAndProcess(
           : config.frameSelectionMethod === 'native'
             ? 'naive'
             : 'clustering',
-      max_snapshots: parseInt(config.nativeFps, 10) || 5,
+      max_snapshots: parseInt(config.maxSnapshots, 10) || 5,
+      native_fps:
+        config.frameSelectionMethod === 'native' && config.nativeSamplingMode === 'fps'
+          ? Number.parseFloat(config.nativeFps) || undefined
+          : undefined,
+      native_sampling_mode:
+        config.frameSelectionMethod === 'native' ? config.nativeSamplingMode : 'count',
       s3_output_path: config.s3BucketPath,
     },
   });

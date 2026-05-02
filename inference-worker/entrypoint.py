@@ -1,27 +1,10 @@
-"""ECS Fargate inference worker entry-point.
+"""ECS Fargate inference worker entry point.
 
-Reads job parameters from environment variables injected by Step Functions
-``ecs:runTask`` containerOverrides, processes the video end-to-end using the
-full VisionLabeler (Florence-2 + UFLDv2) pipeline, and writes results to S3
-and DynamoDB.
+Supports two modes:
 
-Environment variables (required)
----------------------------------
-  JOB_ID              UUID of the job row in DynamoDB
-  S3_INPUT_KEY        S3 key of the uploaded video (in PROCESSING_BUCKET)
-  S3_OUTPUT_PREFIX    S3 prefix for results (e.g. results/<job_id>/)
-  PROCESSING_BUCKET   S3 bucket name
-
-Environment variables (optional, with defaults)
-------------------------------------------------
-  AWS_REGION          us-east-1
-  DETECTOR_BACKEND    florence2
-  LANE_BACKEND        ufldv2
-  MAX_SNAPSHOTS       5
-  SNAPSHOT_STRATEGY   clustering
-  NATIVE_FPS          optional; dense sampling rate (Hz) for naive strategy
-  DYNAMODB_TABLE      lightship_jobs
-  LOG_LEVEL           INFO
+* ``run_task``: one job comes from Step Functions container overrides.
+* ``sqs_consumer``: a warm ECS service polls the processing SQS queue and
+  reuses the same process/model cache across jobs.
 """
 from __future__ import annotations
 
@@ -31,10 +14,14 @@ import os
 import shutil
 import sys
 import tempfile
+import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-# Make lambda-be/src importable from the worker image
+# Make lambda-be/src importable from the worker image.
 _HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_HERE / "src"))
 
 logging.basicConfig(
@@ -42,46 +29,75 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 logger = logging.getLogger("inference_worker")
+_PROCESS_STARTED_MS = int(time.time() * 1000)
 
-# ---------------------------------------------------------------------------
-# Required env vars
-# ---------------------------------------------------------------------------
-JOB_ID = os.environ["JOB_ID"]
-S3_INPUT_KEY = os.environ["S3_INPUT_KEY"]
-S3_OUTPUT_PREFIX = os.environ.get(
-    "S3_OUTPUT_PREFIX", f"results/{JOB_ID}/"
-).rstrip("/") + "/"
-PROCESSING_BUCKET = os.environ["PROCESSING_BUCKET"]
-
-# Optional
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 DYNAMODB_TABLE = os.getenv("DYNAMODB_TABLE", "lightship_jobs")
-DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "florence2")
-LANE_BACKEND = os.getenv("LANE_BACKEND", "ufldv2")
-MAX_SNAPSHOTS = int(os.getenv("MAX_SNAPSHOTS", "5"))
-SNAPSHOT_STRATEGY = os.getenv("SNAPSHOT_STRATEGY", "clustering")
-_NATIVE_FPS_RAW = os.getenv("NATIVE_FPS", "").strip()
-NATIVE_FPS: float | None
-try:
-    NATIVE_FPS = float(_NATIVE_FPS_RAW) if _NATIVE_FPS_RAW else None
-except ValueError:
-    NATIVE_FPS = None
+PROCESSING_BUCKET = os.environ["PROCESSING_BUCKET"]
+PROCESSING_QUEUE_URL = os.getenv("PROCESSING_QUEUE_URL", "")
+WORKER_MODE = os.getenv("WORKER_MODE", "run_task").strip().lower()
+
+DEFAULT_DETECTOR_BACKEND = os.getenv("DETECTOR_BACKEND", "florence2")
+DEFAULT_LANE_BACKEND = os.getenv("LANE_BACKEND", "ufldv2")
+DEFAULT_MAX_SNAPSHOTS = int(os.getenv("MAX_SNAPSHOTS", "5"))
+DEFAULT_SNAPSHOT_STRATEGY = os.getenv("SNAPSHOT_STRATEGY", "clustering")
+DEFAULT_NATIVE_SAMPLING_MODE = (
+    os.getenv("NATIVE_SAMPLING_MODE", "count").strip().lower() or "count"
+)
 
 
-# ---------------------------------------------------------------------------
-# AWS clients
-# ---------------------------------------------------------------------------
+def _parse_optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+DEFAULT_NATIVE_FPS = _parse_optional_float(os.getenv("NATIVE_FPS", ""))
+
+
+@dataclass(frozen=True)
+class WorkerJob:
+    job_id: str
+    s3_input_key: str
+    s3_output_prefix: str
+    detector_backend: str
+    lane_backend: str
+    max_snapshots: int
+    snapshot_strategy: str
+    native_fps: float | None
+    native_sampling_mode: str
+    dispatched_at_epoch_ms: str = ""
+
+
 import boto3
 
 _s3 = boto3.client("s3", region_name=AWS_REGION)
 _ddb = boto3.client("dynamodb", region_name=AWS_REGION)
+_sqs = boto3.client("sqs", region_name=AWS_REGION)
+_pipeline_cache: dict[tuple[str, str], Any] = {}
 
 
-def _ddb_update(status: str, progress: float = 0.0, error: str = "") -> None:
+def _log_timing(stage: str, elapsed_ms: float, **fields: object) -> None:
+    suffix = " ".join(f"{k}={v}" for k, v in fields.items() if v is not None)
+    logger.info(
+        "TIMING stage=%s elapsed_ms=%.1f%s",
+        stage,
+        float(elapsed_ms),
+        f" {suffix}" if suffix else "",
+    )
+
+
+def _ddb_update(job_id: str, status: str, progress: float = 0.0, error: str = "") -> None:
     try:
         expr = "SET #s = :s, progress = :p, updated_at = :t"
         names = {"#s": "status"}
-        vals: dict = {
+        vals: dict[str, dict[str, str]] = {
             ":s": {"S": status},
             ":p": {"N": str(round(progress, 3))},
             ":t": {"S": __import__("datetime").datetime.utcnow().isoformat() + "Z"},
@@ -91,13 +107,35 @@ def _ddb_update(status: str, progress: float = 0.0, error: str = "") -> None:
             vals[":e"] = {"S": error[:2000]}
         _ddb.update_item(
             TableName=DYNAMODB_TABLE,
-            Key={"job_id": {"S": JOB_ID}},
+            Key={"job_id": {"S": job_id}},
             UpdateExpression=expr,
             ExpressionAttributeNames=names,
             ExpressionAttributeValues=vals,
         )
-    except Exception as exc:
-        logger.warning("DynamoDB update failed: %s", exc)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("DynamoDB update failed for job=%s: %s", job_id, exc)
+
+
+def _ddb_complete(job: WorkerJob, output_json_key: str) -> None:
+    try:
+        _ddb.update_item(
+            TableName=DYNAMODB_TABLE,
+            Key={"job_id": {"S": job.job_id}},
+            UpdateExpression=(
+                "SET #s = :s, progress = :p, updated_at = :t, "
+                "output_s3_key = :ok, result_prefix = :rp"
+            ),
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={
+                ":s": {"S": "COMPLETED"},
+                ":p": {"N": "1.0"},
+                ":t": {"S": __import__("datetime").datetime.utcnow().isoformat() + "Z"},
+                ":ok": {"S": output_json_key},
+                ":rp": {"S": job.s3_output_prefix},
+            },
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("DynamoDB COMPLETED update failed for job=%s: %s", job.job_id, exc)
 
 
 _S3_EXTRA_JSON = {
@@ -110,11 +148,20 @@ _S3_EXTRA_PNG = {
 }
 
 
-def _upload_dir(local_dir: Path, prefix: str) -> list[str]:
+def _upload_dir(
+    local_dir: Path,
+    prefix: str,
+    *,
+    exclude: set[Path] | None = None,
+) -> list[str]:
     """Upload all files in local_dir to S3 under prefix. Returns S3 keys."""
-    keys = []
+    keys: list[str] = []
+    excluded = {p.resolve() for p in (exclude or set())}
     for path in local_dir.rglob("*"):
         if not path.is_file():
+            continue
+        if path.resolve() in excluded:
+            logger.info("Skipping upload of input artefact %s", path.name)
             continue
         rel = path.relative_to(local_dir)
         key = prefix + str(rel).replace("\\", "/")
@@ -122,110 +169,209 @@ def _upload_dir(local_dir: Path, prefix: str) -> list[str]:
         if lower == ".json":
             extra = dict(_S3_EXTRA_JSON)
         elif lower in (".png", ".jpg", ".jpeg", ".webp"):
-            extra = dict(_S3_EXTRA_PNG) if lower == ".png" else {
-                "ServerSideEncryption": "aws:kms",
-                "ContentType": "image/jpeg" if lower in (".jpg", ".jpeg") else "image/webp",
-            }
+            extra = (
+                dict(_S3_EXTRA_PNG)
+                if lower == ".png"
+                else {
+                    "ServerSideEncryption": "aws:kms",
+                    "ContentType": "image/jpeg" if lower in (".jpg", ".jpeg") else "image/webp",
+                }
+            )
         else:
             extra = {"ServerSideEncryption": "aws:kms"}
         _s3.upload_file(str(path), PROCESSING_BUCKET, key, ExtraArgs=extra)
         keys.append(key)
-        logger.info("Uploaded %s → s3://%s/%s", rel, PROCESSING_BUCKET, key)
+        logger.info("Uploaded %s -> s3://%s/%s", rel, PROCESSING_BUCKET, key)
     return keys
 
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
-
-def main() -> None:
-    logger.info(
-        "Inference worker started: job=%s input=%s output_prefix=%s",
-        JOB_ID, S3_INPUT_KEY, S3_OUTPUT_PREFIX,
+def _job_from_env() -> WorkerJob:
+    job_id = os.environ.get("JOB_ID", "").strip()
+    s3_key = os.environ.get("S3_INPUT_KEY", "").strip()
+    if not job_id or not s3_key:
+        raise RuntimeError("JOB_ID and S3_INPUT_KEY are required in run_task mode")
+    return WorkerJob(
+        job_id=job_id,
+        s3_input_key=s3_key,
+        s3_output_prefix=(
+            os.environ.get("S3_OUTPUT_PREFIX", f"results/{job_id}/").rstrip("/") + "/"
+        ),
+        detector_backend=DEFAULT_DETECTOR_BACKEND,
+        lane_backend=DEFAULT_LANE_BACKEND,
+        max_snapshots=DEFAULT_MAX_SNAPSHOTS,
+        snapshot_strategy=DEFAULT_SNAPSHOT_STRATEGY,
+        native_fps=DEFAULT_NATIVE_FPS,
+        native_sampling_mode=DEFAULT_NATIVE_SAMPLING_MODE,
+        dispatched_at_epoch_ms=os.getenv("DISPATCHED_AT_EPOCH_MS", "").strip(),
     )
-    _ddb_update("PROCESSING", 0.02)
-
-    temp_dir = tempfile.mkdtemp(prefix="lightship_worker_")
-    try:
-        _run(temp_dir)
-    except Exception as exc:
-        logger.exception("Worker failed: %s", exc)
-        _ddb_update("FAILED", error=str(exc))
-        sys.exit(1)
-    finally:
-        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-def _run(temp_dir: str) -> None:
+def _job_from_sqs_payload(payload: dict[str, Any]) -> WorkerJob:
+    job_id = str(payload["job_id"])
+    ecs_env = payload.get("ecs_env") or {}
+    config = payload.get("config") or {}
+    native_fps = _parse_optional_float(ecs_env.get("NATIVE_FPS", config.get("native_fps")))
+    return WorkerJob(
+        job_id=job_id,
+        s3_input_key=str(payload["s3_key"]),
+        s3_output_prefix=f"results/{job_id}/",
+        detector_backend=str(
+            ecs_env.get("DETECTOR_BACKEND")
+            or config.get("detector_backend")
+            or DEFAULT_DETECTOR_BACKEND
+        ),
+        lane_backend=str(
+            ecs_env.get("LANE_BACKEND")
+            or config.get("lane_backend")
+            or DEFAULT_LANE_BACKEND
+        ),
+        max_snapshots=int(
+            ecs_env.get("MAX_SNAPSHOTS")
+            or config.get("max_snapshots")
+            or DEFAULT_MAX_SNAPSHOTS
+        ),
+        snapshot_strategy=str(
+            ecs_env.get("SNAPSHOT_STRATEGY")
+            or config.get("snapshot_strategy")
+            or DEFAULT_SNAPSHOT_STRATEGY
+        ),
+        native_fps=native_fps,
+        native_sampling_mode=str(
+            ecs_env.get("NATIVE_SAMPLING_MODE")
+            or config.get("native_sampling_mode")
+            or DEFAULT_NATIVE_SAMPLING_MODE
+        ).lower(),
+        dispatched_at_epoch_ms=str(ecs_env.get("DISPATCHED_AT_EPOCH_MS") or ""),
+    )
+
+
+def _get_pipeline(job: WorkerJob, temp_dir: str):
+    """Return a warm Pipeline, reusing detector model instances by backend."""
     from src.pipeline import Pipeline
+
+    cache_key = (job.detector_backend.lower(), job.lane_backend.lower())
+    pipeline = _pipeline_cache.get(cache_key)
+    if pipeline is None:
+        started = time.monotonic()
+        pipeline = Pipeline(
+            snapshot_strategy=job.snapshot_strategy,
+            max_snapshots=job.max_snapshots,
+            cleanup_frames=False,
+            use_cv_labeler=True,
+            native_fps=job.native_fps,
+            native_sampling_mode=job.native_sampling_mode,
+            detector_backend=job.detector_backend,
+            lane_backend=job.lane_backend,
+        )
+        _pipeline_cache[cache_key] = pipeline
+        _log_timing(
+            "pipeline_init",
+            (time.monotonic() - started) * 1000.0,
+            backend=job.detector_backend,
+            mode="cold_pipeline_object",
+        )
+    else:
+        pipeline.snapshot_strategy = job.snapshot_strategy
+        pipeline.max_snapshots = job.max_snapshots
+        pipeline.native_fps = job.native_fps
+        pipeline.native_sampling_mode = job.native_sampling_mode
+        pipeline.snapshot_selector.strategy = job.snapshot_strategy
+        pipeline.snapshot_selector.max_snapshots = job.max_snapshots
+        _log_timing("pipeline_init", 0.0, backend=job.detector_backend, mode="warm_reuse")
+
+    pipeline.merger.output_dir = temp_dir
+    return pipeline
+
+
+def _run_job(job: WorkerJob, temp_dir: str) -> None:
     from src.result_persistence import persist_frame_artefacts, put_frames_manifest_json
 
-    # 1. Download video
-    filename = S3_INPUT_KEY.split("/")[-1]
-    video_path = os.path.join(temp_dir, filename)
-    logger.info("Downloading s3://%s/%s ...", PROCESSING_BUCKET, S3_INPUT_KEY)
-    _s3.download_file(PROCESSING_BUCKET, S3_INPUT_KEY, video_path)
-    _ddb_update("PROCESSING", 0.08)
-
-    # 2. Run pipeline
-    pipeline = Pipeline(
-        snapshot_strategy=SNAPSHOT_STRATEGY,
-        max_snapshots=MAX_SNAPSHOTS,
-        cleanup_frames=False,
-        use_cv_labeler=True,
-        native_fps=NATIVE_FPS,
-        detector_backend=DETECTOR_BACKEND,
-        lane_backend=LANE_BACKEND,
+    logger.info(
+        "Worker processing job=%s input=%s output_prefix=%s backend=%s strategy=%s max=%s native_mode=%s native_fps=%s",
+        job.job_id,
+        job.s3_input_key,
+        job.s3_output_prefix,
+        job.detector_backend,
+        job.snapshot_strategy,
+        job.max_snapshots,
+        job.native_sampling_mode,
+        job.native_fps,
     )
-    # Override output dir to temp so we can upload
-    pipeline.merger.output_dir = temp_dir
+    if job.dispatched_at_epoch_ms:
+        try:
+            _log_timing(
+                "ecs_startup",
+                _PROCESS_STARTED_MS - int(job.dispatched_at_epoch_ms),
+                source="dispatch_to_worker_process",
+            )
+        except ValueError:
+            logger.warning("Invalid dispatched_at_epoch_ms=%s", job.dispatched_at_epoch_ms)
+
+    _ddb_update(job.job_id, "PROCESSING", 0.02)
+
+    filename = job.s3_input_key.split("/")[-1]
+    video_path = os.path.join(temp_dir, filename)
+    logger.info("Downloading s3://%s/%s ...", PROCESSING_BUCKET, job.s3_input_key)
+    download_started = time.monotonic()
+    _s3.download_file(PROCESSING_BUCKET, job.s3_input_key, video_path)
+    _log_timing("download", (time.monotonic() - download_started) * 1000.0)
+    _ddb_update(job.job_id, "PROCESSING", 0.08)
+
+    pipeline = _get_pipeline(job, temp_dir)
 
     def _progress(p: float, step: str, msg: str) -> None:
-        # Scale pipeline progress [0,1] to DynamoDB [0.10, 0.90]
         pct = 0.10 + p * 0.80
-        _ddb_update("PROCESSING", pct)
-        logger.info("Progress %.0f%%: %s — %s", pct * 100, step, msg)
+        _ddb_update(job.job_id, "PROCESSING", pct)
+        logger.info("Progress %.0f%%: %s - %s", pct * 100, step, msg)
 
+    pipeline_started = time.monotonic()
     output_path = pipeline.process_video(video_path, progress_cb=_progress)
+    _log_timing("pipeline_total", (time.monotonic() - pipeline_started) * 1000.0)
     if not output_path:
-        raise RuntimeError("Pipeline returned no output — check logs for errors")
+        raise RuntimeError("Pipeline returned no output; check logs for errors")
 
-    _ddb_update("PROCESSING", 0.92)
+    _ddb_update(job.job_id, "PROCESSING", 0.92)
 
-    # 2b. Per-frame artefacts + frames_manifest (same contract as Lambda API)
     try:
+        persist_started = time.monotonic()
         with open(output_path, encoding="utf-8") as fp:
             output_doc = json.load(fp)
         all_obj_dicts = list(output_doc.get("objects") or [])
         frames_manifest = persist_frame_artefacts(
             _s3,
             PROCESSING_BUCKET,
-            JOB_ID,
+            job.job_id,
             getattr(pipeline, "last_selected_frames", {}) or {},
             getattr(pipeline, "last_annotated_frames", {}) or {},
             getattr(pipeline, "last_frame_timestamps", {}) or {},
             all_obj_dicts,
             getattr(pipeline, "last_extraction_manifest", []) or [],
         )
-        put_frames_manifest_json(_s3, PROCESSING_BUCKET, JOB_ID, frames_manifest)
+        put_frames_manifest_json(_s3, PROCESSING_BUCKET, job.job_id, frames_manifest)
         logger.info(
             "Persisted %d frame artefact entries under results/%s/frames/",
             len(frames_manifest),
-            JOB_ID,
+            job.job_id,
         )
+        _log_timing("persistence", (time.monotonic() - persist_started) * 1000.0)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Frame artefact / manifest persistence failed: %s", exc)
 
-    # 3. Upload results to S3
-    local_output_root = Path(temp_dir)
-    uploaded_keys = _upload_dir(local_output_root, S3_OUTPUT_PREFIX)
+    upload_started = time.monotonic()
+    uploaded_keys = _upload_dir(
+        Path(temp_dir),
+        job.s3_output_prefix,
+        exclude={Path(video_path)},
+    )
+    _log_timing(
+        "s3_upload",
+        (time.monotonic() - upload_started) * 1000.0,
+        files=len(uploaded_keys),
+    )
 
-    # The merger names the output file after the video (e.g. "20251107-153701-C.json"),
-    # but the Lambda API always fetches results/{job_id}/output.json.  Upload an
-    # additional copy under the canonical "output.json" name so the API can find it.
-    output_json_key: str = ""
+    output_json_key = ""
     if output_path and os.path.exists(output_path):
-        normalized_key = S3_OUTPUT_PREFIX + "output.json"
+        normalized_key = job.s3_output_prefix + "output.json"
         try:
             _s3.upload_file(
                 str(output_path),
@@ -237,43 +383,89 @@ def _run(temp_dir: str) -> None:
             logger.info("Uploaded output.json -> s3://%s/%s", PROCESSING_BUCKET, normalized_key)
         except Exception as exc:  # noqa: BLE001
             logger.warning("output.json upload failed: %s", exc)
-            # Fall back to the video-named key if already uploaded
             output_json_key = next(
                 (k for k in uploaded_keys if k.endswith(".json") and "/client_configs/" not in k),
                 "",
             )
     else:
-        # Fallback: scan uploaded keys for any top-level JSON
         output_json_key = next(
             (k for k in uploaded_keys if k.endswith(".json") and "/client_configs/" not in k),
             "",
         )
 
-    # 4. Mark COMPLETED in DynamoDB with S3 pointers
-    try:
-        _ddb.update_item(
-            TableName=DYNAMODB_TABLE,
-            Key={"job_id": {"S": JOB_ID}},
-            UpdateExpression=(
-                "SET #s = :s, progress = :p, updated_at = :t, "
-                "output_s3_key = :ok, result_prefix = :rp"
-            ),
-            ExpressionAttributeNames={"#s": "status"},
-            ExpressionAttributeValues={
-                ":s": {"S": "COMPLETED"},
-                ":p": {"N": "1.0"},
-                ":t": {"S": __import__("datetime").datetime.utcnow().isoformat() + "Z"},
-                ":ok": {"S": output_json_key},
-                ":rp": {"S": S3_OUTPUT_PREFIX},
-            },
-        )
-    except Exception as exc:
-        logger.warning("DynamoDB COMPLETED update failed: %s", exc)
-
+    _ddb_complete(job, output_json_key)
     logger.info(
-        "Worker completed: job=%s  output_prefix=%s  files=%d",
-        JOB_ID, S3_OUTPUT_PREFIX, len(uploaded_keys),
+        "Worker completed: job=%s output_prefix=%s files=%d",
+        job.job_id,
+        job.s3_output_prefix,
+        len(uploaded_keys),
     )
+
+
+def _run_task_main() -> None:
+    job = _job_from_env()
+    temp_dir = tempfile.mkdtemp(prefix="lightship_worker_")
+    try:
+        _run_job(job, temp_dir)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Worker failed: %s", exc)
+        _ddb_update(job.job_id, "FAILED", error=str(exc))
+        sys.exit(1)
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def _sqs_consumer_main() -> None:
+    if not PROCESSING_QUEUE_URL:
+        raise RuntimeError("PROCESSING_QUEUE_URL is required for sqs_consumer mode")
+    logger.info("Warm SQS worker started: queue=%s", PROCESSING_QUEUE_URL)
+    _log_timing("warm_worker_ready", int(time.time() * 1000) - _PROCESS_STARTED_MS)
+
+    while True:
+        resp = _sqs.receive_message(
+            QueueUrl=PROCESSING_QUEUE_URL,
+            MaxNumberOfMessages=1,
+            WaitTimeSeconds=20,
+            VisibilityTimeout=1800,
+            MessageAttributeNames=["All"],
+            AttributeNames=["ApproximateReceiveCount"],
+        )
+        messages = resp.get("Messages") or []
+        if not messages:
+            continue
+
+        message = messages[0]
+        receipt = message["ReceiptHandle"]
+        job_id = "unknown"
+        temp_dir = tempfile.mkdtemp(prefix="lightship_worker_")
+        try:
+            payload = json.loads(message["Body"])
+            job = _job_from_sqs_payload(payload)
+            job_id = job.job_id
+            _run_job(job, temp_dir)
+            _sqs.delete_message(QueueUrl=PROCESSING_QUEUE_URL, ReceiptHandle=receipt)
+            logger.info("Deleted SQS message for completed job=%s", job_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("SQS job failed: job=%s error=%s", job_id, exc)
+            if job_id != "unknown":
+                _ddb_update(job_id, "FAILED", error=str(exc))
+            # Delete after marking failed so a deterministic pipeline error does
+            # not loop forever. The processing DLQ still catches delivery-level
+            # failures before a worker receives the message.
+            try:
+                _sqs.delete_message(QueueUrl=PROCESSING_QUEUE_URL, ReceiptHandle=receipt)
+            except Exception as delete_exc:  # noqa: BLE001
+                logger.warning("Failed to delete failed SQS message: %s", delete_exc)
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def main() -> None:
+    logger.info("Inference worker process started mode=%s", WORKER_MODE)
+    if WORKER_MODE == "sqs_consumer":
+        _sqs_consumer_main()
+    else:
+        _run_task_main()
 
 
 if __name__ == "__main__":

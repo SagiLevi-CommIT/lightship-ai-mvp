@@ -73,6 +73,7 @@ async function startJobForAsset(
     max_snapshots: number;
     snapshot_strategy: string;
     native_fps?: number;
+    native_sampling_mode?: 'count' | 'fps';
     detector_backend: 'florence2' | 'yolo' | 'detectron2';
     lane_backend?: string;
   },
@@ -145,7 +146,12 @@ export default function RunPage() {
           : 'naive';
       const parsedFps = Number.parseFloat(runConfig.pipelineConfig.nativeFps);
       const nativeFps =
-        Number.isFinite(parsedFps) && parsedFps > 0 ? parsedFps : undefined;
+        runConfig.pipelineConfig.frameSelectionMethod === 'native' &&
+        runConfig.pipelineConfig.nativeSamplingMode === 'fps' &&
+        Number.isFinite(parsedFps) &&
+        parsedFps > 0
+          ? parsedFps
+          : undefined;
 
       setRunProgress({
         phase: 'queued',
@@ -172,6 +178,10 @@ export default function RunPage() {
             max_snapshots: maxSnapshots,
             snapshot_strategy: strategy,
             native_fps: nativeFps,
+            native_sampling_mode:
+              runConfig.pipelineConfig.frameSelectionMethod === 'native'
+                ? runConfig.pipelineConfig.nativeSamplingMode
+                : 'count',
             detector_backend: runConfig.pipelineConfig.detectorBackend ?? 'florence2',
             lane_backend: 'ufldv2',
           });

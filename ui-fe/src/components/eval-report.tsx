@@ -29,13 +29,17 @@ export default function EvalReport() {
   } = useEvaluationFlow();
   const selectedAsset = state.assets.find((asset) => asset.id === state.selectedAssetId) ?? null;
   const maxSnapshotsNum = Number.parseInt(state.pipelineConfig.maxSnapshots, 10);
+  const nativeFpsNum = Number.parseFloat(state.pipelineConfig.nativeFps);
+  const requiresFrameCount =
+    state.pipelineConfig.frameSelectionMethod === 'scene-change' ||
+    state.pipelineConfig.nativeSamplingMode === 'count';
+  const hasValidFrameCount = Number.isFinite(maxSnapshotsNum) && maxSnapshotsNum > 0;
+  const hasValidNativeFps = Number.isFinite(nativeFpsNum) && nativeFpsNum > 0;
   const canRun =
     state.mode === 'evaluation'
       ? true
       : state.assets.length > 0 &&
-        maxSnapshotsNum > 0 &&
-        (state.pipelineConfig.frameSelectionMethod !== 'native' ||
-          state.pipelineConfig.nativeFps.trim().length > 0);
+        (requiresFrameCount ? hasValidFrameCount : hasValidNativeFps);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#163b84_0%,#08142e_34%,#020814_100%)] text-white">
@@ -88,17 +92,13 @@ export default function EvalReport() {
                 return;
               }
 
-              if (
-                state.mode !== 'evaluation' &&
-                state.pipelineConfig.frameSelectionMethod === 'native' &&
-                state.pipelineConfig.nativeFps.trim().length === 0
-              ) {
-                setNotificationMessage('Please provide the FPS value for native frame selection.');
+              if (state.mode !== 'evaluation' && requiresFrameCount && !hasValidFrameCount) {
+                setNotificationMessage('Please set the frame count to a positive integer.');
                 return;
               }
 
-              if (state.mode !== 'evaluation' && !(maxSnapshotsNum > 0)) {
-                setNotificationMessage('Please set "Number of frames to keep" to a positive integer.');
+              if (state.mode !== 'evaluation' && !requiresFrameCount && !hasValidNativeFps) {
+                setNotificationMessage('Please provide a positive FPS value for native frame selection.');
                 return;
               }
 

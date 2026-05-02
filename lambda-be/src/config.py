@@ -372,6 +372,18 @@ CV_PARALLEL_WORKERS = 4
 ENABLE_FRAME_PREPROCESSING = os.getenv("ENABLE_FRAME_PREPROCESSING", "true").lower() == "true"
 """Enable CLAHE + sharpen preprocessing before CV detection"""
 
+# PyAV decode: max |decoded_idx - target_idx| before rejecting a candidate (lower = stricter).
+FRAME_PYAV_MAX_INDEX_DISTANCE: int = int(os.getenv("FRAME_PYAV_MAX_INDEX_DISTANCE", "15"))
+
+# When ``frame_idx != decoded_idx`` (substituted extraction), how to treat vision/CV.
+# ``full`` — unchanged (run all detectors on the raster).
+# ``skip`` — skip CV + VisionLabeler for that frame (empty objects; avoids spurious boxes).
+# ``flag`` — run detectors but persist UI-oriented warnings on substituted frames.
+_svp = os.getenv("SUBSTITUTED_FRAME_VISION_POLICY", "full").lower()
+SUBSTITUTED_FRAME_VISION_POLICY: Literal["full", "skip", "flag"] = (
+    _svp if _svp in ("full", "skip", "flag") else "full"
+)
+
 # ============================================================================
 # Vision Labeler Configuration (replaces Rekognition)
 # ============================================================================

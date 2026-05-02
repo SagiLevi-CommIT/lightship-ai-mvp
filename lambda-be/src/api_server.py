@@ -8,6 +8,7 @@ import json
 import tempfile
 import shutil
 import logging
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -156,6 +157,8 @@ def _enqueue_job(job_id: str, s3_key: str, filename: str,
         "MAX_SNAPSHOTS": str(proc_config.max_snapshots),
         "SNAPSHOT_STRATEGY": proc_config.snapshot_strategy,
         "NATIVE_FPS": "" if native is None else str(float(native)),
+        "NATIVE_SAMPLING_MODE": proc_config.native_sampling_mode,
+        "DISPATCHED_AT_EPOCH_MS": str(int(time.time() * 1000)),
         "DETECTOR_BACKEND": proc_config.detector_backend,
         "LANE_BACKEND": proc_config.lane_backend,
     }
@@ -631,6 +634,7 @@ def process_video_task(
             cleanup_frames=config.cleanup_frames,
             use_cv_labeler=config.use_cv_labeler,
             native_fps=config.native_fps,
+            native_sampling_mode=config.native_sampling_mode,
             detector_backend=config.detector_backend,
             lane_backend=config.lane_backend,
         )
@@ -1403,4 +1407,3 @@ if __name__ == "__main__":
         reload=True,
         log_level="info"
     )
-

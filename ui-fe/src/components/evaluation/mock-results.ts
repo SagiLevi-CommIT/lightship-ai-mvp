@@ -4,7 +4,6 @@ import type {
   AnnotatedFrame,
   AssetResult,
   Hazard,
-  OutputCategory,
   PipelineConfig,
   PipelineResultJson,
   ResultPropertyRow,
@@ -13,13 +12,6 @@ import type {
 
 const FRAME_WIDTH = 1280;
 const FRAME_HEIGHT = 720;
-
-const SEVERITY_MAP: Record<OutputCategory, Hazard['severity']> = {
-  high: 'high',
-  medium: 'medium',
-  low: 'low',
-  'all-frames': 'medium',
-};
 
 const createPropertyRows = (result: PipelineResultJson): Array<ResultPropertyRow> => {
   const objectCount = result.frames.reduce((total, frame) => total + frame.objects.length, 0);
@@ -116,8 +108,8 @@ const createFrame = (index: number, severity: Hazard['severity']): AnnotatedFram
 };
 
 const createRawJson = (asset: UploadedAsset, config: PipelineConfig): PipelineResultJson => {
-  const severity = SEVERITY_MAP[config.outputCategory];
-  const frameCount = config.outputCategory === 'all-frames' ? 4 : 2;
+  const severity: Hazard['severity'] = 'medium';
+  const frameCount = 4;
   const descriptionPrefix = asset.kind === 'image' ? 'Uploaded road scene image' : 'Uploaded dashcam footage';
 
   return {
