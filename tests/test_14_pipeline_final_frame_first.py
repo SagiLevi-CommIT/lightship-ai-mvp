@@ -199,3 +199,85 @@ def test_vision_labeler_runs_only_on_final_frames(pipeline_mod, tmp_path, monkey
     assert [call[1] for call in pipe.vision_labeler.calls] == [333.0, 666.0]
     assert len(objects) == 2
     assert hazards == []
+
+
+def test_process_video_resets_warm_vision_audit(pipeline_mod, tmp_path, monkeypatch):
+    from src.schemas import SnapshotInfo
+
+    monkeypatch.setattr(pipeline_mod, "OUTPUT_DIR", str(tmp_path / "out"))
+
+    class _Vision:
+        detector_backend = "yolo"
+        lane_backend = "ufldv2"
+
+        def __init__(self):
+            self.audit = [{"frame_path": "stale_previous_job.png"}]
+            self.reset_calls = 0
+
+        def reset_audit(self):
+            self.reset_calls += 1
+            self.audit.clear()
+
+        def build_audit(self):
+            return list(self.audit)
+
+    class _Loader:
+        def load_video_metadata(self, video_path):
+            meta = _meta()
+            return meta.model_copy(update={"filepath": video_path})
+
+    class _Merger:
+        output_dir = str(tmp_path)
+
+        def merge_and_save(self, video_metadata, objects, hazard_events, inferred_metadata):
+            del objects, hazard_events, inferred_metadata
+            output_path = tmp_path / "output.json"
+            output_path.write_text(
+                (
+                    "{"
+                    f"\"filename\":\"{video_metadata.filename}\","
+                    f"\"fps\":{video_metadata.fps},"
+                    "\"camera\":\"unknown\","
+                    "\"description\":\"\","
+                    f"\"video_duration_ms\":{video_metadata.duration_ms},"
+                    "\"objects\":[],"
+                    "\"hazard_events\":[]"
+                    "}"
+                ),
+                encoding="utf-8",
+            )
+            return str(output_path)
+
+        def get_summary_stats(self, _video_output):
+            return {}
+
+    pipe = _bare_pipeline(pipeline_mod, strategy="scene_change", count=2, native_fps=None)
+    pipe.use_cv_labeler = True
+    pipe.vision_labeler = _Vision()
+    pipe.video_loader = _Loader()
+    pipe.merger = _Merger()
+    pipe.cleanup_frames = False
+
+    frame = tmp_path / "frame_1.png"
+    frame.write_text("frame", encoding="utf-8")
+    snapshots = [SnapshotInfo(frame_idx=1, timestamp_ms=33.0)]
+    monkeypatch.setattr(
+        pipe,
+        "_prepare_v2_final_frames",
+        lambda _metadata, _report: (snapshots, {1: str(frame)}),
+    )
+    monkeypatch.setattr(
+        pipe,
+        "_process_v2_final_frames",
+        lambda _snapshots, _frames, _metadata, progress_cb=None: ([], [], {}),
+    )
+
+    output_path = pipe.process_video(str(tmp_path / "clip.mp4"))
+
+    assert pipe.vision_labeler.reset_calls == 1
+    assert output_path is not None
+    import json
+
+    output_doc = json.loads(Path(output_path).read_text(encoding="utf-8"))
+    assert output_doc["vision_audit"]["frames_evaluated"] == 0
+    assert output_doc["vision_audit"]["per_frame"] == []

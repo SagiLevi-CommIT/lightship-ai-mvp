@@ -86,6 +86,10 @@ class VisionLabeler:
         """Return per-frame audit trail for injection into output.json."""
         return list(self._audit_records)
 
+    def reset_audit(self) -> None:
+        """Clear per-run audit records while keeping loaded models warm."""
+        self._audit_records.clear()
+
     def detect(
         self,
         frame_path: str,

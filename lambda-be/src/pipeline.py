@@ -153,6 +153,10 @@ class Pipeline:
         self.last_frame_timestamps = {}
         self.last_extraction_manifest = []
         self.last_timing_ms = {}
+        if self.use_cv_labeler and self.vision_labeler is not None:
+            reset_audit = getattr(self.vision_labeler, "reset_audit", None)
+            if callable(reset_audit):
+                reset_audit()
         logger.info(f"{'='*80}")
         logger.info(f"Processing video: {video_path} (train={is_train})")
         logger.info(f"{'='*80}")
