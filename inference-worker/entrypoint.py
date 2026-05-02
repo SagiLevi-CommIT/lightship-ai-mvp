@@ -299,11 +299,20 @@ def _run_job(job: WorkerJob, temp_dir: str) -> None:
     )
     if job.dispatched_at_epoch_ms:
         try:
-            _log_timing(
-                "ecs_startup",
-                _PROCESS_STARTED_MS - int(job.dispatched_at_epoch_ms),
-                source="dispatch_to_worker_process",
-            )
+            dispatched_ms = int(job.dispatched_at_epoch_ms)
+            if WORKER_MODE == "sqs_consumer":
+                _log_timing("ecs_startup", 0.0, source="warm_worker_already_running")
+                _log_timing(
+                    "queue_wait",
+                    max(0, int(time.time() * 1000) - dispatched_ms),
+                    source="sqs_to_warm_worker",
+                )
+            else:
+                _log_timing(
+                    "ecs_startup",
+                    max(0, _PROCESS_STARTED_MS - dispatched_ms),
+                    source="dispatch_to_worker_process",
+                )
         except ValueError:
             logger.warning("Invalid dispatched_at_epoch_ms=%s", job.dispatched_at_epoch_ms)
 
