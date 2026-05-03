@@ -93,6 +93,8 @@ def test_enqueue_prefers_sqs_when_configured(api_module):
         "NATIVE_SAMPLING_MODE": proc.native_sampling_mode,
         "DETECTOR_BACKEND": proc.detector_backend,
         "LANE_BACKEND": proc.lane_backend,
+        "ENABLE_LLM_REFINEMENT": "0",
+        "ENABLE_HAZARD_LLM": "0",
     }
     assert body["ecs_env"]["DISPATCHED_AT_EPOCH_MS"].isdigit()
     body["ecs_env"].pop("DISPATCHED_AT_EPOCH_MS")

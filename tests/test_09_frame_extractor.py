@@ -72,6 +72,11 @@ def test_is_real_frame_rejects_uniform_and_empty():
     assert _is_real_frame(np.zeros((0, 0), dtype=np.uint8)) is False
     grey = np.full((100, 100, 3), 128, dtype=np.uint8)
     assert _is_real_frame(grey) is False
+    rng = np.random.default_rng(7)
+    low_contrast = np.full((100, 100, 3), 128, dtype=np.int16)
+    low_contrast += rng.integers(-1, 2, size=(100, 100, 3), dtype=np.int16)
+    low_contrast = np.clip(low_contrast, 0, 255).astype(np.uint8)
+    assert _is_real_frame(low_contrast) is False
     colourful = _colourful_frame(42)
     assert _is_real_frame(colourful) is True
 

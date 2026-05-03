@@ -40,8 +40,14 @@ def test_dense_sampling_respects_safety_cap():
 def test_uniform_sampling_returns_requested_jump_count():
     snapshots = generate_uniform_snapshots(_meta(), count=5)
 
-    assert [s.frame_idx for s in snapshots] == [0, 75, 150, 224, 299]
+    assert [s.frame_idx for s in snapshots] == [50, 100, 150, 200, 250]
     assert len(snapshots) == 5
+
+
+def test_uniform_sampling_two_frames_avoids_decoder_boundaries():
+    snapshots = generate_uniform_snapshots(_meta(), count=2)
+
+    assert [s.frame_idx for s in snapshots] == [100, 200]
 
 
 def test_uniform_sampling_single_frame_uses_middle():

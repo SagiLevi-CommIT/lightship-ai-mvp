@@ -29,6 +29,7 @@ class FrameAnnotator:
     # Color for different object types (BGR format)
     OBJECT_COLORS = {
         'pedestrian': (128, 0, 200),      # Purple
+        'bicycle': (200, 0, 150),         # Magenta
         'bicyclist': (200, 0, 150),       # Magenta
         'vehicle': (0, 128, 255),         # Orange
         'truck': (255, 100, 0),           # Deep Blue

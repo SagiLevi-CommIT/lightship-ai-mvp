@@ -152,7 +152,9 @@ def _enqueue_job(job_id: str, s3_key: str, filename: str,
     off successfully or mark the row ``FAILED`` and propagate.
     """
     cfg = proc_config.model_dump(mode="json")
-    native = proc_config.native_fps
+    native = proc_config.native_fps if proc_config.native_sampling_mode == "fps" else None
+    if proc_config.native_sampling_mode != "fps":
+        cfg["native_fps"] = None
     ecs_env = {
         "MAX_SNAPSHOTS": str(proc_config.max_snapshots),
         "SNAPSHOT_STRATEGY": proc_config.snapshot_strategy,
@@ -161,6 +163,8 @@ def _enqueue_job(job_id: str, s3_key: str, filename: str,
         "DISPATCHED_AT_EPOCH_MS": str(int(time.time() * 1000)),
         "DETECTOR_BACKEND": proc_config.detector_backend,
         "LANE_BACKEND": proc_config.lane_backend,
+        "ENABLE_LLM_REFINEMENT": "1" if proc_config.enable_llm_refinement else "0",
+        "ENABLE_HAZARD_LLM": "1" if proc_config.enable_hazard_llm else "0",
     }
     payload = {
         "job_id": job_id,
@@ -637,6 +641,8 @@ def process_video_task(
             native_sampling_mode=config.native_sampling_mode,
             detector_backend=config.detector_backend,
             lane_backend=config.lane_backend,
+            enable_llm_refinement=config.enable_llm_refinement,
+            enable_hazard_llm=config.enable_hazard_llm,
         )
 
         _on_progress(0.05, "loading_video", "Reading video from local storage")

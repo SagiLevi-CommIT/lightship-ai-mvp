@@ -11,6 +11,7 @@ from typing import List, Dict, Tuple
 from pydantic import ValidationError
 from src.schemas import ObjectLabel, VideoOutput, VideoMetadata, HazardEvent
 from src.config import OUTPUT_DIR
+from src.object_taxonomy import sanitize_object_labels
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +60,11 @@ class Merger:
             f"for {video_metadata.filename}"
         )
 
-        # Sort objects by timestamp
-        sorted_objects = sorted(all_objects, key=lambda obj: obj.start_time_ms)
+        # Sort objects by timestamp after customer-facing label cleanup.
+        sorted_objects = sorted(
+            sanitize_object_labels(all_objects),
+            key=lambda obj: obj.start_time_ms,
+        )
 
         # Sort hazard events by timestamp
         sorted_hazards = sorted(hazard_events, key=lambda h: h.start_time_ms)
@@ -120,7 +124,10 @@ class Merger:
             Tuple of (gt_format_path, enhanced_format_path)
         """
         # Sort objects and hazards
-        sorted_objects = sorted(all_objects, key=lambda obj: obj.start_time_ms)
+        sorted_objects = sorted(
+            sanitize_object_labels(all_objects),
+            key=lambda obj: obj.start_time_ms,
+        )
         sorted_hazards = sorted(hazard_events, key=lambda h: h.start_time_ms)
 
         # Create VideoOutput

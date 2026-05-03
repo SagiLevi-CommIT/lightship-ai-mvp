@@ -44,6 +44,7 @@ from src.frame_selector import select_frames_by_clustering
 from src.frame_sampling import generate_dense_snapshots, generate_uniform_snapshots
 from src.frame_preprocessor import preprocess_frame
 from src.config_generator import write_client_configs
+from src.object_taxonomy import sanitize_object_labels
 from src.vision_labeler import VisionLabeler
 from src.utils import metrics
 
@@ -63,6 +64,8 @@ class Pipeline:
         native_sampling_mode: str = "count",
         detector_backend: str = "florence2",
         lane_backend: str = "ufldv2",
+        enable_llm_refinement: bool = False,
+        enable_hazard_llm: bool = False,
     ):
         """Initialize Pipeline with all components.
 
@@ -83,6 +86,8 @@ class Pipeline:
         self.max_snapshots = max_snapshots
         self.native_fps = native_fps
         self.native_sampling_mode = (native_sampling_mode or "count").lower()
+        self.enable_llm_refinement = bool(enable_llm_refinement)
+        self.enable_hazard_llm = bool(enable_hazard_llm)
         self.snapshot_selector = SnapshotSelector(strategy=snapshot_strategy, max_snapshots=max_snapshots)
         self.frame_extractor = FrameExtractor()
 
@@ -111,6 +116,8 @@ class Pipeline:
             f"Pipeline initialized (strategy={snapshot_strategy}, "
             f"max_snapshots={max_snapshots}, native_sampling_mode={self.native_sampling_mode}, "
             f"cleanup={cleanup_frames}, "
+            f"llm_refinement={self.enable_llm_refinement}, "
+            f"hazard_llm={self.enable_hazard_llm}, "
             f"version={'V2' if use_cv_labeler else 'V1'})"
         )
 
@@ -604,6 +611,9 @@ class Pipeline:
             - refined_objects: List of refined objects (or original if failed)
             - success: True if refinement succeeded, False if failed completely
         """
+        if not getattr(self, "enable_llm_refinement", False):
+            return sanitize_object_labels(objects), True
+
         retry_count = 0
         current_objects = objects
 
@@ -805,6 +815,9 @@ class Pipeline:
                         video_width=video_metadata.width,
                         video_height=video_metadata.height,
                     )
+                    all_frame_objects[frame_idx] = sanitize_object_labels(
+                        all_frame_objects[frame_idx],
+                    )
                 except Exception as exc:  # noqa: BLE001
                     logger.warning(
                         "VisionLabeler failed on final frame %d: %s",
@@ -869,11 +882,18 @@ class Pipeline:
         }
         logger.info(f"Selected {len(selected_frame_objects)} frames for processing")
 
-        logger.info("Step 4b: Per-frame LLM refinement with retry/fallback logic")
+        if getattr(self, "enable_llm_refinement", False):
+            logger.info("Step 4b: Per-frame LLM refinement with retry/fallback logic")
+            refinement_message = f"Refining {len(selected_frame_indices)} frames with LLM"
+        else:
+            logger.info("Step 4b: Skipping per-frame LLM refinement; using detector-only objects")
+            refinement_message = (
+                f"Using detector results for {len(selected_frame_indices)} final frame(s)"
+            )
         report(
             0.65,
             "refining_frames",
-            f"Refining {len(selected_frame_indices)} frames with LLM",
+            refinement_message,
         )
         refine_started = time.monotonic()
         refined_frame_objects: Dict[int, List[ObjectLabel]] = {}
@@ -944,6 +964,7 @@ class Pipeline:
             "llm_refinement",
             refine_elapsed_ms,
             frames=len(refined_frame_objects),
+            enabled=bool(getattr(self, "enable_llm_refinement", False)),
         )
         logger.info(
             "Per-frame refinement complete: %d frames processed",
@@ -995,8 +1016,12 @@ class Pipeline:
             frames=len(refined_frame_images),
         )
 
-        logger.info("Step 4d: Assessing hazards with temporal LLM")
-        report(0.88, "assessing_hazards", "Assessing hazards with temporal LLM")
+        if getattr(self, "enable_hazard_llm", False):
+            logger.info("Step 4d: Assessing hazards with temporal LLM")
+            report(0.88, "assessing_hazards", "Assessing hazards with temporal LLM")
+        else:
+            logger.info("Step 4d: Skipping temporal hazard LLM; using detector-only output")
+            report(0.88, "assessing_hazards", "Skipping temporal hazard LLM")
         hazard_started = time.monotonic()
 
         video_metadata_dict = {
@@ -1005,14 +1030,32 @@ class Pipeline:
             "duration_ms": video_metadata.duration_ms,
         }
 
-        hazard_events, final_objects, inferred_metadata = self.hazard_assessor.assess_hazards_only(
-            frame_objects=refined_frame_objects,
-            frame_images=refined_frame_images,
-            video_metadata=video_metadata_dict,
-        )
+        if getattr(self, "enable_hazard_llm", False):
+            hazard_events, final_objects, inferred_metadata = self.hazard_assessor.assess_hazards_only(
+                frame_objects=refined_frame_objects,
+                frame_images=refined_frame_images,
+                video_metadata=video_metadata_dict,
+            )
+        else:
+            hazard_events = []
+            final_objects = [obj for objs in refined_frame_objects.values() for obj in objs]
+            inferred_metadata = {
+                "description": "",
+                "traffic": "unknown",
+                "lighting": "unknown",
+                "weather": "unknown",
+                "collision": "none",
+                "speed": "unknown",
+            }
+        final_objects = sanitize_object_labels(final_objects)
 
         hazard_elapsed_ms = (time.monotonic() - hazard_started) * 1000.0
-        self._record_timing("llm_hazard", hazard_elapsed_ms, frames=len(refined_frame_objects))
+        self._record_timing(
+            "llm_hazard",
+            hazard_elapsed_ms,
+            frames=len(refined_frame_objects),
+            enabled=bool(getattr(self, "enable_hazard_llm", False)),
+        )
         self._record_timing(
             "llm_total",
             refine_elapsed_ms + hazard_elapsed_ms,

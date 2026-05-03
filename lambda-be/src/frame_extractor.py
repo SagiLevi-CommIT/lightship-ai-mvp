@@ -44,7 +44,8 @@ FRAME_READ_FALLBACK_STEPS = 6
 # Minimum per-frame pixel standard deviation we accept. Pure-grey or
 # fully-black frames have ``std < 1.0`` — they are almost certainly
 # codec artefacts at seek points and must be rejected before annotation.
-MIN_FRAME_STD = 1.0
+MIN_FRAME_STD = 3.0
+MIN_FRAME_CONTRAST = 8.0
 
 
 @dataclass
@@ -176,9 +177,15 @@ def _is_real_frame(frame: Optional[np.ndarray]) -> bool:
         return False
     try:
         std = float(frame.std())
+        if frame.ndim == 2:
+            gray = frame
+        else:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        p1, p99 = np.percentile(gray, [1, 99])
+        contrast = float(p99 - p1)
     except Exception:
         return False
-    return std >= MIN_FRAME_STD
+    return std >= MIN_FRAME_STD and contrast >= MIN_FRAME_CONTRAST
 
 
 class FrameExtractor:

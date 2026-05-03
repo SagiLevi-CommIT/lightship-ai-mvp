@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from src.object_taxonomy import normalize_object_description
 from src.schemas import ObjectLabel, Center
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 # COCO 80-class ID -> Lightship label (road-relevant subset).
 _COCO_TO_LIGHTSHIP: Dict[int, str] = {
     0: "pedestrian",
-    1: "bicyclist",
+    1: "bicycle",
     2: "car",
     3: "motorcycle",
     5: "bus",
@@ -32,7 +33,7 @@ _COCO_TO_LIGHTSHIP: Dict[int, str] = {
 _PRIORITY_MAP: Dict[str, str] = {
     "pedestrian": "high",
     "motorcycle": "high",
-    "bicyclist": "high",
+    "bicycle": "high",
     "traffic_signal": "high",
     "stop_sign": "high",
     "car": "medium",
@@ -68,6 +69,9 @@ def _box_to_label(
     img_w: int,
     img_h: int,
 ) -> Optional[ObjectLabel]:
+    canonical = normalize_object_description(canonical)
+    if not canonical:
+        return None
     w = max(0.0, x2 - x1)
     h = max(0.0, y2 - y1)
     if w <= 0 or h <= 0:

@@ -96,7 +96,7 @@ class HazardAssessor:
         )
 
         # Check for high-priority objects with no hazards — possible LLM failure
-        high_priority_labels = {"pedestrian", "pedestrian(group)", "bicyclist",
+        high_priority_labels = {"pedestrian", "pedestrian(group)", "bicycle", "bicyclist",
                                 "motorcycle", "emergency_vehicle"}
         has_high_priority = any(
             obj.description in high_priority_labels
@@ -1122,4 +1122,3 @@ Return the corrected JSON now:"""
 
         logger.info(f"Merged {len(hazards)} hazards into {len(merged)} unique events")
         return merged
-

@@ -105,16 +105,50 @@ def generate_dense_snapshots(
 
 
 def generate_uniform_snapshots(video_metadata: VideoMetadata, count: int) -> List[SnapshotInfo]:
-    """Select an exact frame-count target with even jumps across the video."""
+    """Select an exact frame-count target with even interior jumps.
+
+    Avoiding the first/last frame is intentional: real customer clips often
+    have black/grey decoder placeholders at seek boundaries. A request for
+    two frames should therefore land around one-third and two-thirds through
+    the clip, not on frame 0 and EOF.
+    """
     requested = max(1, int(count))
     fps = max(float(video_metadata.fps or 0.0), 1e-6)
     total_frames = _total_frames(video_metadata)
+    target_count = min(requested, total_frames)
 
-    if requested == 1:
+    if target_count == 1:
         frame_indices = [total_frames // 2]
     else:
-        step = (total_frames - 1) / float(requested - 1)
-        frame_indices = [int(round(i * step)) for i in range(requested)]
+        frame_indices = []
+        seen = set()
+        for i in range(target_count):
+            frame_idx = int(round(((i + 1) * total_frames) / float(target_count + 1)))
+
+            # Prefer interior frames when the source has enough interior
+            # samples to satisfy the request. This keeps Native->Frames and
+            # Scene Change backfill away from decoder boundary artefacts.
+            if total_frames > target_count + 1:
+                frame_idx = max(1, min(frame_idx, total_frames - 2))
+            else:
+                frame_idx = max(0, min(frame_idx, total_frames - 1))
+
+            if frame_idx in seen:
+                for offset in range(1, total_frames):
+                    candidates = (frame_idx - offset, frame_idx + offset)
+                    replacement = next(
+                        (
+                            idx
+                            for idx in candidates
+                            if 0 <= idx < total_frames and idx not in seen
+                        ),
+                        None,
+                    )
+                    if replacement is not None:
+                        frame_idx = replacement
+                        break
+            seen.add(frame_idx)
+            frame_indices.append(frame_idx)
 
     snapshots: List[SnapshotInfo] = []
     seen_frames = set()

@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from src.object_taxonomy import normalize_object_description
 from src.schemas import ObjectLabel, Center
 from src.config import (
     FLORENCE2_MODEL_ID,
@@ -33,7 +34,7 @@ _FLORENCE_TO_LIGHTSHIP: Dict[str, str] = {
     "truck": "truck",
     "bus": "bus",
     "motorcycle": "motorcycle",
-    "bicycle": "bicyclist",
+    "bicycle": "bicycle",
     "person": "pedestrian",
     "traffic light": "traffic_signal",
     "stop sign": "stop_sign",
@@ -49,7 +50,7 @@ _FLORENCE_TO_LIGHTSHIP: Dict[str, str] = {
 _PRIORITY_MAP: Dict[str, str] = {
     "pedestrian": "high",
     "motorcycle": "high",
-    "bicyclist": "high",
+    "bicycle": "high",
     "traffic_signal": "high",
     "stop_sign": "high",
     "construction_worker": "high",
@@ -155,7 +156,10 @@ class Florence2Backend:
         img_w: int,
         img_h: int,
     ) -> Optional[ObjectLabel]:
-        canonical = _FLORENCE_TO_LIGHTSHIP.get(raw_label.lower().strip(), raw_label.lower().strip())
+        canonical = normalize_object_description(
+            _FLORENCE_TO_LIGHTSHIP.get(raw_label.lower().strip(), raw_label),
+            unknown_to_other=True,
+        )
         if not canonical:
             return None
         try:
@@ -225,9 +229,9 @@ class Florence2Backend:
             for label, bbox in zip(labels, bboxes):
                 # Florence-2 OD does not return per-instance confidence;
                 # treat all standard OD hits as high-confidence (0.80).
-                raw_summary.append({"name": label, "confidence": 0.80, "source": "od"})
                 obj = self._bbox_to_label(label, bbox, 0.80, timestamp_ms, img_w, img_h)
                 if obj is not None:
+                    raw_summary.append({"name": obj.description, "confidence": 0.80, "source": "od"})
                     results.append(obj)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Florence-2 <OD> failed on %s: %s", Path(frame_path).name, exc)
@@ -240,9 +244,9 @@ class Florence2Backend:
             bboxes = ov_data.get("bboxes", [])
             labels = ov_data.get("labels", [])
             for label, bbox in zip(labels, bboxes):
-                raw_summary.append({"name": label, "confidence": 0.70, "source": "ovd"})
                 obj = self._bbox_to_label(label, bbox, 0.70, timestamp_ms, img_w, img_h)
                 if obj is not None:
+                    raw_summary.append({"name": obj.description, "confidence": 0.70, "source": "ovd"})
                     # De-duplicate against standard OD results (centre distance > 20px)
                     cx, cy = int(bbox[0] + (bbox[2] - bbox[0]) / 2), int(bbox[1] + (bbox[3] - bbox[1]) / 2)
                     is_dup = any(
@@ -286,7 +290,10 @@ class Florence2Backend:
             entry["confidence"]
             for entry in raw_summary
             if entry.get("name", "").lower() in VISION_CRITICAL_CLASSES
-            or _FLORENCE_TO_LIGHTSHIP.get(entry.get("name", "").lower()) in VISION_CRITICAL_CLASSES
+            or normalize_object_description(
+                _FLORENCE_TO_LIGHTSHIP.get(entry.get("name", "").lower(), entry.get("name", "")),
+                unknown_to_other=True,
+            ) in VISION_CRITICAL_CLASSES
         ]
         if not results:
             # Zero detections — always fall back

@@ -164,6 +164,8 @@ export type JobOptions = {
   native_sampling_mode?: 'count' | 'fps';
   detector_backend?: 'florence2' | 'yolo' | 'detectron2';
   lane_backend?: string;
+  enable_llm_refinement?: boolean;
+  enable_hazard_llm?: boolean;
 };
 
 export async function startVideoJob(
@@ -274,7 +276,7 @@ export async function getVideoClass(jobId: string): Promise<VideoClassInfo> {
 export async function pollJobToTerminal(
   jobId: string,
   onProgress: (s: JobStatusResponse) => void,
-  intervalMs = 3000,
+  intervalMs = 1000,
   timeoutMs = 15 * 60 * 1000,
 ): Promise<JobStatusResponse> {
   const deadline = Date.now() + timeoutMs;
@@ -315,7 +317,7 @@ export async function getBatchStatus(jobIds: Array<string>): Promise<Array<Batch
 export async function pollBatchToTerminal(
   jobIds: Array<string>,
   onTick: (statuses: Map<string, BatchStatusRow>) => void,
-  intervalMs = 3000,
+  intervalMs = 1000,
   timeoutMs = 30 * 60 * 1000,
 ): Promise<Map<string, BatchStatusRow>> {
   const deadline = Date.now() + timeoutMs;

@@ -108,7 +108,7 @@ def test_scene_change_selects_before_extraction_and_backfills_without_detection(
 
     assert len(snapshots) == 3
     assert len(frames) == 3
-    assert [s.frame_idx for s in pipe.frame_extractor.requested] == [0, 30, 150]
+    assert [s.frame_idx for s in pipe.frame_extractor.requested] == [30, 75, 150]
 
 
 def test_vision_labeler_runs_only_on_final_frames(pipeline_mod, tmp_path, monkeypatch):
@@ -163,7 +163,11 @@ def test_vision_labeler_runs_only_on_final_frames(pipeline_mod, tmp_path, monkey
             return objects, pipeline_mod.RefinerStatus.SUCCESS, ""
 
     class _Hazard:
+        def __init__(self):
+            self.calls = 0
+
         def assess_hazards_only(self, frame_objects, frame_images, video_metadata):
+            self.calls += 1
             del frame_images, video_metadata
             final = [obj for objects in frame_objects.values() for obj in objects]
             return [], final, {"description": "ok", "traffic": "light", "lighting": "day"}
@@ -199,6 +203,8 @@ def test_vision_labeler_runs_only_on_final_frames(pipeline_mod, tmp_path, monkey
     assert [call[1] for call in pipe.vision_labeler.calls] == [333.0, 666.0]
     assert len(objects) == 2
     assert hazards == []
+    assert pipe.hazard_assessor.calls == 0
+    assert pipe.last_timing_ms["llm_hazard"] < 10.0
 
 
 def test_process_video_resets_warm_vision_audit(pipeline_mod, tmp_path, monkeypatch):

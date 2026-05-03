@@ -80,6 +80,8 @@ export type ProcessVideoRequest = {
     max_snapshots?: number;
     native_fps?: number;
     native_sampling_mode?: 'count' | 'fps';
+    enable_llm_refinement?: boolean;
+    enable_hazard_llm?: boolean;
     s3_output_path?: string;
   };
 };

@@ -61,6 +61,17 @@ def _parse_optional_float(value: Any) -> float | None:
 DEFAULT_NATIVE_FPS = _parse_optional_float(os.getenv("NATIVE_FPS", ""))
 
 
+def _parse_bool(value: Any, default: bool = False) -> bool:
+    if value is None:
+        return default
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off", ""}:
+        return False
+    return default
+
+
 @dataclass(frozen=True)
 class WorkerJob:
     job_id: str
@@ -72,6 +83,8 @@ class WorkerJob:
     snapshot_strategy: str
     native_fps: float | None
     native_sampling_mode: str
+    enable_llm_refinement: bool
+    enable_hazard_llm: bool
     dispatched_at_epoch_ms: str = ""
 
 
@@ -202,6 +215,8 @@ def _job_from_env() -> WorkerJob:
         snapshot_strategy=DEFAULT_SNAPSHOT_STRATEGY,
         native_fps=DEFAULT_NATIVE_FPS,
         native_sampling_mode=DEFAULT_NATIVE_SAMPLING_MODE,
+        enable_llm_refinement=_parse_bool(os.getenv("ENABLE_LLM_REFINEMENT"), False),
+        enable_hazard_llm=_parse_bool(os.getenv("ENABLE_HAZARD_LLM"), False),
         dispatched_at_epoch_ms=os.getenv("DISPATCHED_AT_EPOCH_MS", "").strip(),
     )
 
@@ -241,6 +256,14 @@ def _job_from_sqs_payload(payload: dict[str, Any]) -> WorkerJob:
             or config.get("native_sampling_mode")
             or DEFAULT_NATIVE_SAMPLING_MODE
         ).lower(),
+        enable_llm_refinement=_parse_bool(
+            ecs_env.get("ENABLE_LLM_REFINEMENT", config.get("enable_llm_refinement")),
+            False,
+        ),
+        enable_hazard_llm=_parse_bool(
+            ecs_env.get("ENABLE_HAZARD_LLM", config.get("enable_hazard_llm")),
+            False,
+        ),
         dispatched_at_epoch_ms=str(ecs_env.get("DISPATCHED_AT_EPOCH_MS") or ""),
     )
 
@@ -262,6 +285,8 @@ def _get_pipeline(job: WorkerJob, temp_dir: str):
             native_sampling_mode=job.native_sampling_mode,
             detector_backend=job.detector_backend,
             lane_backend=job.lane_backend,
+            enable_llm_refinement=job.enable_llm_refinement,
+            enable_hazard_llm=job.enable_hazard_llm,
         )
         _pipeline_cache[cache_key] = pipeline
         _log_timing(
@@ -275,6 +300,8 @@ def _get_pipeline(job: WorkerJob, temp_dir: str):
         pipeline.max_snapshots = job.max_snapshots
         pipeline.native_fps = job.native_fps
         pipeline.native_sampling_mode = job.native_sampling_mode
+        pipeline.enable_llm_refinement = job.enable_llm_refinement
+        pipeline.enable_hazard_llm = job.enable_hazard_llm
         pipeline.snapshot_selector.strategy = job.snapshot_strategy
         pipeline.snapshot_selector.max_snapshots = job.max_snapshots
         _log_timing("pipeline_init", 0.0, backend=job.detector_backend, mode="warm_reuse")
@@ -287,7 +314,7 @@ def _run_job(job: WorkerJob, temp_dir: str) -> None:
     from src.result_persistence import persist_frame_artefacts, put_frames_manifest_json
 
     logger.info(
-        "Worker processing job=%s input=%s output_prefix=%s backend=%s strategy=%s max=%s native_mode=%s native_fps=%s",
+        "Worker processing job=%s input=%s output_prefix=%s backend=%s strategy=%s max=%s native_mode=%s native_fps=%s llm_refinement=%s hazard_llm=%s",
         job.job_id,
         job.s3_input_key,
         job.s3_output_prefix,
@@ -296,6 +323,8 @@ def _run_job(job: WorkerJob, temp_dir: str) -> None:
         job.max_snapshots,
         job.native_sampling_mode,
         job.native_fps,
+        job.enable_llm_refinement,
+        job.enable_hazard_llm,
     )
     if job.dispatched_at_epoch_ms:
         try:

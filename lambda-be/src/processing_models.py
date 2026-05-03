@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class ProcessingConfig(BaseModel):
@@ -32,6 +32,11 @@ class ProcessingConfig(BaseModel):
     # "ufldv2" = Ultra-Fast Lane Detection V2 (default)
     # "opencv" = legacy OpenCV HSV + Hough lane detection (opt-in)
     lane_backend: str = "ufldv2"
+    # Interactive detector runs default to detector-only boxes. Enable this
+    # only for quality-oriented runs that need per-frame Bedrock refinement.
+    enable_llm_refinement: bool = False
+    # Temporal hazard LLM is also opt-in for interactive speed tests.
+    enable_hazard_llm: bool = False
 
     @field_validator("native_sampling_mode", mode="before")
     @classmethod
@@ -57,6 +62,12 @@ class ProcessingConfig(BaseModel):
                 f"detector_backend must be one of {allowed} (or legacy 'auto'), got {v!r}",
             )
         return s
+
+    @model_validator(mode="after")
+    def _drop_native_fps_outside_fps_mode(self):
+        if self.native_sampling_mode != "fps":
+            self.native_fps = None
+        return self
 
 
 class ProcessingStatus(BaseModel):

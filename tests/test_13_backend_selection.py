@@ -60,6 +60,7 @@ def test_processing_config_defaults_native_sampling_to_count():
 
     cfg = ProcessingConfig(native_fps=30)
     assert cfg.native_sampling_mode == "count"
+    assert cfg.native_fps is None
 
 
 def _stub_detect(name: str):
