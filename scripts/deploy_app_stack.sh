@@ -32,6 +32,7 @@ normalize_param() {
 CURRENT_DOMAIN_NAME="$(normalize_param "$(describe_param DomainName)")"
 CURRENT_CERTIFICATE_ARN="$(normalize_param "$(describe_param CertificateArn)")"
 CURRENT_ALLOWED_CIDR="$(normalize_param "$(describe_param AllowedAlbIngressCidr)")"
+CURRENT_ADDITIONAL_ALLOWED_CIDR="$(normalize_param "$(describe_param AdditionalAllowedAlbIngressCidr)")"
 CURRENT_FRONTEND_IMAGE_URI="$(normalize_param "$(describe_param FrontendImageUri)")"
 CURRENT_BACKEND_IMAGE_URI="$(normalize_param "$(describe_param BackendImageUri)")"
 CURRENT_WARMUP_SCHEDULE="$(normalize_param "$(describe_param LambdaWarmupScheduleExpression)")"
@@ -39,6 +40,7 @@ CURRENT_WARMUP_SCHEDULE="$(normalize_param "$(describe_param LambdaWarmupSchedul
 FRONTEND_IMAGE_URI="${FRONTEND_IMAGE_URI:-$CURRENT_FRONTEND_IMAGE_URI}"
 BACKEND_IMAGE_URI="${BACKEND_IMAGE_URI:-$CURRENT_BACKEND_IMAGE_URI}"
 ALLOWED_ALB_INGRESS_CIDR="${ALLOWED_ALB_INGRESS_CIDR:-${CURRENT_ALLOWED_CIDR:-$ALLOWED_ALB_INGRESS_CIDR_DEFAULT}}"
+ADDITIONAL_ALLOWED_ALB_INGRESS_CIDR="${ADDITIONAL_ALLOWED_ALB_INGRESS_CIDR:-$CURRENT_ADDITIONAL_ALLOWED_CIDR}"
 LAMBDA_WARMUP_SCHEDULE_EXPRESSION="${LAMBDA_WARMUP_SCHEDULE_EXPRESSION:-${CURRENT_WARMUP_SCHEDULE:-$LAMBDA_WARMUP_SCHEDULE_DEFAULT}}"
 
 if [[ -z "$FRONTEND_IMAGE_URI" ]]; then
@@ -69,6 +71,7 @@ params=(
   "DomainName=${CURRENT_DOMAIN_NAME}"
   "CertificateArn=${CURRENT_CERTIFICATE_ARN}"
   "AllowedAlbIngressCidr=${ALLOWED_ALB_INGRESS_CIDR}"
+  "AdditionalAllowedAlbIngressCidr=${ADDITIONAL_ALLOWED_ALB_INGRESS_CIDR}"
   "FrontendImageUri=${FRONTEND_IMAGE_URI}"
   "BackendImageUri=${BACKEND_IMAGE_URI}"
   "LambdaWarmupScheduleExpression=${LAMBDA_WARMUP_SCHEDULE_EXPRESSION}"

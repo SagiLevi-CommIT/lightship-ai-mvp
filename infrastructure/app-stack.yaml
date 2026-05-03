@@ -32,6 +32,11 @@ Parameters:
     Default: 176.228.16.138/32
     Description: Single operator CIDR allowed to reach the ALB
 
+  AdditionalAllowedAlbIngressCidr:
+    Type: String
+    Default: ""
+    Description: Optional second operator CIDR allowed to reach the ALB
+
   FrontendImageUri:
     Type: String
     Description: Full ECR image URI for the active frontend task definition
@@ -49,6 +54,10 @@ Conditions:
   HasDomain: !Not [!Equals [!Ref DomainName, ""]]
   HasCertificate: !Not [!Equals [!Ref CertificateArn, ""]]
   NoCertificate: !Equals [!Ref CertificateArn, ""]
+  HasAdditionalAlbIngressCidr: !Not [!Equals [!Ref AdditionalAllowedAlbIngressCidr, ""]]
+  HasCertificateAndAdditionalAlbIngressCidr: !And
+    - !Condition HasCertificate
+    - !Condition HasAdditionalAlbIngressCidr
 
 Resources:
   # ECR Repositories
@@ -232,6 +241,28 @@ Resources:
       ToPort: 443
       CidrIp: !Ref AllowedAlbIngressCidr
       Description: HTTPS from the single allowed operator CIDR
+
+  ALBIngressHTTPFromAdditionalOperator:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasAdditionalAlbIngressCidr
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: !Ref AdditionalAllowedAlbIngressCidr
+      Description: HTTP from the additional allowed operator CIDR
+
+  ALBIngressHTTPSFromAdditionalOperator:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasCertificateAndAdditionalAlbIngressCidr
+    Properties:
+      GroupId: !Ref ALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: !Ref AdditionalAllowedAlbIngressCidr
+      Description: HTTPS from the additional allowed operator CIDR
 
   ALBEgressToFrontend:
     Type: AWS::EC2::SecurityGroupEgress
