@@ -74,6 +74,12 @@ class JobManager:
             }
             if config:
                 item["config"] = config
+                item["snapshot_strategy"] = config.get("snapshot_strategy")
+                item["max_snapshots"] = config.get("max_snapshots")
+                item["native_sampling_mode"] = config.get("native_sampling_mode")
+                item["native_fps"] = config.get("native_fps")
+                item["detector_backend"] = config.get("detector_backend")
+                item["lane_backend"] = config.get("lane_backend")
             self._table.put_item(Item=item)
         except Exception as e:
             logger.warning("create_job failed for %s: %s", job_id, e)

@@ -63,6 +63,23 @@ export type BackendVideoOutput = {
   video_duration_ms: number;
   objects: BackendObjectLabel[];
   hazard_events: BackendHazardEvent[];
+  run_metadata?: BackendRunMetadata;
+  vision_audit?: {
+    backend?: string;
+    lane_backend?: string;
+    frames_evaluated?: number;
+  };
+};
+
+export type BackendRunMetadata = {
+  filename?: string;
+  snapshot_strategy?: string;
+  frame_selection_method?: string;
+  max_snapshots?: number | string;
+  native_sampling_mode?: string;
+  native_fps?: number | string | null;
+  detector_backend?: string;
+  lane_backend?: string | null;
 };
 
 export type ClientConfigsBundle = {
@@ -84,7 +101,12 @@ export type BackendJobRow = {
   input_type?: string;
   max_snapshots?: number;
   snapshot_strategy?: string;
+  native_sampling_mode?: string;
+  native_fps?: number | string | null;
+  detector_backend?: string;
+  lane_backend?: string;
   error_message?: string;
+  config?: BackendRunMetadata;
 };
 
 export class ApiError extends Error {

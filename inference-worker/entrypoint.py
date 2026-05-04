@@ -151,6 +151,33 @@ def _ddb_complete(job: WorkerJob, output_json_key: str) -> None:
         logger.warning("DynamoDB COMPLETED update failed for job=%s: %s", job.job_id, exc)
 
 
+def _ddb_set_run_metadata(job: WorkerJob) -> None:
+    try:
+        expr = (
+            "SET detector_backend = :db, lane_backend = :lb, "
+            "snapshot_strategy = :ss, max_snapshots = :ms, "
+            "native_sampling_mode = :nsm"
+        )
+        vals: dict[str, dict[str, str]] = {
+            ":db": {"S": job.detector_backend},
+            ":lb": {"S": job.lane_backend},
+            ":ss": {"S": job.snapshot_strategy},
+            ":ms": {"N": str(job.max_snapshots)},
+            ":nsm": {"S": job.native_sampling_mode},
+        }
+        if job.native_fps is not None:
+            expr += ", native_fps = :nf"
+            vals[":nf"] = {"N": str(job.native_fps)}
+        _ddb.update_item(
+            TableName=DYNAMODB_TABLE,
+            Key={"job_id": {"S": job.job_id}},
+            UpdateExpression=expr,
+            ExpressionAttributeValues=vals,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("DynamoDB run metadata update failed for job=%s: %s", job.job_id, exc)
+
+
 _S3_EXTRA_JSON = {
     "ServerSideEncryption": "aws:kms",
     "ContentType": "application/json",
@@ -345,6 +372,7 @@ def _run_job(job: WorkerJob, temp_dir: str) -> None:
         except ValueError:
             logger.warning("Invalid dispatched_at_epoch_ms=%s", job.dispatched_at_epoch_ms)
 
+    _ddb_set_run_metadata(job)
     _ddb_update(job.job_id, "PROCESSING", 0.02)
 
     filename = job.s3_input_key.split("/")[-1]

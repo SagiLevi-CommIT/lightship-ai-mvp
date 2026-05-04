@@ -501,6 +501,11 @@ async def process_video(
         input_type="video",
         snapshot_strategy=proc_config.snapshot_strategy,
         max_snapshots=proc_config.max_snapshots,
+        native_sampling_mode=proc_config.native_sampling_mode,
+        native_fps=proc_config.native_fps,
+        detector_backend=proc_config.detector_backend,
+        lane_backend=proc_config.lane_backend,
+        config=proc_config.model_dump(mode="json"),
     )
     logger.info(f"Job {job_id} queued for video: {filename}")
 
@@ -1127,6 +1132,11 @@ async def process_s3_video(payload: Dict[str, Any]):
         source_key=key,
         snapshot_strategy=proc_config.snapshot_strategy,
         max_snapshots=proc_config.max_snapshots,
+        native_sampling_mode=proc_config.native_sampling_mode,
+        native_fps=proc_config.native_fps,
+        detector_backend=proc_config.detector_backend,
+        lane_backend=proc_config.lane_backend,
+        config=proc_config.model_dump(mode="json"),
     )
 
     dispatch_path = _enqueue_job(job_id, target_key, filename, proc_config)
@@ -1293,6 +1303,11 @@ def batch_process(request: _BatchRequest):
                 input_type="batch",
                 snapshot_strategy=cfg.snapshot_strategy,
                 max_snapshots=cfg.max_snapshots,
+                native_sampling_mode=cfg.native_sampling_mode,
+                native_fps=cfg.native_fps,
+                detector_backend=cfg.detector_backend,
+                lane_backend=cfg.lane_backend,
+                config=cfg.model_dump(mode="json"),
             )
             dispatch_path = _enqueue_job(job_id, s3_key, filename, cfg)
             all_jobs.append({

@@ -10,6 +10,7 @@ import {
   getVideoClass,
   listBackendJobs,
   type BackendJobRow,
+  type BackendRunMetadata,
   type BackendVideoOutput,
   type ClientConfigsBundle,
   type FrameManifest,
@@ -48,6 +49,107 @@ const statusClass = (s: string) => {
   if (u === 'PROCESSING' || u === 'QUEUED') return 'bg-cyan-500/20 text-cyan-200';
   return 'bg-slate-700 text-slate-300';
 };
+
+const detectorLabel = (backend?: string | null) => {
+  const key = (backend || '').toLowerCase();
+  if (key === 'florence2') return 'Florence-2';
+  if (key === 'yolo') return 'YOLO11';
+  if (key === 'detectron2') return 'Detectron2';
+  if (key === 'v1_scene_labeler') return 'V1 scene labeler';
+  return backend || 'Unknown model';
+};
+
+const compactNumber = (value?: number | string | null) => {
+  if (value === null || value === undefined || value === '') return '';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(2)));
+};
+
+const buildRunMetadata = (
+  job: BackendJobRow | null,
+  detail: RunDetail | null,
+): BackendRunMetadata => {
+  const fromOutput = detail?.bv.run_metadata ?? {};
+  const fromConfig = job?.config ?? {};
+  return {
+    filename: fromOutput.filename ?? detail?.bv.filename ?? job?.filename,
+    snapshot_strategy:
+      fromOutput.snapshot_strategy ??
+      fromOutput.frame_selection_method ??
+      job?.snapshot_strategy ??
+      fromConfig.snapshot_strategy,
+    frame_selection_method:
+      fromOutput.frame_selection_method ??
+      fromOutput.snapshot_strategy ??
+      job?.snapshot_strategy ??
+      fromConfig.frame_selection_method,
+    max_snapshots: fromOutput.max_snapshots ?? job?.max_snapshots ?? fromConfig.max_snapshots,
+    native_sampling_mode:
+      fromOutput.native_sampling_mode ??
+      job?.native_sampling_mode ??
+      fromConfig.native_sampling_mode,
+    native_fps: fromOutput.native_fps ?? job?.native_fps ?? fromConfig.native_fps,
+    detector_backend:
+      fromOutput.detector_backend ??
+      detail?.bv.vision_audit?.backend ??
+      job?.detector_backend ??
+      fromConfig.detector_backend,
+    lane_backend: fromOutput.lane_backend ?? job?.lane_backend ?? fromConfig.lane_backend,
+  };
+};
+
+const frameSelectionLabel = (meta: BackendRunMetadata) => {
+  const strategy = (meta.snapshot_strategy ?? meta.frame_selection_method ?? '')
+    .toLowerCase()
+    .replace(/-/g, '_');
+  const max = compactNumber(meta.max_snapshots);
+  const nativeMode = (meta.native_sampling_mode ?? '').toLowerCase();
+  const fps = compactNumber(meta.native_fps);
+
+  if (strategy === 'scene_change') {
+    return `Scene Change${max ? ` / ${max} frame${max === '1' ? '' : 's'}` : ''}`;
+  }
+  if (strategy === 'naive' || strategy === 'native') {
+    if (nativeMode === 'fps') {
+      return `Native / ${fps || 'FPS'} FPS`;
+    }
+    return `Native / ${max || 'count'} frame${max === '1' ? '' : 's'}`;
+  }
+  if (strategy === 'clustering') {
+    return `Clustering${max ? ` / ${max} frame${max === '1' ? '' : 's'}` : ''}`;
+  }
+  return 'Unknown selection';
+};
+
+function RunSummaryCard({
+  job,
+  detail,
+}: {
+  job: BackendJobRow;
+  detail: RunDetail | null;
+}) {
+  const meta = buildRunMetadata(job, detail);
+  const items = [
+    { label: 'Video', value: meta.filename ?? job.job_id },
+    { label: 'Frame selection', value: frameSelectionLabel(meta) },
+    { label: 'Model', value: detectorLabel(meta.detector_backend) },
+  ];
+  return (
+    <div className="grid gap-3 rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-4 sm:grid-cols-3">
+      {items.map((item) => (
+        <div key={item.label} className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            {item.label}
+          </p>
+          <p className="mt-1 truncate text-sm font-semibold text-white" title={item.value}>
+            {item.value}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function HistoryPage() {
   const { clearHistory, state } = useEvaluationFlow();
@@ -217,6 +319,7 @@ export default function HistoryPage() {
               <div className="mt-4 grid max-h-[72vh] gap-2 overflow-y-auto pr-1">
                 {backendJobs.map((job) => {
                   const isSelected = job.job_id === selectedJobId;
+                  const meta = buildRunMetadata(job, null);
                   return (
                     <button
                       key={job.job_id}
@@ -233,11 +336,19 @@ export default function HistoryPage() {
                       >
                         {job.status}
                       </span>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-white">{job.filename ?? job.job_id.slice(0, 8)}</p>
                         <p className="mt-0.5 truncate text-[11px] text-slate-500">
                           {job.job_id.slice(0, 8)} · {formatRunTime(job.created_at)}
                         </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <span className="rounded-md bg-slate-800/90 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                            {frameSelectionLabel(meta)}
+                          </span>
+                          <span className="rounded-md bg-slate-800/90 px-2 py-0.5 text-[10px] font-semibold text-slate-300">
+                            {detectorLabel(meta.detector_backend)}
+                          </span>
+                        </div>
                       </div>
                     </button>
                   );
@@ -251,6 +362,7 @@ export default function HistoryPage() {
             </aside>
 
             <div className="space-y-6">
+              {selectedJob ? <RunSummaryCard job={selectedJob} detail={detail} /> : null}
               {!selectedJob ? (
                 <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/78 p-8 text-center text-sm text-slate-400">
                   Select a job from the list to review results.

@@ -226,18 +226,35 @@ class Pipeline:
                 video_metadata, all_objects, hazard_events, inferred_metadata if self.use_cv_labeler else {}
             )
 
-            # Inject the VisionLabeler audit trail into output.json so every
-            # completed run carries a per-frame record of which backend ran,
-            # what it returned, and whether the Detectron2 fallback was used.
+            # Inject run metadata and the VisionLabeler audit trail into
+            # output.json so completed runs carry the config needed by the UI.
             import json as _json
-            if self.use_cv_labeler and self.vision_labeler is not None:
-                try:
-                    with open(output_path, "r", encoding="utf-8") as fp:
-                        output_doc = _json.load(fp)
+            try:
+                with open(output_path, "r", encoding="utf-8") as fp:
+                    output_doc = _json.load(fp)
+                configured_backend = (
+                    getattr(self.vision_labeler, "detector_backend", "unknown")
+                    if self.use_cv_labeler and self.vision_labeler is not None
+                    else "v1_scene_labeler"
+                )
+                output_doc["run_metadata"] = {
+                    "filename": video_metadata.filename,
+                    "snapshot_strategy": self.snapshot_strategy,
+                    "frame_selection_method": self.snapshot_strategy,
+                    "max_snapshots": self.max_snapshots,
+                    "native_sampling_mode": self.native_sampling_mode,
+                    "native_fps": self.native_fps,
+                    "detector_backend": configured_backend,
+                    "lane_backend": (
+                        getattr(self.vision_labeler, "lane_backend", "unknown")
+                        if self.use_cv_labeler and self.vision_labeler is not None
+                        else None
+                    ),
+                    "enable_llm_refinement": self.enable_llm_refinement,
+                    "enable_hazard_llm": self.enable_hazard_llm,
+                }
+                if self.use_cv_labeler and self.vision_labeler is not None:
                     per_frame = self.vision_labeler.build_audit()
-                    configured_backend = getattr(
-                        self.vision_labeler, "detector_backend", "unknown",
-                    )
                     output_doc["vision_audit"] = {
                         "frames_evaluated": len(per_frame),
                         "total_instances_kept": sum(
@@ -252,11 +269,11 @@ class Pipeline:
                         ),
                         "per_frame": per_frame,
                     }
-                    output_doc["pipeline_timings_ms"] = dict(self.last_timing_ms)
-                    with open(output_path, "w", encoding="utf-8") as fp:
-                        _json.dump(output_doc, fp, indent=2)
-                except Exception as audit_err:
-                    logger.warning("Failed to embed vision_audit: %s", audit_err)
+                output_doc["pipeline_timings_ms"] = dict(self.last_timing_ms)
+                with open(output_path, "w", encoding="utf-8") as fp:
+                    _json.dump(output_doc, fp, indent=2)
+            except Exception as audit_err:
+                logger.warning("Failed to embed run metadata: %s", audit_err)
 
             # Get summary stats
             from src.schemas import VideoOutput
