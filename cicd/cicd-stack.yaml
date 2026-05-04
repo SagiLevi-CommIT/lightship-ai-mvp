@@ -134,6 +134,8 @@ Resources:
                 Action:
                   - codebuild:CreateReportGroup
                   - codebuild:UpdateReportGroup
+                  - codebuild:CreateReport
+                  - codebuild:UpdateReport
                   - codebuild:BatchPutTestCases
                   - codebuild:BatchPutCodeCoverages
                 Resource: !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/*'
@@ -215,6 +217,8 @@ Resources:
                 Action:
                   - codebuild:CreateReportGroup
                   - codebuild:UpdateReportGroup
+                  - codebuild:CreateReport
+                  - codebuild:UpdateReport
                   - codebuild:BatchPutTestCases
                   - codebuild:BatchPutCodeCoverages
                 Resource: !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/*'
@@ -246,6 +250,7 @@ Resources:
                   - ecs:DescribeClusters
                   - ecs:DescribeTaskDefinition
                   - ecs:RegisterTaskDefinition
+                  - ecs:DeregisterTaskDefinition
                   - ecs:TagResource
                   - ecs:UntagResource
                   - ecs:UpdateService
