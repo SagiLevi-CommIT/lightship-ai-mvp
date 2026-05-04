@@ -228,6 +228,15 @@ export async function listBackendJobs(limit = 50): Promise<BackendJobRow[]> {
   return data.jobs;
 }
 
+/** Delete every job in DynamoDB and remove ``results/{job_id}/`` (+ ``input/videos/{job_id}/``) in S3. */
+export async function purgeAllBackendJobs(): Promise<{
+  deleted_jobs: number;
+  s3_results_objects_removed: number;
+  s3_input_objects_removed: number;
+}> {
+  return json('/jobs', { method: 'DELETE' });
+}
+
 export async function processImage(file: File): Promise<{
   filename: string;
   camera: string;

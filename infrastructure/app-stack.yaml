@@ -472,6 +472,14 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
+              # Processing bucket: delete_objects used by DELETE /jobs bulk purge.
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}/*'
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -480,7 +488,6 @@ Resources:
                   - !Sub '${LanceDBBucket.Arn}/*'
                   - !Sub '${ConversationResultsBucket.Arn}/*'
                   - !Sub 'arn:aws:s3:::s3-${ProjectName}-custom-datasources-${AWS::Region}/*'
-                  - !Sub 'arn:aws:s3:::${ProjectName}-${Environment}-processing-${AWS::AccountId}/*'
               - Effect: Allow
                 Action:
                   - s3:ListBucket

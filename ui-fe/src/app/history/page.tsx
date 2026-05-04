@@ -9,6 +9,7 @@ import {
   getOutputJson,
   getVideoClass,
   listBackendJobs,
+  purgeAllBackendJobs,
   type BackendJobRow,
   type BackendRunMetadata,
   type BackendVideoOutput,
@@ -159,6 +160,7 @@ export default function HistoryPage() {
   const [detail, setDetail] = useState<RunDetail | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [purgeBusy, setPurgeBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -270,27 +272,62 @@ export default function HistoryPage() {
               annotated frames and structured output.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-lg bg-white/10 px-3 py-1.5 text-sm font-semibold text-slate-200">
               {backendJobs.length} job{backendJobs.length === 1 ? '' : 's'}
             </span>
+            <button
+              type="button"
+              disabled={purgeBusy || backendJobs.length === 0}
+              onClick={() => {
+                if (typeof window === 'undefined' || backendJobs.length === 0) return;
+                const ok = window.confirm(
+                  'Delete ALL jobs from the server?\n\n' +
+                    'This removes every row in DynamoDB and deletes result folders in S3 ' +
+                    '(results/{job_id}/ and input/videos/{job_id}/). ' +
+                    'Your browser session history will also be cleared.\n\n' +
+                    'This cannot be undone.',
+                );
+                if (!ok) return;
+                setPurgeBusy(true);
+                void (async () => {
+                  try {
+                    await purgeAllBackendJobs();
+                    clearHistory();
+                    setBackendJobs([]);
+                    setSelectedJobId(null);
+                    setDetail(null);
+                    setDetailError(null);
+                  } catch (e) {
+                    console.error('purgeAllBackendJobs failed', e);
+                    window.alert(
+                      e instanceof Error ? e.message : 'Failed to clear jobs on the server.',
+                    );
+                  } finally {
+                    setPurgeBusy(false);
+                  }
+                })();
+              }}
+              className="rounded-full border border-rose-400/40 bg-rose-500/15 px-5 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {purgeBusy ? 'Clearing…' : 'Clear all jobs'}
+            </button>
             {state.historicalRuns.length > 0 ? (
               <button
                 type="button"
+                disabled={purgeBusy}
                 onClick={() => {
                   if (typeof window === 'undefined') return;
                   const ok = window.confirm(
-                    'Clear local run history?\n\n' +
-                      'This removes session history stored in your browser only. ' +
-                      'Backend job records in DynamoDB are preserved.',
+                    'Clear browser-only session history?\n\n' +
+                      'Does not delete DynamoDB or S3; use “Clear all jobs” for that.',
                   );
                   if (!ok) return;
                   clearHistory();
-                  setSelectedJobId(null);
                 }}
-                className="rounded-full border border-rose-400/30 bg-rose-500/10 px-5 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
+                className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 disabled:opacity-40"
               >
-                Clear local history
+                Clear browser session
               </button>
             ) : null}
           </div>

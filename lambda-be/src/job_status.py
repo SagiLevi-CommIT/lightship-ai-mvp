@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -248,3 +248,40 @@ def read_status(job_id: str) -> Optional[Dict[str, Any]]:
 def clear() -> None:
     """Clear the in-memory warm cache (used by unit tests between runs)."""
     processing_status.clear()
+
+
+def scan_all_job_ids() -> List[str]:
+    """Return every ``job_id`` in DynamoDB (paginated scan).
+
+    Used by destructive bulk-delete tooling; returns an empty list when no
+    table is bound.
+    """
+    if _jobs_table is None:
+        return []
+    ids: List[str] = []
+    kwargs: Dict[str, Any] = {}
+    try:
+        while True:
+            resp = _jobs_table.scan(ProjectionExpression="job_id", **kwargs)
+            for item in resp.get("Items", []) or []:
+                jid = item.get("job_id")
+                if jid is not None:
+                    ids.append(str(jid))
+            lek = resp.get("LastEvaluatedKey")
+            if not lek:
+                break
+            kwargs["ExclusiveStartKey"] = lek
+    except Exception as e:  # noqa: BLE001
+        logger.warning("DynamoDB scan for job ids failed: %s", e)
+    return ids
+
+
+def delete_job(job_id: str) -> None:
+    """Remove a job from the warm cache and delete its DynamoDB row."""
+    processing_status.pop(job_id, None)
+    if _jobs_table is None:
+        return
+    try:
+        _jobs_table.delete_item(Key={"job_id": job_id})
+    except Exception as e:  # noqa: BLE001
+        logger.warning("DynamoDB delete_item failed for %s: %s", job_id, e)

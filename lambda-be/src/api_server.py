@@ -379,6 +379,71 @@ def health_check():
     return {"status": "healthy"}
 
 
+def _delete_s3_prefix(prefix: str) -> int:
+    """Delete every object under ``prefix`` in ``PROCESSING_BUCKET``.
+
+    Returns the number of objects removed (best-effort; stops counting on client errors).
+    """
+    if not prefix or _s3_client is None:
+        return 0
+    deleted = 0
+    paginator = _s3_client.get_paginator("list_objects_v2")
+    try:
+        for page in paginator.paginate(Bucket=PROCESSING_BUCKET, Prefix=prefix):
+            contents = page.get("Contents") or []
+            if not contents:
+                continue
+            keys = [{"Key": obj["Key"]} for obj in contents]
+            for i in range(0, len(keys), 1000):
+                batch = keys[i : i + 1000]
+                _s3_client.delete_objects(
+                    Bucket=PROCESSING_BUCKET,
+                    Delete={"Objects": batch, "Quiet": True},
+                )
+            deleted += len(keys)
+    except ClientError as e:
+        logger.warning("S3 bulk delete failed for prefix %s: %s", prefix, e)
+    return deleted
+
+
+def _purge_job_storage(job_id: str) -> Dict[str, int]:
+    """Remove persisted artefacts for ``job_id`` under ``results/`` and ``input/videos/{id}/``."""
+    results_n = _delete_s3_prefix(f"{RESULTS_PREFIX}/{job_id}/")
+    input_n = _delete_s3_prefix(f"input/videos/{job_id}/")
+    return {"results_objects_deleted": results_n, "input_objects_deleted": input_n}
+
+
+@app.delete("/jobs")
+def purge_all_jobs():
+    """Remove every DynamoDB job row and delete matching S3 prefixes.
+
+    Clears this Lambda instance's in-memory ``processing_results`` / status cache.
+    **Destructive** — intended for the History UI "clear all" control.
+    """
+    logger.warning("DELETE /jobs invoked — bulk purge of all jobs")
+    if _jobs_table is None:
+        raise HTTPException(
+            status_code=503,
+            detail="DynamoDB not configured; cannot purge server-side history.",
+        )
+    job_ids = job_status.scan_all_job_ids()
+    total_results = 0
+    total_input = 0
+    for jid in job_ids:
+        counts = _purge_job_storage(jid)
+        total_results += counts["results_objects_deleted"]
+        total_input += counts["input_objects_deleted"]
+        job_status.delete_job(jid)
+        processing_results.pop(jid, None)
+    processing_results.clear()
+    job_status.clear()
+    return {
+        "deleted_jobs": len(job_ids),
+        "s3_results_objects_removed": total_results,
+        "s3_input_objects_removed": total_input,
+    }
+
+
 @app.get("/jobs")
 def list_jobs(limit: int = 50):
     """List recent jobs from DynamoDB, sorted by created_at descending."""
